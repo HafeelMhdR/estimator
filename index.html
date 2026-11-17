@@ -16,19 +16,6 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    <!-- Global Unit List for Inputs -->
-    <datalist id="unitList">
-        <option value="ITEM">
-        <option value="HRS">
-        <option value="NO">
-        <option value="SQM">
-        <option value="Cu.M">
-        <option value="LM">
-        <option value="LS">
-        <option value="SET">
-        <option value="DAYS">
-    </datalist>
-
     <header class="bg-slate-900 text-white shadow-md no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
             <div class="flex items-center space-x-3">
@@ -222,9 +209,8 @@
                                 <th class="p-2 border border-blue-800 text-center w-12">#</th>
                                 <th class="p-2 border border-blue-800 w-24">Item Code</th>
                                 <th class="p-2 border border-blue-800">Description</th>
-                                <th class="p-2 border border-blue-800 w-12 text-center">Qty</th>
-                                <th class="p-2 border border-blue-800 w-12 text-center">Hrs</th>
                                 <th class="p-2 border border-blue-800 w-16 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Qty</th>
                                 <th class="p-2 border border-blue-800 w-20 text-right">Int. Cost</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">OH %</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">PR %</th>
@@ -791,7 +777,7 @@
                 <td class="p-1 border text-center"></td>
                 <td class="p-1 border text-center font-bold text-base item-num"></td>
                 <td class="p-1 border text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
-                <td class="p-1 border" colspan="10"><input type="text" class="w-full bg-transparent font-bold text-base px-2 py-1 cat-title outline-none" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
+                <td class="p-1 border" colspan="9"><input type="text" class="w-full bg-transparent font-bold text-base px-2 py-1 cat-title outline-none" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
                 <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
             `;
             tbody.appendChild(tr); recalculateEstimation();
@@ -804,14 +790,27 @@
             let opt = '<option value="">Select...</option>'; db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
             
             const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
+            
+            // REMOVED HRS COLUMN completely
             tr.innerHTML = `
                 <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
                 <td class="p-1 border text-center font-bold item-num"></td>
                 <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
                 <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
+                <td class="p-1 border text-center">
+                    <select class="w-full border rounded p-1 text-center item-unit">
+                        <option value="ITEM">ITEM</option>
+                        <option value="HRS">HRS</option>
+                        <option value="NO">NO</option>
+                        <option value="SQM">SQM</option>
+                        <option value="Cu.M">Cu.M</option>
+                        <option value="LM">LM</option>
+                        <option value="LS">LS</option>
+                        <option value="SET">SET</option>
+                        <option value="DAYS">DAYS</option>
+                    </select>
+                </td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="recalculateEstimation()"></td>
-                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-time" value="1" oninput="recalculateEstimation()"></td>
-                <td class="p-1 border"><input type="text" list="unitList" class="w-full border rounded p-1 text-center item-unit" value="ITEM"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="recalculateEstimation()"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="recalculateEstimation()"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="recalculateEstimation()"></td>
@@ -838,14 +837,13 @@
                     tr.querySelector('.item-num').innerText = catNum > 0 ? `${catNum}.${numStr}` : itemNum;
                     
                     const qty = parseFloat(tr.querySelector('.item-qty').value||0);
-                    const time = parseFloat(tr.querySelector('.item-time').value||0);
                     const cost = parseFloat(tr.querySelector('.item-cost').value||0);
                     const oh = parseFloat(tr.querySelector('.item-oh').value||0) / 100;
                     const pr = parseFloat(tr.querySelector('.item-pr').value||0) / 100;
                     
                     const price = cost * (1 + oh + pr);
-                    const lineCost = qty * time * cost;
-                    const lineTotal = qty * time * price;
+                    const lineCost = qty * cost; // Removed Time multiplication
+                    const lineTotal = qty * price; // Removed Time multiplication
                     
                     tr.querySelector('.item-price').value = price.toFixed(2);
                     tr.querySelector('.item-total').innerText = formatMoney(lineTotal);
@@ -874,8 +872,8 @@
                     items.push({ 
                         type: 'item',
                         code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value, 
-                        qty: tr.querySelector('.item-qty').value, time: tr.querySelector('.item-time').value, 
-                        unit: tr.querySelector('.item-unit').value, cost: tr.querySelector('.item-cost').value, 
+                        unit: tr.querySelector('.item-unit').value, qty: tr.querySelector('.item-qty').value, 
+                        cost: tr.querySelector('.item-cost').value, 
                         oh: tr.querySelector('.item-oh').value, pr: tr.querySelector('.item-pr').value,
                         price: tr.querySelector('.item-price').value 
                     });
@@ -885,13 +883,15 @@
             saveData(); alert("Estimation saved!"); renderEstimationChecklist();
         }
 
+        // Updated Excel Export (Removed Hrs column)
         function exportEstimationExcel() {
             const wb = XLSX.utils.book_new();
+            const curr = db.company.currency;
             let wsData = [
                 [`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],
                 [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
                 [],
-                ["#", "CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", `INT. COST (${db.company.currency})`, "OH %", "PR %", `CLIENT PRICE (${db.company.currency})`, `CLIENT TOTAL (${db.company.currency})`, `INTERNAL TOTAL (${db.company.currency})`]
+                ["#", "CODE", "DESCRIPTION", "UNIT", "QTY", `INT. COST (${curr})`, "OH %", "PR %", `CLIENT PRICE (${curr})`, `CLIENT TOTAL (${curr})`, `INTERNAL TOTAL (${curr})`]
             ];
             let cNum = 0, iNum = 0, headerRow = 4;
             
@@ -899,48 +899,92 @@
                 const r = headerRow + 1 + wsData.length - 4; 
                 if(tr.classList.contains('category-row')) {
                     cNum++; iNum = 0;
-                    wsData.push([cNum, "", tr.querySelector('.cat-title').value, "", "", "", "", "", "", "", "", ""]);
+                    wsData.push([cNum, "", tr.querySelector('.cat-title').value, "", "", "", "", "", "", "", ""]);
                 } else {
                     iNum++; let numStr = iNum < 10 ? `0${iNum}` : iNum;
                     let displayNum = cNum > 0 ? `${cNum}.${numStr}` : iNum;
                     wsData.push([
                         displayNum, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, 
-                        parseFloat(tr.querySelector('.item-qty').value), parseFloat(tr.querySelector('.item-time').value), 
-                        tr.querySelector('.item-unit').value, parseFloat(tr.querySelector('.item-cost').value),
+                        tr.querySelector('.item-unit').value, parseFloat(tr.querySelector('.item-qty').value), 
+                        parseFloat(tr.querySelector('.item-cost').value),
                         parseFloat(tr.querySelector('.item-oh').value) / 100, parseFloat(tr.querySelector('.item-pr').value) / 100,
-                        {t:'n', f:`G${r}*(1+H${r}+I${r})`}, {t:'n', f:`D${r}*E${r}*J${r}`}, {t:'n', f:`D${r}*E${r}*G${r}`}
+                        {t:'n', f:`F${r}*(1+G${r}+H${r})`}, {t:'n', f:`E${r}*I${r}`}, {t:'n', f:`E${r}*F${r}`}
                     ]);
                 }
             });
             const endRow = headerRow + wsData.length - 4;
             wsData.push([]); 
-            wsData.push(["", "", "", "", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(K5:K${endRow})`}]); 
-            wsData.push(["", "", "", "", "", "", "", "", "", "VAT 15%", {t:'n', f:`K${endRow+2}*0.15`}]); 
-            wsData.push(["", "", "", "", "", "", "", "", "", "Grand Total", {t:'n', f:`K${endRow+2}+K${endRow+3}`}]);
+            wsData.push(["", "", "", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(J5:J${endRow})`}]); 
+            wsData.push(["", "", "", "", "", "", "", "", "VAT 15%", {t:'n', f:`J${endRow+2}*0.15`}]); 
+            wsData.push(["", "", "", "", "", "", "", "", "Grand Total", {t:'n', f:`J${endRow+2}+J${endRow+3}`}]);
             
-            const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:L${endRow}` };
-            for(let i=5; i<=endRow; i++) { if(ws[`H${i}`]) ws[`H${i}`].z = '0%'; if(ws[`I${i}`]) ws[`I${i}`].z = '0%'; }
+            const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:K${endRow}` };
+            for(let i=5; i<=endRow; i++) { if(ws[`G${i}`]) ws[`G${i}`].z = '0%'; if(ws[`H${i}`]) ws[`H${i}`].z = '0%'; }
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
+        // Updated PDF Export (Landscape, Clean Columns, Subtotals)
         function exportEstimationPDF() {
-            const { jsPDF } = window.jspdf; const doc = new jsPDF();
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF({ orientation: "landscape" }); // Switched to Landscape to fix squishing
+            const curr = db.company.currency;
+            
             doc.setFontSize(16); doc.text(`${db.company.name} - Estimation`, 14, 15);
             doc.setFontSize(10); doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 22); doc.text(`Client: ${document.getElementById('estClientSelect').value}`, 14, 28);
+            
             let rows = []; let cNum=0, iNum=0;
-            document.querySelectorAll('.estimation-row').forEach((tr) => {
+            let currentCatTotal = 0;
+            
+            document.querySelectorAll('.estimation-row').forEach((tr, index, array) => {
                 if(tr.classList.contains('category-row')) {
-                    cNum++; iNum=0; rows.push([{content: `${cNum}. ${tr.querySelector('.cat-title').value}`, colSpan: 8, styles: {fillColor: [241,245,249], fontStyle: 'bold'}}]);
+                    // Before starting a new category, print subtotal for the previous one if it exists
+                    if (cNum > 0) {
+                        rows.push([{content: 'Category Subtotal', colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatMoney(currentCatTotal), styles: {fontStyle: 'bold'}}]);
+                    }
+                    cNum++; iNum=0; currentCatTotal = 0; 
+                    rows.push([{content: `${cNum}. ${tr.querySelector('.cat-title').value}`, colSpan: 7, styles: {fillColor: [241,245,249], fontStyle: 'bold'}}]);
                 } else {
                     iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                    const q = parseFloat(tr.querySelector('.item-qty').value), t = parseFloat(tr.querySelector('.item-time').value), p = parseFloat(tr.querySelector('.item-price').value);
-                    rows.push([dNum, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, q, t, tr.querySelector('.item-unit').value, formatMoney(p), formatMoney(q*t*p)]);
+                    const q = parseFloat(tr.querySelector('.item-qty').value);
+                    const p = parseFloat(tr.querySelector('.item-price').value);
+                    const t = q * p;
+                    currentCatTotal += t;
+                    rows.push([dNum, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, tr.querySelector('.item-unit').value, q, p.toFixed(2), t.toFixed(2)]);
+                }
+                
+                // If it's the last row, print the final category subtotal
+                if (index === array.length - 1 && cNum > 0) {
+                    rows.push([{content: 'Category Subtotal', colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatMoney(currentCatTotal), styles: {fontStyle: 'bold'}}]);
                 }
             });
-            doc.autoTable({ startY: 35, headStyles: { fillColor: [30, 58, 138] }, head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', `Price (${db.company.currency})`, `Total (${db.company.currency})`]], body: rows });
+            
+            doc.autoTable({ 
+                startY: 35, 
+                headStyles: { fillColor: [30, 58, 138] }, 
+                head: [['#', 'Code', 'Description', 'Unit', 'Qty', `Price (${curr})`, `Total (${curr})`]], 
+                body: rows,
+                columnStyles: {
+                    0: {cellWidth: 15}, 1: {cellWidth: 25}, 2: {cellWidth: 100}, // Give description plenty of room
+                    3: {cellWidth: 20}, 4: {cellWidth: 20}, 5: {cellWidth: 35}, 6: {cellWidth: 35}
+                }
+            });
+            
+            // Add Grand Totals below the table
+            let finalY = doc.lastAutoTable.finalY + 10;
+            const globalSub = document.getElementById('summarySubtotal').innerText;
+            const globalVat = document.getElementById('summaryVat').innerText;
+            const globalGrand = document.getElementById('summaryGrandTotal').innerText;
+            
+            doc.setFontSize(10);
+            doc.text(`Subtotal: ${globalSub}`, 200, finalY);
+            doc.text(`VAT (15%): ${globalVat}`, 200, finalY + 7);
+            doc.setFontSize(12); doc.setFont(undefined, 'bold');
+            doc.text(`Grand Total: ${globalGrand}`, 200, finalY + 15);
+
             doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
+        // Operations 
         function importEstimationForBudget(event) {
             const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -949,8 +993,8 @@
                 const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
                 let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
                 rows.forEach(r => {
-                    if(r[1] && r[11]) { 
-                        const costTotal = r[11] || 0; 
+                    if(r[1] && r[10]) {  // Updated index to 10 for Internal Total Cost
+                        const costTotal = r[10] || 0; 
                         html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=parseFloat(rem).toFixed(2) + ' ${db.company.currency}';c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${formatMoney(costTotal)}</td></tr>`;
                     }
                 });
@@ -998,7 +1042,7 @@
                 const est = db.estimations[chk.value]; scopes.push(est.title);
                 let estTotal = 0;
                 
-                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.time * i.price); });
+                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); }); // Removed Time
 
                 if (mode === 'milestone') {
                     globalSubtotal += estTotal; 
@@ -1006,13 +1050,13 @@
                     let catTotal = 0; let currentCat = ""; let cNum = 0;
                     est.items.forEach((item, index) => {
                         if (item.type === 'category') {
-                            if(currentCat !== "") { tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="5"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal; }
+                            if(currentCat !== "") { tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="4"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal; }
                             currentCat = item.title; catTotal = 0; cNum++;
                         } else {
-                            catTotal += (item.qty * item.time * item.price);
+                            catTotal += (item.qty * item.price);
                         }
                         if (index === est.items.length - 1 && currentCat !== "") {
-                            tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="5"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal;
+                            tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="4"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal;
                         }
                     });
                 } else {
@@ -1023,7 +1067,7 @@
                             tbody.innerHTML += `<tr class="border-b bg-slate-100 font-bold"><td class="p-2 border text-center">${cNum}</td><td class="p-2 border" colspan="6">${item.title}</td></tr>`;
                         } else {
                             iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                            const total = item.qty * item.time * item.price; globalSubtotal += total;
+                            const total = item.qty * item.price; globalSubtotal += total;
                             tbody.innerHTML += `<tr class="border-b"><td class="p-2 border text-center">${dNum}</td><td class="p-2 border">${item.code}</td><td class="p-2 border">${item.desc}</td><td class="p-2 border text-center">${item.unit}</td><td class="p-2 border text-center">${item.qty}</td><td class="p-2 border text-right font-mono">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border text-right font-bold font-mono">${formatMoney(total)}</td></tr>`;
                         }
                     });
@@ -1046,14 +1090,15 @@
 
         function generateProformaExcel() {
             const wb = XLSX.utils.book_new();
-            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${db.company.currency})`, `TOTAL (${db.company.currency})`]];
+            const curr = db.company.currency;
+            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
             
             const mode = document.querySelector('input[name="billMode"]:checked').value;
             let globalSubtotal = 0;
 
             document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
                 const est = db.estimations[chk.value]; let estTotal = 0;
-                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.time * i.price); });
+                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
 
                 if (mode === 'milestone') {
                     globalSubtotal += estTotal;
@@ -1063,7 +1108,7 @@
                         if (item.type === 'category') {
                             if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", "", catTotal]); globalSubtotal += catTotal; }
                             currentCat = item.title; catTotal = 0; cNum++;
-                        } else { catTotal += (item.qty * item.time * item.price); }
+                        } else { catTotal += (item.qty * item.price); }
                         if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", "", catTotal]); globalSubtotal += catTotal; }
                     });
                 } else {
@@ -1072,7 +1117,7 @@
                         if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", "", ""]); } 
                         else {
                             iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                            const total = item.qty * item.time * item.price; globalSubtotal += total;
+                            const total = item.qty * item.price; globalSubtotal += total;
                             wsData.push([dNum, item.code, item.desc, item.unit, item.qty, parseFloat(item.price), total]);
                         }
                     });
