@@ -26,8 +26,11 @@
                     <p class="text-xs text-slate-400">Estimation & Proforma Invoicing System</p>
                 </div>
             </div>
-            <div class="flex items-center space-x-3 mt-2 sm:mt-0">
-                <button onclick="connectNetworkFolder()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition">📁 Connect Shared LAN Folder</button>
+            <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+                <button id="networkBtn" onclick="connectNetworkFolder()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1">
+                    <span>📁</span> <span id="networkBtnText">Connect Shared LAN Folder</span>
+                </button>
+                <button id="btnDisconnect" onclick="disconnectFolder()" class="hidden bg-slate-700 hover:bg-red-600 text-white font-bold text-xs px-2 py-2 rounded transition" title="Disconnect and forget folder">✕</button>
                 <span id="folderStatus" class="text-xs text-amber-400 font-medium">Local Storage</span>
             </div>
         </div>
@@ -413,7 +416,41 @@
         };
         let currentDirectoryHandle = null;
 
-        window.onload = function() {
+        // IndexedDB Wrapper to save Folder Memory
+        const idb = {
+            getDB: () => new Promise((resolve, reject) => {
+                const req = indexedDB.open('sys_fs_db', 1);
+                req.onupgradeneeded = e => e.target.result.createObjectStore('handles');
+                req.onsuccess = e => resolve(e.target.result);
+                req.onerror = e => reject(e.target.error);
+            }),
+            set: async val => {
+                const idbDb = await idb.getDB();
+                return new Promise(resolve => {
+                    const tx = idbDb.transaction('handles', 'readwrite');
+                    tx.objectStore('handles').put(val, 'lan_folder');
+                    tx.oncomplete = resolve;
+                });
+            },
+            get: async () => {
+                const idbDb = await idb.getDB();
+                return new Promise(resolve => {
+                    const tx = idbDb.transaction('handles', 'readonly');
+                    const req = tx.objectStore('handles').get('lan_folder');
+                    req.onsuccess = () => resolve(req.result);
+                });
+            },
+            clear: async () => {
+                const idbDb = await idb.getDB();
+                return new Promise(resolve => {
+                    const tx = idbDb.transaction('handles', 'readwrite');
+                    tx.objectStore('handles').delete('lan_folder');
+                    tx.oncomplete = resolve;
+                });
+            }
+        };
+
+        window.onload = async function() {
             loadData();
             document.getElementById('estDate').valueAsDate = new Date();
             document.getElementById('invDate').valueAsDate = new Date();
@@ -423,6 +460,18 @@
             populateClientDropdowns();
             if(document.getElementById('estimationRowsBody').children.length === 0) addEstimationRow();
             updateDashboardStats();
+
+            // Check if folder is remembered
+            try {
+                const savedHandle = await idb.get();
+                if (savedHandle) {
+                    currentDirectoryHandle = savedHandle;
+                    document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
+                    document.getElementById('networkBtn').className = "bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+                    document.getElementById('btnDisconnect').classList.remove('hidden');
+                    document.getElementById('folderStatus').innerText = "Folder remembered. Click to reconnect.";
+                }
+            } catch(e) {}
         };
 
         function switchTab(tabId) {
@@ -437,8 +486,12 @@
             if(tabId === 'invoicing') { renderEstimationChecklist(); renderInvoiceTable(); }
         }
 
-        // Data Storage
-        function saveData() { localStorage.setItem('sys_db', JSON.stringify(db)); updateDashboardStats(); syncToNetworkFolder(); }
+        function saveData() { 
+            localStorage.setItem('sys_db', JSON.stringify(db)); 
+            updateDashboardStats(); 
+            syncToNetworkFolder(); 
+        }
+        
         function loadData() { 
             const saved = localStorage.getItem('sys_db'); 
             if(saved) { 
@@ -446,20 +499,59 @@
                 if(!db.company) db.company = { name: "Your Company", abbr: "COMP", cr: "", vat: "", email: "", address: "", logo: "" };
             } 
         }
+
         async function connectNetworkFolder() {
             try {
-                currentDirectoryHandle = await window.showDirectoryPicker();
-                document.getElementById('folderStatus').innerText = "Connected to LAN";
+                if (!currentDirectoryHandle) {
+                    currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                    await idb.set(currentDirectoryHandle);
+                }
+                
+                // Prompt permissions if needed without repicking folder
+                const opts = { mode: 'readwrite' };
+                if ((await currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
+                    if ((await currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
+                }
+
+                document.getElementById('networkBtnText').innerText = "Connected to LAN";
+                document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+                document.getElementById('folderStatus').innerText = "Live Sync Active";
                 document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
+                document.getElementById('btnDisconnect').classList.remove('hidden');
+
                 try {
                     const fileHandle = await currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
                     const file = await fileHandle.getFile();
-                    db = JSON.parse(await file.text());
-                    applyCompanyDataToUI(); renderCodesTable(); renderClientTable(); populateClientDropdowns(); updateDashboardStats();
-                    alert("Synced database from network.");
-                } catch(e) { await syncToNetworkFolder(); }
+                    const text = await file.text();
+                    
+                    try {
+                        db = JSON.parse(text); // Load DB safely
+                        localStorage.setItem('sys_db', JSON.stringify(db));
+                        applyCompanyDataToUI(); renderCodesTable(); renderClientTable(); populateClientDropdowns(); updateDashboardStats();
+                        alert("Successfully synced database from network folder.");
+                    } catch(parseErr) {
+                        alert("WARNING: The database file on the network is corrupted or too large. To protect your data, it will not be loaded or overwritten.");
+                    }
+                } catch(e) { 
+                    if (e.name === 'NotFoundError') {
+                        const confirmCreate = confirm("No database found in this folder. Create a new master database here?");
+                        if(confirmCreate) await syncToNetworkFolder();
+                        else disconnectFolder();
+                    }
+                }
             } catch(err) { console.log(err); }
         }
+
+        async function disconnectFolder() {
+            currentDirectoryHandle = null;
+            await idb.clear();
+            document.getElementById('networkBtnText').innerText = "Connect Shared LAN Folder";
+            document.getElementById('networkBtn').className = "bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+            document.getElementById('folderStatus').innerText = "Local Storage";
+            document.getElementById('folderStatus').className = "text-xs text-amber-400 font-medium";
+            document.getElementById('btnDisconnect').classList.add('hidden');
+        }
+
         async function syncToNetworkFolder() {
             if(!currentDirectoryHandle) return;
             try {
@@ -469,13 +561,14 @@
                 await writable.close();
             } catch(err) {}
         }
+
         function updateDashboardStats() {
             document.getElementById('statCodesCount').innerText = db.codes.length;
             document.getElementById('statClientsCount').innerText = db.clients.length;
             document.getElementById('statEstimationsCount').innerText = db.estimations.length;
         }
 
-        // Company Profile Logic
+        // Company Profile Logic with Auto Logo Compression
         function openCompanyModal() {
             document.getElementById('setCompName').value = db.company.name;
             document.getElementById('setCompAbbr').value = db.company.abbr;
@@ -487,17 +580,31 @@
             if(db.company.logo) { preview.src = db.company.logo; preview.classList.remove('hidden'); }
             document.getElementById('companyModal').classList.remove('hidden');
         }
+
         function convertLogoToBase64(event) {
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                db.company.logo = e.target.result;
-                document.getElementById('logoPreviewModal').src = e.target.result;
-                document.getElementById('logoPreviewModal').classList.remove('hidden');
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    const MAX_WIDTH = 300; // Auto shrink logo to protect file size
+                    let width = img.width, height = img.height;
+                    if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
+                    canvas.width = width; canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+                    const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                    db.company.logo = dataUrl;
+                    document.getElementById('logoPreviewModal').src = dataUrl;
+                    document.getElementById('logoPreviewModal').classList.remove('hidden');
+                };
+                img.src = e.target.result;
             };
             reader.readAsDataURL(file);
         }
+
         function saveCompanySettings() {
             db.company.name = document.getElementById('setCompName').value || "Company";
             db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
@@ -505,10 +612,9 @@
             db.company.vat = document.getElementById('setCompVAT').value;
             db.company.email = document.getElementById('setCompEmail').value;
             db.company.address = document.getElementById('setCompAdd').value;
-            saveData();
-            applyCompanyDataToUI();
-            document.getElementById('companyModal').classList.add('hidden');
+            saveData(); applyCompanyDataToUI(); document.getElementById('companyModal').classList.add('hidden');
         }
+
         function applyCompanyDataToUI() {
             document.getElementById('headerCompanyName').innerText = db.company.name;
             document.getElementById('dashCompanyName').innerText = db.company.name;
@@ -520,8 +626,7 @@
             document.querySelectorAll('.dyn-address').forEach(el => el.innerText = db.company.address);
             document.querySelectorAll('.dyn-email').forEach(el => el.innerText = db.company.email);
             
-            const mainLogo = document.getElementById('headerLogo');
-            const printLogo = document.getElementById('printLogo');
+            const mainLogo = document.getElementById('headerLogo'), printLogo = document.getElementById('printLogo');
             if(db.company.logo) {
                 mainLogo.src = db.company.logo; mainLogo.classList.remove('hidden');
                 document.getElementById('headerLogoText').classList.add('hidden');
@@ -545,13 +650,10 @@
                     if(cols.length >= 2) {
                         const code = cols[0].replace(/['"\r]/g,'').trim();
                         const desc = cols.slice(1).join(',').replace(/['"\r]/g,'').trim();
-                        if(code && desc && !db.codes.find(c => c.code === code)) {
-                            db.codes.push({code, desc}); count++;
-                        }
+                        if(code && desc && !db.codes.find(c => c.code === code)) { db.codes.push({code, desc}); count++; }
                     }
                 });
-                saveData(); renderCodesTable();
-                alert(`Imported ${count} new codes successfully.`);
+                saveData(); renderCodesTable(); alert(`Imported ${count} new codes successfully.`);
             };
             reader.readAsText(file);
         }
@@ -617,63 +719,33 @@
             saveData(); alert("Estimation saved!"); renderEstimationChecklist();
         }
 
-        // Excel Export (Formulas & Tables)
+        // Excel Export
         function exportEstimationExcel() {
             const wb = XLSX.utils.book_new();
-            // Data Header Setup
-            let wsData = [
-                [`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],
-                [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
-                [],
-                ["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL COST", "INTERNAL TOTAL"]
-            ];
-            const headerRow = 4; // Excel row 4 is index 3
-            
-            let itemsCount = 0;
+            let wsData = [[`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],[`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],[],["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL COST", "INTERNAL TOTAL"]];
+            const headerRow = 4; let itemsCount = 0;
             document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
-                const code = tr.querySelector('.item-code-select').value, desc = tr.querySelector('.item-desc').value;
-                const qty = parseFloat(tr.querySelector('.item-qty').value), time = parseFloat(tr.querySelector('.item-time').value), unit = tr.querySelector('.item-unit').value, price = parseFloat(tr.querySelector('.item-price').value), cost = parseFloat(tr.querySelector('.item-cost').value);
-                
-                const r = headerRow + 1 + idx; // Data starts on row 5
-                // Real Excel Formulas (Qty * Time * Price)
-                const clientTotalF = `D${r}*E${r}*G${r}`;
-                const internalTotalF = `D${r}*E${r}*I${r}`;
-                wsData.push([idx+1, code, desc, qty, time, unit, price, {t:'n', f:clientTotalF}, cost, {t:'n', f:internalTotalF}]);
+                const r = headerRow + 1 + idx;
+                wsData.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, parseFloat(tr.querySelector('.item-qty').value), parseFloat(tr.querySelector('.item-time').value), tr.querySelector('.item-unit').value, parseFloat(tr.querySelector('.item-price').value), {t:'n', f:`D${r}*E${r}*G${r}`}, parseFloat(tr.querySelector('.item-cost').value), {t:'n', f:`D${r}*E${r}*I${r}`}]);
                 itemsCount++;
             });
-            
             const endRow = headerRow + itemsCount;
-            wsData.push([]);
-            wsData.push(["", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(H5:H${endRow})`}]);
-            wsData.push(["", "", "", "", "", "", "VAT 15%", {t:'n', f:`H${endRow+2}*0.15`}]);
-            wsData.push(["", "", "", "", "", "", "Grand Total", {t:'n', f:`H${endRow+2}+H${endRow+3}`}]);
-
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            // Apply table auto-filter visually
-            ws['!autofilter'] = { ref: `A4:J${endRow}` };
-            XLSX.utils.book_append_sheet(wb, ws, "Estimation");
-            XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
+            wsData.push([]); wsData.push(["", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(H5:H${endRow})`}]); wsData.push(["", "", "", "", "", "", "VAT 15%", {t:'n', f:`H${endRow+2}*0.15`}]); wsData.push(["", "", "", "", "", "", "Grand Total", {t:'n', f:`H${endRow+2}+H${endRow+3}`}]);
+            const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:J${endRow}` };
+            XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
         // PDF Export
         function exportEstimationPDF() {
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF();
+            const { jsPDF } = window.jspdf; const doc = new jsPDF();
             doc.setFontSize(16); doc.text(`${db.company.name} - Estimation`, 14, 15);
-            doc.setFontSize(10); doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 22);
-            doc.text(`Client: ${document.getElementById('estClientSelect').value}`, 14, 28);
-            
+            doc.setFontSize(10); doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 22); doc.text(`Client: ${document.getElementById('estClientSelect').value}`, 14, 28);
             let rows = [];
             document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
-                const qty = parseFloat(tr.querySelector('.item-qty').value), time = parseFloat(tr.querySelector('.item-time').value), price = parseFloat(tr.querySelector('.item-price').value);
-                rows.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, qty, time, tr.querySelector('.item-unit').value, price.toFixed(2), (qty*time*price).toFixed(2)]);
+                const q = parseFloat(tr.querySelector('.item-qty').value), t = parseFloat(tr.querySelector('.item-time').value), p = parseFloat(tr.querySelector('.item-price').value);
+                rows.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, q, t, tr.querySelector('.item-unit').value, p.toFixed(2), (q*t*p).toFixed(2)]);
             });
-
-            doc.autoTable({
-                startY: 35, headStyles: { fillColor: [30, 58, 138] },
-                head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', 'Price', 'Total']],
-                body: rows,
-            });
+            doc.autoTable({ startY: 35, headStyles: { fillColor: [30, 58, 138] }, head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', 'Price', 'Total']], body: rows });
             doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
@@ -687,7 +759,7 @@
                 let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
                 rows.forEach(r => {
                     if(r[1] && !isNaN(r[0])) {
-                        const costTotal = r[9] || 0; // Assuming Internal Total is col J (idx 9)
+                        const costTotal = r[9] || 0;
                         html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-20 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=rem.toFixed(2);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700':'p-2 text-right font-bold text-red-700';"></td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td></tr>`;
                     }
                 });
@@ -695,15 +767,12 @@
             }; reader.readAsArrayBuffer(file);
         }
 
-        // Proforma Invoicing & Filtering
+        // Proforma Invoicing
         function renderEstimationChecklist() {
             const filterText = document.getElementById('estFilter').value.toLowerCase();
-            const container = document.getElementById('estimationChecklistContainer');
-            container.innerHTML = '';
-            let found = 0;
+            const container = document.getElementById('estimationChecklistContainer'); container.innerHTML = ''; let found = 0;
             db.estimations.forEach((est, idx) => {
-                const searchStr = `${est.clientName} ${est.projectName} ${est.date}`.toLowerCase();
-                if(searchStr.includes(filterText)) {
+                if(`${est.clientName} ${est.projectName} ${est.date}`.toLowerCase().includes(filterText)) {
                     container.innerHTML += `<label class="flex items-center space-x-2 border px-3 py-1.5 rounded cursor-pointer shadow-sm bg-white"><input type="checkbox" value="${idx}" onchange="renderInvoiceTable()" class="est-checkbox" checked><span class="font-bold text-sky-700">${est.clientName}</span><span class="text-slate-600">| ${est.projectName} (${est.date})</span></label>`;
                     found++;
                 }
