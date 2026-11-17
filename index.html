@@ -142,7 +142,7 @@
                 <div class="flex justify-between items-center mb-6">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Estimation & Costing Builder</h2>
-                        <p class="text-xs text-slate-500">Calculates client pricing based on internal costs and margins.</p>
+                        <p class="text-xs text-slate-500">Assign item-level overrides for Overhead and Profit margins.</p>
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
@@ -170,12 +170,12 @@
                         <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Overhead %</label>
-                        <input type="number" id="globalOverhead" onchange="recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="10">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label>
+                        <input type="number" id="globalOverhead" onchange="updateNewRowsDefault()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Profit %</label>
-                        <input type="number" id="globalProfit" onchange="recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Profit %</label>
+                        <input type="number" id="globalProfit" onchange="updateNewRowsDefault()" class="w-full border rounded px-3 py-1.5 bg-white" value="35">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
@@ -187,21 +187,38 @@
                     </div>
                 </div>
 
+                <!-- Bulk Actions Bar -->
+                <div class="mb-4 bg-blue-50 border border-blue-200 p-3 rounded flex items-center space-x-4">
+                    <span class="text-sm font-bold text-blue-900">Bulk Override Selected Items:</span>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">New OH %:</label>
+                        <input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="e.g. 10">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">New Profit %:</label>
+                        <input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="e.g. 25">
+                    </div>
+                    <button onclick="applyBulkMargins()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded">Apply to Checked Rows</button>
+                </div>
+
                 <div class="overflow-x-auto border rounded-lg">
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-blue-900 text-white">
-                                <th class="p-2 border border-blue-800 text-center w-10">Item</th>
-                                <th class="p-2 border border-blue-800 w-28">Item Code</th>
+                                <th class="p-2 border border-blue-800 text-center w-8"><input type="checkbox" onchange="toggleAllRows(this)"></th>
+                                <th class="p-2 border border-blue-800 text-center w-8">#</th>
+                                <th class="p-2 border border-blue-800 w-24">Item Code</th>
                                 <th class="p-2 border border-blue-800">Description</th>
-                                <th class="p-2 border border-blue-800 w-16 text-center">Qty</th>
-                                <th class="p-2 border border-blue-800 w-20 text-center">Hrs/Time</th>
-                                <th class="p-2 border border-blue-800 w-16 text-center">Unit</th>
-                                <th class="p-2 border border-blue-800 w-24 text-right">Internal Unit Cost</th>
-                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Client Unit Price</th>
-                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Client Total</th>
-                                <th class="p-2 border border-blue-800 w-20 text-right bg-red-800">Net Profit</th>
-                                <th class="p-2 border border-blue-800 w-10 text-center">Act</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center">Qty</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center">Hrs</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right">Int. Cost</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">OH %</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">PR %</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right bg-amber-600">Unit Price</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right bg-amber-600">Total</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right bg-emerald-700">Item Profit</th>
+                                <th class="p-2 border border-blue-800 w-8 text-center">Act</th>
                             </tr>
                         </thead>
                         <tbody id="estimationRowsBody"></tbody>
@@ -209,10 +226,15 @@
                 </div>
 
                 <div class="mt-4 flex justify-end">
-                    <div class="w-80 bg-slate-50 p-4 rounded-lg border space-y-2 text-sm">
-                        <div class="flex justify-between"><span>Subtotal:</span> <span id="summarySubtotal" class="font-bold">0.00</span></div>
+                    <div class="w-96 bg-slate-50 p-4 rounded-lg border space-y-2 text-sm">
+                        <div class="flex justify-between text-xs text-slate-500"><span>Total Internal Cost:</span> <span id="summaryCost">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-500 border-b pb-1"><span>Total Overhead Expense:</span> <span id="summaryOverhead">0.00</span></div>
+                        <div class="flex justify-between text-emerald-700 font-bold"><span>Total Net Profit:</span> <span id="summaryProfit">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-600 font-bold border-b pb-2"><span>Total Combined Margin/Markup:</span> <span id="summaryMargin">0.00</span></div>
+                        
+                        <div class="flex justify-between pt-2"><span>Client Subtotal:</span> <span id="summarySubtotal" class="font-bold">0.00</span></div>
                         <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold">0.00</span></div>
-                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold"><span>Grand Total:</span> <span id="summaryGrandTotal">0.00</span></div>
+                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold text-base"><span>Grand Total:</span> <span id="summaryGrandTotal">0.00</span></div>
                     </div>
                 </div>
             </div>
@@ -416,7 +438,6 @@
         };
         let currentDirectoryHandle = null;
 
-        // IndexedDB Wrapper to save Folder Memory
         const idb = {
             getDB: () => new Promise((resolve, reject) => {
                 const req = indexedDB.open('sys_fs_db', 1);
@@ -461,7 +482,6 @@
             if(document.getElementById('estimationRowsBody').children.length === 0) addEstimationRow();
             updateDashboardStats();
 
-            // Check if folder is remembered
             try {
                 const savedHandle = await idb.get();
                 if (savedHandle) {
@@ -506,8 +526,6 @@
                     currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
                     await idb.set(currentDirectoryHandle);
                 }
-                
-                // Prompt permissions if needed without repicking folder
                 const opts = { mode: 'readwrite' };
                 if ((await currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
                     if ((await currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
@@ -525,17 +543,16 @@
                     const text = await file.text();
                     
                     try {
-                        db = JSON.parse(text); // Load DB safely
+                        db = JSON.parse(text); 
                         localStorage.setItem('sys_db', JSON.stringify(db));
                         applyCompanyDataToUI(); renderCodesTable(); renderClientTable(); populateClientDropdowns(); updateDashboardStats();
                         alert("Successfully synced database from network folder.");
                     } catch(parseErr) {
-                        alert("WARNING: The database file on the network is corrupted or too large. To protect your data, it will not be loaded or overwritten.");
+                        alert("WARNING: Database on network is corrupted. It will not be loaded or overwritten.");
                     }
                 } catch(e) { 
                     if (e.name === 'NotFoundError') {
-                        const confirmCreate = confirm("No database found in this folder. Create a new master database here?");
-                        if(confirmCreate) await syncToNetworkFolder();
+                        if(confirm("No database found in this folder. Create a new master database here?")) await syncToNetworkFolder();
                         else disconnectFolder();
                     }
                 }
@@ -568,7 +585,7 @@
             document.getElementById('statEstimationsCount').innerText = db.estimations.length;
         }
 
-        // Company Profile Logic with Auto Logo Compression
+        // Company Settings
         function openCompanyModal() {
             document.getElementById('setCompName').value = db.company.name;
             document.getElementById('setCompAbbr').value = db.company.abbr;
@@ -589,7 +606,7 @@
                 const img = new Image();
                 img.onload = function() {
                     const canvas = document.createElement('canvas');
-                    const MAX_WIDTH = 300; // Auto shrink logo to protect file size
+                    const MAX_WIDTH = 300; 
                     let width = img.width, height = img.height;
                     if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                     canvas.width = width; canvas.height = height;
@@ -678,13 +695,44 @@
             populateInvoiceClient();
         }
 
-        // Estimation Builder
+        // ESTIMATION BUILDER (WITH ITEM MARGINS)
+        function toggleAllRows(cb) {
+            document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked);
+        }
+
+        function applyBulkMargins() {
+            const newOh = document.getElementById('bulkOh').value;
+            const newPr = document.getElementById('bulkPr').value;
+            
+            document.querySelectorAll('.estimation-row').forEach(tr => {
+                const chk = tr.querySelector('.row-chk');
+                if(chk && chk.checked) {
+                    if(newOh !== '') tr.querySelector('.item-oh').value = newOh;
+                    if(newPr !== '') tr.querySelector('.item-pr').value = newPr;
+                }
+            });
+            recalculateEstimation();
+            document.getElementById('bulkOh').value = '';
+            document.getElementById('bulkPr').value = '';
+        }
+
+        function updateNewRowsDefault() {
+            // Optional: You could update empty rows here if you wanted
+        }
+
         function addEstimationRow() {
             const tbody = document.getElementById('estimationRowsBody');
             const rowIdx = tbody.children.length + 1;
-            let opt = '<option value="">Select...</option>'; db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+            
+            const defOh = document.getElementById('globalOverhead').value || 15;
+            const defPr = document.getElementById('globalProfit').value || 35;
+            
+            let opt = '<option value="">Select...</option>'; 
+            db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+            
             const tr = document.createElement('tr'); tr.className = 'estimation-row border-b text-xs';
             tr.innerHTML = `
+                <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
                 <td class="p-1 border text-center font-bold item-num">${rowIdx}</td>
                 <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
                 <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
@@ -692,46 +740,123 @@
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-time" value="1" oninput="recalculateEstimation()"></td>
                 <td class="p-1 border"><input type="text" class="w-full border rounded p-1 text-center item-unit" value="HRS"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="recalculateEstimation()"></td>
+                
+                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="recalculateEstimation()"></td>
+                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="recalculateEstimation()"></td>
+                
                 <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
                 <td class="p-1 border bg-amber-50 text-right font-bold item-total">0.00</td>
-                <td class="p-1 border bg-red-50 text-right font-bold text-red-700 item-profit">0.00</td>
+                <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit">0.00</td>
                 <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
             `;
             tbody.appendChild(tr); recalculateEstimation();
         }
+
         function recalculateEstimation() {
-            let subtotal = 0;
-            const mult = 1 + (parseFloat(document.getElementById('globalOverhead').value||0)/100) + (parseFloat(document.getElementById('globalProfit').value||0)/100);
+            let subtotal = 0, totalCost = 0, totalProfit = 0, totalOverhead = 0;
+            const globalVat = parseFloat(document.getElementById('globalVat').value||0) / 100;
+            
             document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
                 tr.querySelector('.item-num').innerText = idx + 1;
-                const qty = parseFloat(tr.querySelector('.item-qty').value||0), time = parseFloat(tr.querySelector('.item-time').value||0), cost = parseFloat(tr.querySelector('.item-cost').value||0);
-                const price = cost * mult, lineTotal = qty * time * price, lineProfit = lineTotal - (qty * time * cost);
-                tr.querySelector('.item-price').value = price.toFixed(2); tr.querySelector('.item-total').innerText = lineTotal.toFixed(2); tr.querySelector('.item-profit').innerText = lineProfit.toFixed(2);
+                const qty = parseFloat(tr.querySelector('.item-qty').value||0);
+                const time = parseFloat(tr.querySelector('.item-time').value||0);
+                const cost = parseFloat(tr.querySelector('.item-cost').value||0);
+                
+                const oh = parseFloat(tr.querySelector('.item-oh').value||0) / 100;
+                const pr = parseFloat(tr.querySelector('.item-pr').value||0) / 100;
+                
+                const mult = 1 + oh + pr;
+                const price = cost * mult;
+                
+                const lineCost = qty * time * cost;
+                const lineTotal = qty * time * price;
+                
+                const lineOh = lineCost * oh;
+                const lineProfit = lineCost * pr;
+                
+                tr.querySelector('.item-price').value = price.toFixed(2);
+                tr.querySelector('.item-total').innerText = lineTotal.toFixed(2);
+                tr.querySelector('.item-profit').innerText = lineProfit.toFixed(2);
+                
                 subtotal += lineTotal;
+                totalCost += lineCost;
+                totalOverhead += lineOh;
+                totalProfit += lineProfit;
             });
-            const vat = subtotal * (parseFloat(document.getElementById('globalVat').value||0)/100);
-            document.getElementById('summarySubtotal').innerText = subtotal.toFixed(2); document.getElementById('summaryVat').innerText = vat.toFixed(2); document.getElementById('summaryGrandTotal').innerText = (subtotal + vat).toFixed(2);
+            
+            const vat = subtotal * globalVat;
+            document.getElementById('summaryCost').innerText = totalCost.toFixed(2);
+            document.getElementById('summaryOverhead').innerText = totalOverhead.toFixed(2);
+            document.getElementById('summaryProfit').innerText = totalProfit.toFixed(2);
+            document.getElementById('summaryMargin').innerText = (totalOverhead + totalProfit).toFixed(2);
+            
+            document.getElementById('summarySubtotal').innerText = subtotal.toFixed(2);
+            document.getElementById('summaryVat').innerText = vat.toFixed(2);
+            document.getElementById('summaryGrandTotal').innerText = (subtotal + vat).toFixed(2);
         }
+
         function saveEstimation() {
             let items = [];
-            document.querySelectorAll('.estimation-row').forEach(tr => { items.push({ code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value, qty: tr.querySelector('.item-qty').value, time: tr.querySelector('.item-time').value, unit: tr.querySelector('.item-unit').value, cost: tr.querySelector('.item-cost').value, price: tr.querySelector('.item-price').value }); });
+            document.querySelectorAll('.estimation-row').forEach(tr => { 
+                items.push({ 
+                    code: tr.querySelector('.item-code-select').value, 
+                    desc: tr.querySelector('.item-desc').value, 
+                    qty: tr.querySelector('.item-qty').value, 
+                    time: tr.querySelector('.item-time').value, 
+                    unit: tr.querySelector('.item-unit').value, 
+                    cost: tr.querySelector('.item-cost').value, 
+                    oh: tr.querySelector('.item-oh').value,
+                    pr: tr.querySelector('.item-pr').value,
+                    price: tr.querySelector('.item-price').value 
+                }); 
+            });
             db.estimations.push({ id: 'EST-' + Date.now(), projectName: document.getElementById('estProjectName').value, location: document.getElementById('estLocation').value, title: document.getElementById('estTitle').value, date: document.getElementById('estDate').value, clientName: document.getElementById('estClientSelect').value, items });
             saveData(); alert("Estimation saved!"); renderEstimationChecklist();
         }
 
-        // Excel Export
+        // Excel Export (Updated with OH and PR)
         function exportEstimationExcel() {
             const wb = XLSX.utils.book_new();
-            let wsData = [[`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],[`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],[],["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL COST", "INTERNAL TOTAL"]];
+            let wsData = [
+                [`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],
+                [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
+                [],
+                ["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "INTERNAL COST", "OH %", "PROFIT %", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL TOTAL"]
+            ];
             const headerRow = 4; let itemsCount = 0;
+            
             document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
                 const r = headerRow + 1 + idx;
-                wsData.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, parseFloat(tr.querySelector('.item-qty').value), parseFloat(tr.querySelector('.item-time').value), tr.querySelector('.item-unit').value, parseFloat(tr.querySelector('.item-price').value), {t:'n', f:`D${r}*E${r}*G${r}`}, parseFloat(tr.querySelector('.item-cost').value), {t:'n', f:`D${r}*E${r}*I${r}`}]);
+                wsData.push([
+                    idx+1, 
+                    tr.querySelector('.item-code-select').value, 
+                    tr.querySelector('.item-desc').value, 
+                    parseFloat(tr.querySelector('.item-qty').value), 
+                    parseFloat(tr.querySelector('.item-time').value), 
+                    tr.querySelector('.item-unit').value, 
+                    parseFloat(tr.querySelector('.item-cost').value),
+                    parseFloat(tr.querySelector('.item-oh').value) / 100,
+                    parseFloat(tr.querySelector('.item-pr').value) / 100,
+                    {t:'n', f:`G${r}*(1+H${r}+I${r})`}, 
+                    {t:'n', f:`D${r}*E${r}*J${r}`}, 
+                    {t:'n', f:`D${r}*E${r}*G${r}`}
+                ]);
                 itemsCount++;
             });
             const endRow = headerRow + itemsCount;
-            wsData.push([]); wsData.push(["", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(H5:H${endRow})`}]); wsData.push(["", "", "", "", "", "", "VAT 15%", {t:'n', f:`H${endRow+2}*0.15`}]); wsData.push(["", "", "", "", "", "", "Grand Total", {t:'n', f:`H${endRow+2}+H${endRow+3}`}]);
-            const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:J${endRow}` };
+            wsData.push([]); 
+            wsData.push(["", "", "", "", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(K5:K${endRow})`}]); 
+            wsData.push(["", "", "", "", "", "", "", "", "", "VAT 15%", {t:'n', f:`K${endRow+2}*0.15`}]); 
+            wsData.push(["", "", "", "", "", "", "", "", "", "Grand Total", {t:'n', f:`K${endRow+2}+K${endRow+3}`}]);
+            
+            const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:L${endRow}` };
+            
+            // Format percentage columns
+            for(let i=5; i<=endRow; i++) {
+                if(ws[`H${i}`]) ws[`H${i}`].z = '0%';
+                if(ws[`I${i}`]) ws[`I${i}`].z = '0%';
+            }
+
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
@@ -749,7 +874,7 @@
             doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
-        // Operations
+        // Operations (Updated index for Internal Total Cost)
         function importEstimationForBudget(event) {
             const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -759,7 +884,7 @@
                 let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
                 rows.forEach(r => {
                     if(r[1] && !isNaN(r[0])) {
-                        const costTotal = r[9] || 0;
+                        const costTotal = r[11] || 0; // Index 11 is now Internal Total
                         html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-20 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=rem.toFixed(2);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700':'p-2 text-right font-bold text-red-700';"></td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td></tr>`;
                     }
                 });
