@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CBS Workplace Transformation - Estimation & Invoicing System</title>
-    <!-- Tailwind CSS CDN -->
+    <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- SheetJS for Excel (.xlsx) Export/Import -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- jsPDF for PDF generation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
-        @media print {
-            .no-print { display: none !important; }
-        }
+        @media print { .no-print { display: none !important; } }
+        .logo-preview { max-height: 60px; max-width: 150px; object-fit: contain; }
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
@@ -22,180 +19,172 @@
     <header class="bg-slate-900 text-white shadow-md no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
             <div class="flex items-center space-x-3">
-                <div class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded text-lg tracking-wider">CBS</div>
+                <img id="headerLogo" src="" alt="Logo" class="logo-preview hidden bg-white p-1 rounded">
+                <div id="headerLogoText" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded text-lg tracking-wider">COMP</div>
                 <div>
-                    <h1 class="text-lg font-bold tracking-tight">Workplace Transformation</h1>
-                    <p class="text-xs text-slate-400">Estimation, Budgeting & Proforma Invoicing System</p>
+                    <h1 id="headerCompanyName" class="text-lg font-bold tracking-tight">Company Name</h1>
+                    <p class="text-xs text-slate-400">Estimation & Proforma Invoicing System</p>
                 </div>
             </div>
             <div class="flex items-center space-x-3 mt-2 sm:mt-0">
-                <button onclick="connectNetworkFolder()" id="networkBtn" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1">
-                    <span>📁 Connect Shared LAN Folder</span>
-                </button>
-                <span id="folderStatus" class="text-xs text-amber-400 font-medium">Local Storage Mode</span>
+                <button onclick="connectNetworkFolder()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition">📁 Connect Shared LAN Folder</button>
+                <span id="folderStatus" class="text-xs text-amber-400 font-medium">Local Storage</span>
             </div>
         </div>
-        <!-- Tab Navigation Bar -->
         <nav class="bg-slate-800 border-t border-slate-700">
             <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto">
-                <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-emerald-400 border-b-2 border-emerald-400 whitespace-nowrap">Dashboard</button>
+                <button onclick="switchTab('dashboard')" class="tab-btn active-tab px-4 py-2.5 text-xs font-semibold text-emerald-400 border-b-2 border-emerald-400 whitespace-nowrap">Dashboard</button>
                 <button onclick="switchTab('codes')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Item Code Library</button>
                 <button onclick="switchTab('clients')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Client Directory</button>
                 <button onclick="switchTab('estimation')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Estimation Builder</button>
-                <button onclick="switchTab('operations')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Operations & Budget Tracker</button>
-                <button onclick="switchTab('invoicing')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Proforma Invoicing (Single / Accumulated)</button>
+                <button onclick="switchTab('operations')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Operations Tracker</button>
+                <button onclick="switchTab('invoicing')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Proforma Invoice</button>
             </div>
         </nav>
     </header>
 
-    <!-- Main App Container -->
     <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
 
-        <!-- TAB 1: DASHBOARD -->
+        <!-- DASHBOARD -->
         <section id="tab-dashboard" class="tab-content space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <h2 class="text-xl font-bold text-slate-900 mb-2">Welcome to CBS Project Management Suite</h2>
-                <p class="text-sm text-slate-600 mb-6">Manage your item codes, create client estimations with internal overheads, track operational spend post-approval, and generate single or accumulated proforma invoices instantly.</p>
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 mb-1">System Dashboard</h2>
+                        <p class="text-sm text-slate-600">Manage item codes, client estimations, and invoices.</p>
+                    </div>
+                    <button onclick="openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">⚙️ Company Settings</button>
+                </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <p class="text-xs text-slate-500 font-semibold uppercase">Item Codes</p>
                         <p id="statCodesCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
-                        <button onclick="switchTab('codes')" class="text-xs text-emerald-600 hover:underline mt-2 inline-block font-medium">Manage Codes →</button>
                     </div>
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <p class="text-xs text-slate-500 font-semibold uppercase">Saved Clients</p>
                         <p id="statClientsCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
-                        <button onclick="switchTab('clients')" class="text-xs text-emerald-600 hover:underline mt-2 inline-block font-medium">Manage Clients →</button>
                     </div>
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <p class="text-xs text-slate-500 font-semibold uppercase">Saved Estimations</p>
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Estimations</p>
                         <p id="statEstimationsCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
-                        <button onclick="switchTab('estimation')" class="text-xs text-emerald-600 hover:underline mt-2 inline-block font-medium">Create Estimation →</button>
                     </div>
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <p class="text-xs text-slate-500 font-semibold uppercase">Company Profile</p>
-                        <p class="text-sm font-bold text-slate-900 mt-1">CBS Riyadh, KSA</p>
-                        <p class="text-xs text-slate-500 mt-0.5">CR: 1010601956 | VAT: 310448290100003</p>
+                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                        <p class="text-xs text-emerald-700 font-semibold uppercase">Active Profile</p>
+                        <p id="dashCompanyName" class="text-sm font-bold text-slate-900 mt-1">Company Name</p>
+                        <p id="dashCompanyDetails" class="text-xs text-slate-600 mt-0.5">CR: - | VAT: -</p>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 2: ITEM CODE LIBRARY -->
+        <!-- ITEM CODES -->
         <section id="tab-codes" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Item Code & Description Library</h2>
-                        <p class="text-xs text-slate-500">Master codes synchronized across network storage.</p>
+                        <p class="text-xs text-slate-500">Add codes manually or import via CSV.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="loadDefaultCodes()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-3 py-2 rounded">Load Default Codes</button>
+                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
+                            <span>📤 Import CSV</span>
+                            <input type="file" accept=".csv" class="hidden" onchange="importCodesCSV(event)">
+                        </label>
                         <button onclick="openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add New Code</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200">
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
                                 <th class="p-3">Item Code</th>
-                                <th class="p-3">Predefined Description / Category</th>
+                                <th class="p-3">Predefined Description</th>
                                 <th class="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="codesTableBody" class="text-sm divide-y divide-slate-100">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                        <tbody id="codesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 3: CLIENT DIRECTORY -->
+        <!-- CLIENTS -->
         <section id="tab-clients" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Client Directory</h2>
-                        <p class="text-xs text-slate-500">Manage client company details for quick invoice generation.</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Client Directory</h2></div>
                     <button onclick="openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase tracking-wider border-b border-slate-200">
-                                <th class="p-3">Company Name (TO)</th>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
+                                <th class="p-3">Company Name</th>
                                 <th class="p-3">Attn</th>
                                 <th class="p-3">Address</th>
                                 <th class="p-3">Client VAT</th>
                                 <th class="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody id="clientTableBody" class="text-sm divide-y divide-slate-100">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                        <tbody id="clientTableBody" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 4: ESTIMATION BUILDER -->
+        <!-- ESTIMATION BUILDER -->
         <section id="tab-estimation" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-6">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Estimation & Internal Costing Builder</h2>
-                        <p class="text-xs text-slate-500">Calculates client pricing using CBS Unit Cost, Overheads %, and Profit %.</p>
+                        <h2 class="text-lg font-bold text-slate-900">Estimation & Costing Builder</h2>
+                        <p class="text-xs text-slate-500">Calculates client pricing based on internal costs and margins.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Line Item</button>
-                        <button onclick="saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Save Estimation</button>
-                        <button onclick="exportEstimationExcel()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel (.xlsx)</button>
+                        <button onclick="addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
+                        <button onclick="saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Save</button>
+                        <button onclick="exportEstimationPDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
+                        <button onclick="exportEstimationExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
                     </div>
                 </div>
 
-                <!-- Project Setup Form -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project / Building Name</label>
-                        <input type="text" id="estProjectName" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="QURRAH NURSERY DAYCARE – KING SALMAN CENTER">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name</label>
+                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Project Location</label>
-                        <input type="text" id="estLocation" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="KING ABDULLAH RD. – RIYADH">
+                        <input type="text" id="estLocation" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Document Title</label>
-                        <input type="text" id="estTitle" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="MAINTENANCE BILLS OF QUANTITIES">
+                        <input type="text" id="estTitle" class="w-full border rounded px-3 py-1.5 bg-white" value="BILLS OF QUANTITIES">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-                        <input type="date" id="estDate" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
+                        <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Overhead %</label>
-                        <input type="number" id="globalOverhead" onchange="recalculateEstimation()" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="10">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Overhead %</label>
+                        <input type="number" id="globalOverhead" onchange="recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="10">
                     </div>
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Profit %</label>
-                        <input type="number" id="globalProfit" onchange="recalculateEstimation()" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="15">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Profit %</label>
+                        <input type="number" id="globalProfit" onchange="recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
-                        <input type="number" id="globalVat" onchange="recalculateEstimation()" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="15">
+                        <input type="number" id="globalVat" onchange="recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
-                        <select id="estClientSelect" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
-                            <!-- Populated -->
-                        </select>
+                        <select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white"></select>
                     </div>
                 </div>
 
-                <!-- BoQ Items Table -->
-                <div class="overflow-x-auto border border-slate-200 rounded-lg">
+                <div class="overflow-x-auto border rounded-lg">
                     <table class="w-full text-left border-collapse text-xs">
                         <thead>
                             <tr class="bg-blue-900 text-white">
@@ -203,865 +192,563 @@
                                 <th class="p-2 border border-blue-800 w-28">Item Code</th>
                                 <th class="p-2 border border-blue-800">Description</th>
                                 <th class="p-2 border border-blue-800 w-16 text-center">Qty</th>
-                                <th class="p-2 border border-blue-800 w-20 text-center">Time (Hrs)</th>
-                                <th class="p-2 border border-blue-800 w-20 text-center">Unit</th>
-                                <th class="p-2 border border-blue-800 w-24 text-right">CBS Unit Cost</th>
+                                <th class="p-2 border border-blue-800 w-20 text-center">Hrs/Time</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right">Internal Unit Cost</th>
                                 <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Client Unit Price</th>
                                 <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Client Total</th>
-                                <th class="p-2 border border-blue-800 w-24 text-right bg-red-800">Net Profit</th>
-                                <th class="p-2 border border-blue-800 w-12 text-center">Act</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right bg-red-800">Net Profit</th>
+                                <th class="p-2 border border-blue-800 w-10 text-center">Act</th>
                             </tr>
                         </thead>
-                        <tbody id="estimationRowsBody">
-                            <!-- Populated dynamically -->
-                        </tbody>
+                        <tbody id="estimationRowsBody"></tbody>
                     </table>
                 </div>
 
-                <!-- Estimation Totals Summary -->
                 <div class="mt-4 flex justify-end">
-                    <div class="w-80 bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-2 text-sm">
-                        <div class="flex justify-between"><span>Subtotal (Without VAT):</span> <span id="summarySubtotal" class="font-bold">0.00 SAR</span></div>
-                        <div class="flex justify-between"><span>VAT (15%):</span> <span id="summaryVat" class="font-bold">0.00 SAR</span></div>
-                        <div class="flex justify-between border-t pt-2 text-base text-blue-900 font-bold"><span>Grand Total:</span> <span id="summaryGrandTotal">0.00 SAR</span></div>
-                        <div class="flex justify-between text-xs text-emerald-700 font-semibold border-t pt-1"><span>Total Estimated Net Profit:</span> <span id="summaryTotalProfit">0.00 SAR</span></div>
+                    <div class="w-80 bg-slate-50 p-4 rounded-lg border space-y-2 text-sm">
+                        <div class="flex justify-between"><span>Subtotal:</span> <span id="summarySubtotal" class="font-bold">0.00</span></div>
+                        <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold">0.00</span></div>
+                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold"><span>Grand Total:</span> <span id="summaryGrandTotal">0.00</span></div>
                     </div>
                 </div>
             </div>
         </section>
 
-        <!-- TAB 5: OPERATIONS & BUDGET TRACKER -->
+        <!-- OPERATIONS TRACKER -->
         <section id="tab-operations" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Operations & Item-Wise Budget Tracker</h2>
-                        <p class="text-xs text-slate-500">Upload an approved Estimation Excel (.xlsx) to view operations allowances (CBS Total Cost) and track field spend.</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Operations & Budget Tracker</h2></div>
                     <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                        <span>Upload Approved Estimation Excel</span>
-                        <input type="file" id="importEstFile" accept=".xlsx" class="hidden" onchange="importEstimationForBudget(event)">
+                        <span>Upload Approved Estimation (.xlsx)</span>
+                        <input type="file" accept=".xlsx" class="hidden" onchange="importEstimationForBudget(event)">
                     </label>
                 </div>
-                <div id="operationsContent" class="text-center py-12 text-slate-400">
-                    <p class="text-sm">No estimation loaded. Click the button above to upload an approved estimation file.</p>
-                </div>
+                <div id="operationsContent" class="text-center py-12 text-slate-400 text-sm">No estimation loaded.</div>
             </div>
         </section>
 
-        <!-- TAB 6: PROFORMA INVOICING -->
+        <!-- PROFORMA INVOICE -->
         <section id="tab-invoicing" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Proforma Invoice Generator (Single & Accumulated)</h2>
-                        <p class="text-xs text-slate-500">Select one or multiple saved estimations to merge into a single invoice.</p>
+                        <h2 class="text-lg font-bold text-slate-900">Proforma Invoice</h2>
+                        <p class="text-xs text-slate-500">Select estimations to generate an invoice.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="generateProformaExcel()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Invoice Excel (.xlsx)</button>
-                        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">Print / Save PDF</button>
+                        <button onclick="generateProformaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
+                        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">Print / PDF</button>
                     </div>
                 </div>
 
-                <!-- Invoice Configuration Panel -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
-                        <select id="invClientSelect" onchange="populateInvoiceClient()" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
-                            <!-- Populated -->
-                        </select>
+                        <select id="invClientSelect" onchange="populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white"></select>
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Number</label>
-                        <input type="text" id="invNumber" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="INV-2026-001">
+                        <input type="text" id="invNumber" onkeyup="populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="INV-001">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Date</label>
-                        <input type="date" id="invDate" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white">
+                        <input type="date" id="invDate" onchange="populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">P.O. Reference</label>
-                        <input type="text" id="invPoRef" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm bg-white" value="Email Confirmation">
-                    </div>
-                    <div class="md:col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Accumulation Mode</label>
-                        <div class="flex items-center space-x-4 mt-1">
-                            <label class="flex items-center space-x-2 text-xs font-medium cursor-pointer">
-                                <input type="radio" name="accumMode" value="flat" checked onchange="renderInvoiceTable()">
-                                <span>Flat Itemized List (Merge all items sequentially)</span>
-                            </label>
-                            <label class="flex items-center space-x-2 text-xs font-medium cursor-pointer">
-                                <input type="radio" name="accumMode" value="grouped" onchange="renderInvoiceTable()">
-                                <span>Grouped by Estimation Sub-headers</span>
-                            </label>
-                        </div>
+                        <input type="text" id="invPoRef" onkeyup="populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="Email Confirmation">
                     </div>
                 </div>
 
-                <!-- Saved Estimations Selection Checklist -->
                 <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
-                    <p class="text-xs font-bold text-slate-700 mb-2 uppercase tracking-wide">Select Saved Estimations to Include in this Invoice:</p>
-                    <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs">
-                        <span class="text-slate-400">No saved estimations found. Save an estimation first.</span>
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Select Estimations to Include:</p>
+                        <input type="text" id="estFilter" placeholder="Filter by client, project, or date..." class="border rounded px-3 py-1 text-xs w-64" onkeyup="renderEstimationChecklist()">
                     </div>
+                    <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
 
-                <!-- Preview Invoice Layout matching CBS Template -->
+                <!-- Invoice Print Layout -->
                 <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-6 rounded-lg shadow-sm space-y-4">
-                    <!-- Header Banner -->
                     <div class="flex justify-between items-start border-b pb-4">
                         <div class="text-xs text-slate-600 space-y-0.5">
-                            <p>CR: 1010601956</p>
-                            <p>VAT: 310448290100003</p>
-                            <p>P.O. BOX 13246</p>
-                            <p>Riyadh, Saudi Arabia</p>
-                            <p>E: info@cbs.sa</p>
+                            <p>CR: <span class="dyn-cr"></span></p>
+                            <p>VAT: <span class="dyn-vat"></span></p>
+                            <p>ADD: <span class="dyn-address"></span></p>
+                            <p>E: <span class="dyn-email"></span></p>
                         </div>
                         <div class="text-right">
-                            <div class="text-emerald-700 font-black text-xl tracking-wider">CBS</div>
-                            <div class="text-xs font-semibold text-slate-700">Workplace Transformation</div>
-                            <div class="text-[10px] text-slate-400">شركة حلول الأعمال للمقاولات المعمارية</div>
+                            <img id="printLogo" src="" class="logo-preview hidden mb-2 ml-auto">
+                            <div class="text-emerald-700 font-black text-xl tracking-wider dyn-company-name">COMPANY</div>
+                            <div class="text-xs font-semibold text-slate-700">Proforma Invoice</div>
                         </div>
                     </div>
 
-                    <!-- Client & Invoice Info Table -->
                     <table class="w-full text-xs border border-slate-300">
                         <tr>
                             <td class="p-2 border bg-slate-50 font-semibold w-24">TO</td>
-                            <td id="previewTo" class="p-2 border">Select a client</td>
+                            <td id="previewTo" class="p-2 border">-</td>
                             <td class="p-2 border bg-slate-50 font-semibold w-24">INVOICE #</td>
-                            <td id="previewInvNo" class="p-2 border font-bold">INV-2026-001</td>
+                            <td id="previewInvNo" class="p-2 border font-bold">-</td>
                         </tr>
                         <tr>
                             <td class="p-2 border bg-slate-50 font-semibold">ATTN</td>
                             <td id="previewAttn" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-semibold">INVOICE DATE</td>
+                            <td class="p-2 border bg-slate-50 font-semibold">DATE</td>
                             <td id="previewDate" class="p-2 border">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold">ADD</td>
-                            <td id="previewAdd" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-semibold" rowspan="2">SCOPE</td>
-                            <td id="previewScope" class="p-2 border" rowspan="2">-</td>
                         </tr>
                         <tr>
                             <td class="p-2 border bg-slate-50 font-semibold">Client VAT</td>
                             <td id="previewClientVat" class="p-2 border">-</td>
+                            <td class="p-2 border bg-slate-50 font-semibold">P.O. Ref</td>
+                            <td id="previewPoRef" class="p-2 border">-</td>
                         </tr>
                         <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold">TERMS</td>
-                            <td id="previewTerms" class="p-2 border" colspan="3">MAINTENANCE BILLS OF QUANTITIES</td>
+                            <td class="p-2 border bg-slate-50 font-semibold">SCOPE</td>
+                            <td id="previewScope" class="p-2 border" colspan="3">-</td>
                         </tr>
                     </table>
 
-                    <!-- Invoice Items Table -->
                     <table class="w-full text-left border-collapse text-xs border border-slate-300">
                         <thead>
                             <tr class="bg-slate-200 text-slate-800">
-                                <th class="p-2 border border-slate-300 text-center w-12">SL NO</th>
-                                <th class="p-2 border border-slate-300 w-24">Item Code</th>
-                                <th class="p-2 border border-slate-300">DESCRIPTION</th>
-                                <th class="p-2 border border-slate-300 w-16 text-center">UNIT</th>
-                                <th class="p-2 border border-slate-300 w-16 text-center">QTY</th>
-                                <th class="p-2 border border-slate-300 w-24 text-right">UNIT PRICE</th>
-                                <th class="p-2 border border-slate-300 w-28 text-right">TOTAL AMOUNT</th>
+                                <th class="p-2 border text-center w-10">SL</th>
+                                <th class="p-2 border w-24">Code</th>
+                                <th class="p-2 border">Description</th>
+                                <th class="p-2 border w-12 text-center">Unit</th>
+                                <th class="p-2 border w-12 text-center">Qty</th>
+                                <th class="p-2 border w-20 text-right">Price</th>
+                                <th class="p-2 border w-24 text-right">Total</th>
                             </tr>
                         </thead>
-                        <tbody id="invoiceItemsBody">
-                            <!-- Populated -->
-                        </tbody>
+                        <tbody id="invoiceItemsBody"></tbody>
                     </table>
 
-                    <!-- Totals & Bank Details -->
                     <div class="flex justify-end">
-                        <div class="w-96 border border-slate-300 text-xs">
+                        <div class="w-80 border text-xs">
                             <div class="flex justify-between p-2 border-b bg-slate-50">
-                                <span class="font-semibold">Total in SAR without VAT</span>
-                                <span id="invSubtotal" class="font-bold">0.00</span>
+                                <span class="font-semibold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
                             </div>
                             <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
-                                <span class="font-semibold">Output Vat 15%</span>
-                                <span id="invVat" class="font-bold">0.00</span>
-                            </div>
-                            <div class="p-2 border-b bg-slate-100">
-                                <span class="text-[10px] text-slate-500">In Words:</span>
-                                <p id="invInWords" class="font-bold text-slate-800">-</p>
+                                <span class="font-semibold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
                             </div>
                             <div class="flex justify-between p-2.5 bg-slate-200 text-sm">
-                                <span class="font-bold text-red-700">Grand Total SAR</span>
-                                <span id="invGrandTotal" class="font-black text-red-700">0.00</span>
+                                <span class="font-bold text-red-700">Grand Total</span><span id="invGrandTotal" class="font-black text-red-700">0.00</span>
                             </div>
-                        </div>
-                    </div>
-
-                    <!-- Bank Details Box -->
-                    <div class="border border-slate-300 text-xs mt-4">
-                        <div class="bg-slate-200 p-1.5 font-bold text-center border-b">BANK DETAILS</div>
-                        <div class="grid grid-cols-2 p-2 gap-y-1">
-                            <div><span class="text-slate-500">ACCOUNT NAME:</span> Construction Business Solutions - شركة حلول الأعمال للمقاولات المعمارية</div>
-                            <div><span class="text-slate-500">ACCOUNT NUMBER:</span> 68202523850000</div>
-                            <div><span class="text-slate-500">IBAN NUMBER:</span> SA5905000068202523850000</div>
-                            <div><span class="text-slate-500">BANK:</span> Al Inma Bank</div>
-                            <div><span class="text-slate-500">BRANCH:</span> Riyadh</div>
-                            <div><span class="text-slate-500">SWIFT CODE:</span> INMASARI</div>
                         </div>
                     </div>
                 </div>
             </div>
         </section>
-
     </main>
 
-    <!-- MODAL FOR ADDING/EDITING ITEM CODE -->
+    <!-- COMPANY SETTINGS MODAL -->
+    <div id="companyModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Company Settings</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Company Name</label>
+                    <input type="text" id="setCompName" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Abbreviation (Header Badge)</label>
+                    <input type="text" id="setCompAbbr" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. COMP">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label>
+                    <input type="text" id="setCompCR" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">VAT Number</label>
+                    <input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                    <input type="text" id="setCompEmail" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Address</label>
+                    <input type="text" id="setCompAdd" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Company Logo (JPG/PNG)</label>
+                    <input type="file" accept="image/*" id="setCompLogo" class="w-full text-xs" onchange="convertLogoToBase64(event)">
+                    <img id="logoPreviewModal" src="" class="logo-preview hidden mt-2">
+                </div>
+            </div>
+            <div class="flex justify-end space-x-2 pt-2">
+                <button onclick="document.getElementById('companyModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs font-semibold">Cancel</button>
+                <button onclick="saveCompanySettings()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs font-semibold">Save Profile</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CODE & CLIENT MODALS -->
     <div id="codeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
             <h3 class="text-base font-bold text-slate-900">Add Item Code</h3>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Item Code (5-digit)</label>
-                <input type="text" id="modalCode" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. 10011">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Predefined Description / Category</label>
-                <input type="text" id="modalDesc" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. PLUMBING">
-            </div>
-            <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="closeCodeModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-                <button onclick="saveCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs font-semibold">Save Code</button>
-            </div>
+            <input type="text" id="modalCode" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Code">
+            <input type="text" id="modalDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('codeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="saveCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
         </div>
     </div>
-
-    <!-- MODAL FOR ADDING CLIENT -->
     <div id="clientModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
-            <h3 class="text-base font-bold text-slate-900">Add New Client</h3>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Company Name (TO)</label>
-                <input type="text" id="mClientName" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. Takamol Business Service Company">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Attention (ATTN)</label>
-                <input type="text" id="mClientAttn" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. Afaf AlHabib">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Address (ADD)</label>
-                <input type="text" id="mClientAdd" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. B4, Granada Oasis, Riyadh">
-            </div>
-            <div>
-                <label class="block text-xs font-semibold text-slate-600 mb-1">Client VAT Number</label>
-                <input type="text" id="mClientVat" class="w-full border border-slate-300 rounded px-3 py-1.5 text-sm" placeholder="e.g. 300892771510003">
-            </div>
-            <div class="flex justify-end space-x-2 pt-2">
-                <button onclick="closeClientModal()" class="bg-slate-200 text-slate-700 px-4 py-2 rounded text-xs font-semibold">Cancel</button>
-                <button onclick="saveClientItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs font-semibold">Save Client</button>
-            </div>
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Add Client</h3>
+            <input type="text" id="mClientName" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Company Name">
+            <input type="text" id="mClientAttn" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Attention">
+            <input type="text" id="mClientAdd" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Address">
+            <input type="text" id="mClientVat" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="VAT Number">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('clientModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="saveClientItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
         </div>
     </div>
 
-    <!-- Application JavaScript Logic -->
     <script>
-        // App State Data
         let db = {
-            codes: [],
-            clients: [],
-            estimations: []
+            company: { name: "Your Company", abbr: "COMP", cr: "", vat: "", email: "", address: "", logo: "" },
+            codes: [], clients: [], estimations: []
         };
-
         let currentDirectoryHandle = null;
-
-        // Default codes from user screenshot
-        const defaultCodes = [
-            { code: "10030", desc: "Advance Payment" },
-            { code: "10001", desc: "DEMOLITION & MOBILIZATION" },
-            { code: "10002", desc: "CIVIL & MASONRY WORKS" },
-            { code: "10003", desc: "INTERIOR DESIGN & PLANNING" },
-            { code: "10004", desc: "CELING & FINISHING WORKS" },
-            { code: "10005", desc: "WALL & WALL PARTITIONS" },
-            { code: "10006", desc: "DOORS & WINDOWS" },
-            { code: "10007", desc: "FLOORING AND FLOOR FINISHES" },
-            { code: "10008", desc: "FINISHING" },
-            { code: "10009", desc: "ELECTRICAL SYSTEM" },
-            { code: "10010", desc: "FIRE & SAFETY" },
-            { code: "10011", desc: "PLUMBING" },
-            { code: "10012", desc: "HVAC SYSTEMS" },
-            { code: "10013", desc: "IT INFRASTRUCTURE" },
-            { code: "10014", desc: "CCTV SURVEILLANCE SYSTEM" },
-            { code: "10015", desc: "ACOUSTICS & SOUND PROOFING" },
-            { code: "10016", desc: "FACILITY MAINTENANCE" },
-            { code: "10017", desc: "FURNITURE SUPPLY" },
-            { code: "10018", desc: "STEEL FABRICATIONS" },
-            { code: "10019", desc: "WATERPROOFING" },
-            { code: "10020", desc: "GLASS PARTITIONS" },
-            { code: "10021", desc: "CARPET TILES" },
-            { code: "10022", desc: "WOODEN SKIRTING" },
-            { code: "10023", desc: "PAINTING FINISHES" },
-            { code: "10024", desc: "CURTAIN AND BLINDS" },
-            { code: "10025", desc: "TOILET CUBICLES" },
-            { code: "10026", desc: "PANTRY & VANITY COUNTERS" },
-            { code: "10027", desc: "LIGHTING INFRASTRUCTURE" },
-            { code: "10028", desc: "ARCHITECTURAL MODIFICATION" },
-            { code: "10029", desc: "INSTALLATION OF STICKER LOGO" },
-            { code: "10031", desc: "Retention Payment" },
-            { code: "10032", desc: "Final Payment" },
-            { code: "10033", desc: "Preparation Fee" },
-            { code: "10034", desc: "Removal of existing vinyl flooring" },
-            { code: "10035", desc: "Charges for cleaning" },
-            { code: "10036", desc: "Supply and Installation Vinyl Roll" },
-            { code: "10037", desc: "Wax Polishing" },
-            { code: "10038", desc: "Progress Payment" },
-            { code: "10049", desc: "Charges for Site visit to evaluate scope" },
-            { code: "10061", desc: "Supply and installation of safety protection" }
-        ];
-
-        const defaultClients = [
-            { name: "Takamol Business Service Company", attn: "Afaf AlHabib", add: "B4, Granada Oasis, Abi Jafar Al Mansour St, Ghirnatah, Riyadh 13241", vat: "300892771510003" }
-        ];
 
         window.onload = function() {
             loadData();
             document.getElementById('estDate').valueAsDate = new Date();
             document.getElementById('invDate').valueAsDate = new Date();
-            if(db.codes.length === 0) {
-                db.codes = defaultCodes;
-                db.clients = defaultClients;
-                saveData();
-            }
+            applyCompanyDataToUI();
             renderCodesTable();
             renderClientTable();
             populateClientDropdowns();
-            if(document.getElementById('estimationRowsBody').children.length === 0) {
-                addEstimationRow();
-            }
+            if(document.getElementById('estimationRowsBody').children.length === 0) addEstimationRow();
             updateDashboardStats();
         };
 
-        // Tab Switching
         function switchTab(tabId) {
             document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
             document.getElementById('tab-' + tabId).classList.remove('hidden');
-            
             document.querySelectorAll('.tab-btn').forEach(el => {
-                el.classList.remove('text-emerald-400', 'border-b-2', 'border-emerald-400');
+                el.classList.remove('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
                 el.classList.add('text-slate-300');
             });
-            event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400');
+            event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
             event.currentTarget.classList.remove('text-slate-300');
-
-            if(tabId === 'invoicing') {
-                renderEstimationChecklist();
-                renderInvoiceTable();
-            }
+            if(tabId === 'invoicing') { renderEstimationChecklist(); renderInvoiceTable(); }
         }
 
-        // Local Storage & Shared Folder Sync
-        function saveData() {
-            localStorage.setItem('cbs_db', JSON.stringify(db));
-            updateDashboardStats();
-            syncToNetworkFolder();
+        // Data Storage
+        function saveData() { localStorage.setItem('sys_db', JSON.stringify(db)); updateDashboardStats(); syncToNetworkFolder(); }
+        function loadData() { 
+            const saved = localStorage.getItem('sys_db'); 
+            if(saved) { 
+                db = JSON.parse(saved); 
+                if(!db.company) db.company = { name: "Your Company", abbr: "COMP", cr: "", vat: "", email: "", address: "", logo: "" };
+            } 
         }
-
-        function loadData() {
-            const saved = localStorage.getItem('cbs_db');
-            if(saved) {
-                db = JSON.parse(saved);
-            }
-        }
-
         async function connectNetworkFolder() {
             try {
                 currentDirectoryHandle = await window.showDirectoryPicker();
-                document.getElementById('folderStatus').innerText = "Connected to Shared LAN Folder!";
+                document.getElementById('folderStatus').innerText = "Connected to LAN";
                 document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
-                // Try reading cbs_db.json from shared folder if exists
                 try {
-                    const fileHandle = await currentDirectoryHandle.getFileHandle('cbs_db.json', { create: false });
+                    const fileHandle = await currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
                     const file = await fileHandle.getFile();
-                    const contents = await file.text();
-                    db = JSON.parse(contents);
-                    renderCodesTable();
-                    renderClientTable();
-                    populateClientDropdowns();
-                    updateDashboardStats();
-                    alert("Successfully synced database from shared network folder.");
-                } catch(e) {
-                    // Not created yet, save current
-                    await syncToNetworkFolder();
-                }
-            } catch(err) {
-                console.log(err);
-            }
+                    db = JSON.parse(await file.text());
+                    applyCompanyDataToUI(); renderCodesTable(); renderClientTable(); populateClientDropdowns(); updateDashboardStats();
+                    alert("Synced database from network.");
+                } catch(e) { await syncToNetworkFolder(); }
+            } catch(err) { console.log(err); }
         }
-
         async function syncToNetworkFolder() {
             if(!currentDirectoryHandle) return;
             try {
-                const fileHandle = await currentDirectoryHandle.getFileHandle('cbs_db.json', { create: true });
+                const fileHandle = await currentDirectoryHandle.getFileHandle('sys_db.json', { create: true });
                 const writable = await fileHandle.createWritable();
-                await writable.write(JSON.stringify(db, null, 2));
+                await writable.write(JSON.stringify(db));
                 await writable.close();
-            } catch(err) {
-                console.error("Error writing to network folder:", err);
-            }
+            } catch(err) {}
         }
-
         function updateDashboardStats() {
             document.getElementById('statCodesCount').innerText = db.codes.length;
             document.getElementById('statClientsCount').innerText = db.clients.length;
             document.getElementById('statEstimationsCount').innerText = db.estimations.length;
         }
 
-        // Codes Management
-        function renderCodesTable() {
-            const tbody = document.getElementById('codesTableBody');
-            tbody.innerHTML = '';
-            db.codes.forEach((item, index) => {
-                tbody.innerHTML += `
-                    <tr class="border-b border-slate-100 hover:bg-slate-50">
-                        <td class="p-3 font-mono font-semibold">${item.code}</td>
-                        <td class="p-3">${item.desc}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deleteCode(${index})" class="text-red-600 hover:underline text-xs">Delete</button>
-                        </td>
-                    </tr>
-                `;
-            });
+        // Company Profile Logic
+        function openCompanyModal() {
+            document.getElementById('setCompName').value = db.company.name;
+            document.getElementById('setCompAbbr').value = db.company.abbr;
+            document.getElementById('setCompCR').value = db.company.cr;
+            document.getElementById('setCompVAT').value = db.company.vat;
+            document.getElementById('setCompEmail').value = db.company.email;
+            document.getElementById('setCompAdd').value = db.company.address;
+            const preview = document.getElementById('logoPreviewModal');
+            if(db.company.logo) { preview.src = db.company.logo; preview.classList.remove('hidden'); }
+            document.getElementById('companyModal').classList.remove('hidden');
         }
-
-        function loadDefaultCodes() {
-            db.codes = defaultCodes;
-            saveData();
-            renderCodesTable();
-        }
-
-        function openAddCodeModal() {
-            document.getElementById('modalCode').value = '';
-            document.getElementById('modalDesc').value = '';
-            document.getElementById('codeModal').classList.remove('hidden');
-        }
-
-        function closeCodeModal() {
-            document.getElementById('codeModal').classList.add('hidden');
-        }
-
-        function saveCodeItem() {
-            const code = document.getElementById('modalCode').value.trim();
-            const desc = document.getElementById('modalDesc').value.trim();
-            if(!code || !desc) {
-                alert("Please fill both fields.");
-                return;
-            }
-            db.codes.push({ code, desc });
-            saveData();
-            renderCodesTable();
-            closeCodeModal();
-        }
-
-        function deleteCode(index) {
-            db.codes.splice(index, 1);
-            saveData();
-            renderCodesTable();
-        }
-
-        // Clients Management
-        function renderClientTable() {
-            const tbody = document.getElementById('clientTableBody');
-            tbody.innerHTML = '';
-            db.clients.forEach((c, index) => {
-                tbody.innerHTML += `
-                    <tr class="border-b border-slate-100 hover:bg-slate-50">
-                        <td class="p-3 font-semibold">${c.name}</td>
-                        <td class="p-3">${c.attn}</td>
-                        <td class="p-3 text-xs text-slate-600">${c.add}</td>
-                        <td class="p-3 font-mono text-xs">${c.vat}</td>
-                        <td class="p-3 text-right">
-                            <button onclick="deleteClient(${index})" class="text-red-600 hover:underline text-xs">Delete</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function openClientModal() {
-            document.getElementById('mClientName').value = '';
-            document.getElementById('mClientAttn').value = '';
-            document.getElementById('mClientAdd').value = '';
-            document.getElementById('mClientVat').value = '';
-            document.getElementById('clientModal').classList.remove('hidden');
-        }
-
-        function closeClientModal() {
-            document.getElementById('clientModal').classList.add('hidden');
-        }
-
-        function saveClientItem() {
-            const name = document.getElementById('mClientName').value.trim();
-            const attn = document.getElementById('mClientAttn').value.trim();
-            const add = document.getElementById('mClientAdd').value.trim();
-            const vat = document.getElementById('mClientVat').value.trim();
-            if(!name) { alert("Company name is required"); return; }
-            db.clients.push({ name, attn, add, vat });
-            saveData();
-            renderClientTable();
-            populateClientDropdowns();
-            closeClientModal();
-        }
-
-        function deleteClient(index) {
-            db.clients.splice(index, 1);
-            saveData();
-            renderClientTable();
-            populateClientDropdowns();
-        }
-
-        function populateClientDropdowns() {
-            const estSelect = document.getElementById('estClientSelect');
-            const invSelect = document.getElementById('invClientSelect');
-            estSelect.innerHTML = '';
-            invSelect.innerHTML = '';
-            db.clients.forEach(c => {
-                estSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
-                invSelect.innerHTML += `<option value="${c.name}">${c.name}</option>`;
-            });
-            populateInvoiceClient();
-        }
-
-        // Estimation Builder Logic
-        function addEstimationRow(itemData = null) {
-            const tbody = document.getElementById('estimationRowsBody');
-            const rowIdx = tbody.children.length + 1;
-            
-            let optionsHtml = '<option value="">Select Code...</option>';
-            db.codes.forEach(c => {
-                optionsHtml += `<option value="${c.code}">${c.code} - ${c.desc}</option>`;
-            });
-
-            const tr = document.createElement('tr');
-            tr.className = 'estimation-row border-b border-slate-200';
-            tr.innerHTML = `
-                <td class="p-1 border text-center font-bold item-num">${rowIdx}</td>
-                <td class="p-1 border">
-                    <select class="w-full border rounded p-1 text-xs item-code-select" onchange="onCodeSelected(this)">
-                        ${optionsHtml}
-                    </select>
-                </td>
-                <td class="p-1 border">
-                    <input type="text" class="w-full border rounded p-1 text-xs item-desc" placeholder="Scope description..." value="${itemData ? itemData.desc : ''}">
-                </td>
-                <td class="p-1 border">
-                    <input type="number" class="w-full border rounded p-1 text-xs text-center item-qty" value="${itemData ? itemData.qty : 1}" oninput="recalculateEstimation()">
-                </td>
-                <td class="p-1 border">
-                    <input type="number" class="w-full border rounded p-1 text-xs text-center item-time" value="${itemData ? itemData.time : 1}" oninput="recalculateEstimation()">
-                </td>
-                <td class="p-1 border">
-                    <input type="text" class="w-full border rounded p-1 text-xs text-center item-unit" value="${itemData ? itemData.unit : 'HRS'}">
-                </td>
-                <td class="p-1 border">
-                    <input type="number" class="w-full border rounded p-1 text-xs text-right item-cost" value="${itemData ? itemData.cost : 100}" oninput="recalculateEstimation()">
-                </td>
-                <td class="p-1 border bg-amber-50">
-                    <input type="number" class="w-full border rounded p-1 text-xs text-right font-bold item-price bg-amber-50" value="${itemData ? itemData.price : 0}" readonly>
-                </td>
-                <td class="p-1 border bg-amber-50 text-right font-bold item-total">0.00</td>
-                <td class="p-1 border bg-red-50 text-right font-bold text-red-700 item-profit">0.00</td>
-                <td class="p-1 border text-center">
-                    <button onclick="this.closest('tr').remove(); recalculateEstimation();" class="text-red-600 font-bold hover:bg-red-100 px-1.5 py-0.5 rounded">×</button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-            if(itemData && itemData.code) {
-                tr.querySelector('.item-code-select').value = itemData.code;
-            }
-            recalculateEstimation();
-        }
-
-        function onCodeSelected(selectEl) {
-            const tr = selectEl.closest('tr');
-            const code = selectEl.value;
-            const found = db.codes.find(c => c.code === code);
-            if(found) {
-                tr.querySelector('.item-desc').value = found.desc;
-            }
-        }
-
-        function recalculateEstimation() {
-            const rows = document.querySelectorAll('.estimation-row');
-            const overheadPct = parseFloat(document.getElementById('globalOverhead').value) || 0;
-            const profitPct = parseFloat(document.getElementById('globalProfit').value) || 0;
-            const vatPct = parseFloat(document.getElementById('globalVat').value) || 0;
-
-            let subtotal = 0;
-            let totalProfit = 0;
-
-            rows.forEach((tr, idx) => {
-                tr.querySelector('.item-num').innerText = idx + 1;
-                const qty = parseFloat(tr.querySelector('.item-qty').value) || 0;
-                const time = parseFloat(tr.querySelector('.item-time').value) || 0;
-                const unitCost = parseFloat(tr.querySelector('.item-cost').value) || 0;
-
-                // Markup formula: Cost * (1 + Overhead% + Profit%)
-                const multiplier = 1 + (overheadPct / 100) + (profitPct / 100);
-                const unitPrice = unitCost * multiplier;
-                tr.querySelector('.item-price').value = unitPrice.toFixed(2);
-
-                const lineTotal = qty * time * unitPrice;
-                tr.querySelector('.item-total').innerText = lineTotal.toFixed(2);
-
-                const lineCostTotal = qty * time * unitCost;
-                const lineProfit = lineTotal - lineCostTotal;
-                tr.querySelector('.item-profit').innerText = lineProfit.toFixed(2);
-
-                subtotal += lineTotal;
-                totalProfit += lineProfit;
-            });
-
-            const vatAmount = subtotal * (vatPct / 100);
-            const grandTotal = subtotal + vatAmount;
-
-            document.getElementById('summarySubtotal').innerText = subtotal.toFixed(2) + ' SAR';
-            document.getElementById('summaryVat').innerText = vatAmount.toFixed(2) + ' SAR';
-            document.getElementById('summaryGrandTotal').innerText = grandTotal.toFixed(2) + ' SAR';
-            document.getElementById('summaryTotalProfit').innerText = totalProfit.toFixed(2) + ' SAR';
-        }
-
-        function saveEstimation() {
-            const projectName = document.getElementById('estProjectName').value;
-            const location = document.getElementById('estLocation').value;
-            const title = document.getElementById('estTitle').value;
-            const date = document.getElementById('estDate').value;
-            const clientName = document.getElementById('estClientSelect').value;
-
-            let items = [];
-            document.querySelectorAll('.estimation-row').forEach(tr => {
-                items.push({
-                    code: tr.querySelector('.item-code-select').value,
-                    desc: tr.querySelector('.item-desc').value,
-                    qty: tr.querySelector('.item-qty').value,
-                    time: tr.querySelector('.item-time').value,
-                    unit: tr.querySelector('.item-unit').value,
-                    cost: tr.querySelector('.item-cost').value,
-                    price: tr.querySelector('.item-price').value
-                });
-            });
-
-            const estimationObj = {
-                id: 'EST-' + Date.now(),
-                projectName,
-                location,
-                title,
-                date,
-                clientName,
-                items
-            };
-
-            db.estimations.push(estimationObj);
-            saveData();
-            alert("Estimation saved successfully to shared database!");
-        }
-
-        function exportEstimationExcel() {
-            const wb = XLSX.utils.book_new();
-            let wsData = [
-                ["CBS WORKPLACE TRANSFORMATION - ESTIMATION BOQ"],
-                [document.getElementById('estProjectName').value],
-                [document.getElementById('estLocation').value],
-                [],
-                ["ITEM", "ITEM CODE", "DESCRIPTION", "QUANTITY", "TIME CONSUMED", "UNIT", "UNIT PRICE", "TOTAL", "CBS UNIT COST", "CBS TOTAL COST"]
-            ];
-
-            let subtotal = 0;
-            document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
-                const code = tr.querySelector('.item-code-select').value;
-                const desc = tr.querySelector('.item-desc').value;
-                const qty = parseFloat(tr.querySelector('.item-qty').value);
-                const time = parseFloat(tr.querySelector('.item-time').value);
-                const unit = tr.querySelector('.item-unit').value;
-                const price = parseFloat(tr.querySelector('.item-price').value);
-                const cost = parseFloat(tr.querySelector('.item-cost').value);
-                const total = qty * time * price;
-                const costTotal = qty * time * cost;
-                subtotal += total;
-
-                wsData.push([idx+1, code, desc, qty, time, unit, price, total, cost, costTotal]);
-            });
-
-            const vat = subtotal * 0.15;
-            wsData.push([]);
-            wsData.push(["", "", "", "", "", "", "Total", subtotal]);
-            wsData.push(["", "", "", "", "", "", "VAT 15%", vat]);
-            wsData.push(["", "", "", "", "", "", "Total with VAT", subtotal + vat]);
-
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Estimation");
-            XLSX.writeFile(wb, "CBS_Estimation.xlsx");
-        }
-
-        // Operations Budget Tracker Import
-        function importEstimationForBudget(event) {
+        function convertLogoToBase64(event) {
             const file = event.target.files[0];
             if(!file) return;
             const reader = new FileReader();
             reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                const workbook = XLSX.read(data, {type: 'array'});
-                const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-                const rows = XLSX.utils.sheet_to_json(firstSheet, {header: 1});
+                db.company.logo = e.target.result;
+                document.getElementById('logoPreviewModal').src = e.target.result;
+                document.getElementById('logoPreviewModal').classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        }
+        function saveCompanySettings() {
+            db.company.name = document.getElementById('setCompName').value || "Company";
+            db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
+            db.company.cr = document.getElementById('setCompCR').value;
+            db.company.vat = document.getElementById('setCompVAT').value;
+            db.company.email = document.getElementById('setCompEmail').value;
+            db.company.address = document.getElementById('setCompAdd').value;
+            saveData();
+            applyCompanyDataToUI();
+            document.getElementById('companyModal').classList.add('hidden');
+        }
+        function applyCompanyDataToUI() {
+            document.getElementById('headerCompanyName').innerText = db.company.name;
+            document.getElementById('dashCompanyName').innerText = db.company.name;
+            document.getElementById('headerLogoText').innerText = db.company.abbr;
+            document.getElementById('dashCompanyDetails').innerText = `CR: ${db.company.cr || '-'} | VAT: ${db.company.vat || '-'}`;
+            document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = db.company.name);
+            document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = db.company.cr);
+            document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = db.company.vat);
+            document.querySelectorAll('.dyn-address').forEach(el => el.innerText = db.company.address);
+            document.querySelectorAll('.dyn-email').forEach(el => el.innerText = db.company.email);
+            
+            const mainLogo = document.getElementById('headerLogo');
+            const printLogo = document.getElementById('printLogo');
+            if(db.company.logo) {
+                mainLogo.src = db.company.logo; mainLogo.classList.remove('hidden');
+                document.getElementById('headerLogoText').classList.add('hidden');
+                printLogo.src = db.company.logo; printLogo.classList.remove('hidden');
+            } else {
+                mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
+                printLogo.classList.add('hidden');
+            }
+        }
 
-                let html = `<h3 class="font-bold text-slate-800 mb-3 text-left">Execution Budget & Allowed Spend (From Uploaded Excel)</h3>
-                            <div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs">
-                            <tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Code</th><th class="p-2">Description</th><th class="p-2 text-right">Allowed Spend (CBS Cost)</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining Budget</th></tr>`;
-                
-                let startRow = false;
-                let totalAllowed = 0;
-                rows.forEach(r => {
-                    if(r[1] && !isNaN(r[0])) {
-                        const costTotal = r[9] || 0;
-                        totalAllowed += costTotal;
-                        html += `<tr class="border-b"><td class="p-2">${r[0]}</td><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)} SAR</td><td class="p-2 text-right"><input type="number" class="w-20 border rounded p-1 text-right actual-spend" value="0" oninput="updateBudgetRemaining(this, ${costTotal})"></td><td class="p-2 text-right font-bold remaining-cell">${costTotal.toFixed(2)} SAR</td></tr>`;
+        // CSV Import & Codes
+        function importCodesCSV(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const lines = e.target.result.split('\n');
+                let count = 0;
+                lines.forEach(line => {
+                    const cols = line.split(',');
+                    if(cols.length >= 2) {
+                        const code = cols[0].replace(/['"\r]/g,'').trim();
+                        const desc = cols.slice(1).join(',').replace(/['"\r]/g,'').trim();
+                        if(code && desc && !db.codes.find(c => c.code === code)) {
+                            db.codes.push({code, desc}); count++;
+                        }
                     }
                 });
-
-                html += `</table></div><div class="mt-3 text-right font-bold text-sm">Total Operations Budget: ${totalAllowed.toFixed(2)} SAR</div>`;
-                document.getElementById('operationsContent').innerHTML = html;
+                saveData(); renderCodesTable();
+                alert(`Imported ${count} new codes successfully.`);
             };
-            reader.readAsArrayBuffer(file);
+            reader.readAsText(file);
+        }
+        function renderCodesTable() {
+            const tbody = document.getElementById('codesTableBody'); tbody.innerHTML = '';
+            db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="db.codes.splice(${idx},1);saveData();renderCodesTable()" class="text-red-600 text-xs">Delete</button></td></tr>`);
+        }
+        function openAddCodeModal() { document.getElementById('modalCode').value = ''; document.getElementById('modalDesc').value = ''; document.getElementById('codeModal').classList.remove('hidden'); }
+        function saveCodeItem() { db.codes.push({code: document.getElementById('modalCode').value, desc: document.getElementById('modalDesc').value}); saveData(); renderCodesTable(); document.getElementById('codeModal').classList.add('hidden'); }
+
+        // Clients
+        function renderClientTable() {
+            const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
+            db.clients.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3">${c.name}</td><td class="p-3">${c.attn}</td><td class="p-3 text-xs">${c.add}</td><td class="p-3 text-xs">${c.vat}</td><td class="p-3 text-right"><button onclick="db.clients.splice(${idx},1);saveData();renderClientTable();populateClientDropdowns()" class="text-red-600 text-xs">Delete</button></td></tr>`);
+        }
+        function openClientModal() { document.getElementById('mClientName').value = ''; document.getElementById('clientModal').classList.remove('hidden'); }
+        function saveClientItem() { db.clients.push({name: document.getElementById('mClientName').value, attn: document.getElementById('mClientAttn').value, add: document.getElementById('mClientAdd').value, vat: document.getElementById('mClientVat').value}); saveData(); renderClientTable(); populateClientDropdowns(); document.getElementById('clientModal').classList.add('hidden'); }
+        function populateClientDropdowns() {
+            const est = document.getElementById('estClientSelect'), inv = document.getElementById('invClientSelect');
+            est.innerHTML = ''; inv.innerHTML = '';
+            db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
+            populateInvoiceClient();
         }
 
-        function updateBudgetRemaining(inputEl, allowed) {
-            const actual = parseFloat(inputEl.value) || 0;
-            const remaining = allowed - actual;
-            const cell = inputEl.closest('tr').querySelector('.remaining-cell');
-            cell.innerText = remaining.toFixed(2) + ' SAR';
-            cell.className = remaining >= 0 ? "p-2 text-right font-bold text-emerald-700 remaining-cell" : "p-2 text-right font-bold text-red-700 remaining-cell";
+        // Estimation Builder
+        function addEstimationRow() {
+            const tbody = document.getElementById('estimationRowsBody');
+            const rowIdx = tbody.children.length + 1;
+            let opt = '<option value="">Select...</option>'; db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+            const tr = document.createElement('tr'); tr.className = 'estimation-row border-b text-xs';
+            tr.innerHTML = `
+                <td class="p-1 border text-center font-bold item-num">${rowIdx}</td>
+                <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
+                <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
+                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="recalculateEstimation()"></td>
+                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-time" value="1" oninput="recalculateEstimation()"></td>
+                <td class="p-1 border"><input type="text" class="w-full border rounded p-1 text-center item-unit" value="HRS"></td>
+                <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="recalculateEstimation()"></td>
+                <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
+                <td class="p-1 border bg-amber-50 text-right font-bold item-total">0.00</td>
+                <td class="p-1 border bg-red-50 text-right font-bold text-red-700 item-profit">0.00</td>
+                <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
+            `;
+            tbody.appendChild(tr); recalculateEstimation();
         }
-
-        // Proforma Invoicing & Accumulated Merge
-        function renderEstimationChecklist() {
-            const container = document.getElementById('estimationChecklistContainer');
-            if(db.estimations.length === 0) {
-                container.innerHTML = '<span class="text-slate-400">No saved estimations found. Save an estimation first.</span>';
-                return;
-            }
-            container.innerHTML = '';
-            db.estimations.forEach((est, idx) => {
-                container.innerHTML += `
-                    <label class="flex items-center space-x-2 bg-white border px-3 py-1.5 rounded cursor-pointer shadow-sm">
-                        <input type="checkbox" value="${idx}" onchange="renderInvoiceTable()" class="est-checkbox" checked>
-                        <span class="font-bold">${est.id}</span>
-                        <span class="text-slate-600">(${est.projectName})</span>
-                    </label>
-                `;
+        function recalculateEstimation() {
+            let subtotal = 0;
+            const mult = 1 + (parseFloat(document.getElementById('globalOverhead').value||0)/100) + (parseFloat(document.getElementById('globalProfit').value||0)/100);
+            document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
+                tr.querySelector('.item-num').innerText = idx + 1;
+                const qty = parseFloat(tr.querySelector('.item-qty').value||0), time = parseFloat(tr.querySelector('.item-time').value||0), cost = parseFloat(tr.querySelector('.item-cost').value||0);
+                const price = cost * mult, lineTotal = qty * time * price, lineProfit = lineTotal - (qty * time * cost);
+                tr.querySelector('.item-price').value = price.toFixed(2); tr.querySelector('.item-total').innerText = lineTotal.toFixed(2); tr.querySelector('.item-profit').innerText = lineProfit.toFixed(2);
+                subtotal += lineTotal;
             });
+            const vat = subtotal * (parseFloat(document.getElementById('globalVat').value||0)/100);
+            document.getElementById('summarySubtotal').innerText = subtotal.toFixed(2); document.getElementById('summaryVat').innerText = vat.toFixed(2); document.getElementById('summaryGrandTotal').innerText = (subtotal + vat).toFixed(2);
+        }
+        function saveEstimation() {
+            let items = [];
+            document.querySelectorAll('.estimation-row').forEach(tr => { items.push({ code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value, qty: tr.querySelector('.item-qty').value, time: tr.querySelector('.item-time').value, unit: tr.querySelector('.item-unit').value, cost: tr.querySelector('.item-cost').value, price: tr.querySelector('.item-price').value }); });
+            db.estimations.push({ id: 'EST-' + Date.now(), projectName: document.getElementById('estProjectName').value, location: document.getElementById('estLocation').value, title: document.getElementById('estTitle').value, date: document.getElementById('estDate').value, clientName: document.getElementById('estClientSelect').value, items });
+            saveData(); alert("Estimation saved!"); renderEstimationChecklist();
+        }
+
+        // Excel Export (Formulas & Tables)
+        function exportEstimationExcel() {
+            const wb = XLSX.utils.book_new();
+            // Data Header Setup
+            let wsData = [
+                [`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],
+                [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
+                [],
+                ["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL COST", "INTERNAL TOTAL"]
+            ];
+            const headerRow = 4; // Excel row 4 is index 3
+            
+            let itemsCount = 0;
+            document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
+                const code = tr.querySelector('.item-code-select').value, desc = tr.querySelector('.item-desc').value;
+                const qty = parseFloat(tr.querySelector('.item-qty').value), time = parseFloat(tr.querySelector('.item-time').value), unit = tr.querySelector('.item-unit').value, price = parseFloat(tr.querySelector('.item-price').value), cost = parseFloat(tr.querySelector('.item-cost').value);
+                
+                const r = headerRow + 1 + idx; // Data starts on row 5
+                // Real Excel Formulas (Qty * Time * Price)
+                const clientTotalF = `D${r}*E${r}*G${r}`;
+                const internalTotalF = `D${r}*E${r}*I${r}`;
+                wsData.push([idx+1, code, desc, qty, time, unit, price, {t:'n', f:clientTotalF}, cost, {t:'n', f:internalTotalF}]);
+                itemsCount++;
+            });
+            
+            const endRow = headerRow + itemsCount;
+            wsData.push([]);
+            wsData.push(["", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(H5:H${endRow})`}]);
+            wsData.push(["", "", "", "", "", "", "VAT 15%", {t:'n', f:`H${endRow+2}*0.15`}]);
+            wsData.push(["", "", "", "", "", "", "Grand Total", {t:'n', f:`H${endRow+2}+H${endRow+3}`}]);
+
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+            // Apply table auto-filter visually
+            ws['!autofilter'] = { ref: `A4:J${endRow}` };
+            XLSX.utils.book_append_sheet(wb, ws, "Estimation");
+            XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
+        }
+
+        // PDF Export
+        function exportEstimationPDF() {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFontSize(16); doc.text(`${db.company.name} - Estimation`, 14, 15);
+            doc.setFontSize(10); doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 22);
+            doc.text(`Client: ${document.getElementById('estClientSelect').value}`, 14, 28);
+            
+            let rows = [];
+            document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
+                const qty = parseFloat(tr.querySelector('.item-qty').value), time = parseFloat(tr.querySelector('.item-time').value), price = parseFloat(tr.querySelector('.item-price').value);
+                rows.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, qty, time, tr.querySelector('.item-unit').value, price.toFixed(2), (qty*time*price).toFixed(2)]);
+            });
+
+            doc.autoTable({
+                startY: 35, headStyles: { fillColor: [30, 58, 138] },
+                head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', 'Price', 'Total']],
+                body: rows,
+            });
+            doc.save(`${db.company.abbr}_Estimation.pdf`);
+        }
+
+        // Operations
+        function importEstimationForBudget(event) {
+            const file = event.target.files[0]; if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+                const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+                let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
+                rows.forEach(r => {
+                    if(r[1] && !isNaN(r[0])) {
+                        const costTotal = r[9] || 0; // Assuming Internal Total is col J (idx 9)
+                        html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-20 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=rem.toFixed(2);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700':'p-2 text-right font-bold text-red-700';"></td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td></tr>`;
+                    }
+                });
+                document.getElementById('operationsContent').innerHTML = html + `</table></div>`;
+            }; reader.readAsArrayBuffer(file);
+        }
+
+        // Proforma Invoicing & Filtering
+        function renderEstimationChecklist() {
+            const filterText = document.getElementById('estFilter').value.toLowerCase();
+            const container = document.getElementById('estimationChecklistContainer');
+            container.innerHTML = '';
+            let found = 0;
+            db.estimations.forEach((est, idx) => {
+                const searchStr = `${est.clientName} ${est.projectName} ${est.date}`.toLowerCase();
+                if(searchStr.includes(filterText)) {
+                    container.innerHTML += `<label class="flex items-center space-x-2 border px-3 py-1.5 rounded cursor-pointer shadow-sm bg-white"><input type="checkbox" value="${idx}" onchange="renderInvoiceTable()" class="est-checkbox" checked><span class="font-bold text-sky-700">${est.clientName}</span><span class="text-slate-600">| ${est.projectName} (${est.date})</span></label>`;
+                    found++;
+                }
+            });
+            if(found === 0) container.innerHTML = '<span class="text-slate-400">No estimations match your filter.</span>';
+            renderInvoiceTable();
         }
 
         function populateInvoiceClient() {
-            const clientName = document.getElementById('invClientSelect').value;
-            const client = db.clients.find(c => c.name === clientName);
+            const client = db.clients.find(c => c.name === document.getElementById('invClientSelect').value);
             if(client) {
-                document.getElementById('previewTo').innerText = client.name;
-                document.getElementById('previewAttn').innerText = client.attn;
-                document.getElementById('previewAdd').innerText = client.add;
+                document.getElementById('previewTo').innerText = client.name; document.getElementById('previewAttn').innerText = client.attn;
                 document.getElementById('previewClientVat').innerText = client.vat;
             }
             document.getElementById('previewInvNo').innerText = document.getElementById('invNumber').value;
             document.getElementById('previewDate').innerText = document.getElementById('invDate').value;
-        }
-
-        function numberToWords(num) {
-            // Simplified number to words converter for SAR
-            return "Saudi Riyals " + num.toFixed(2) + " Only";
+            document.getElementById('previewPoRef').innerText = document.getElementById('invPoRef').value;
         }
 
         function renderInvoiceTable() {
             populateInvoiceClient();
-            const checkedEsts = document.querySelectorAll('.est-checkbox');
-            const mode = document.querySelector('input[name="accumMode"]:checked').value;
-            const tbody = document.getElementById('invoiceItemsBody');
-            tbody.innerHTML = '';
-
-            let subtotal = 0;
-            let slNo = 1;
-            let scopes = [];
-
-            checkedEsts.forEach(chk => {
-                if(chk.checked) {
-                    const est = db.estimations[chk.value];
-                    scopes.push(est.projectName + ' - ' + est.title);
-
-                    if(mode === 'grouped') {
-                        // Add estimation sub-header row
-                        tbody.innerHTML += `
-                            <tr class="bg-slate-100 font-bold">
-                                <td colspan="7" class="p-2 border text-blue-900">${est.id}: ${est.projectName} (${est.title})</td>
-                            </tr>
-                        `;
-                    }
-
-                    est.items.forEach(item => {
-                        const total = parseFloat(item.qty) * parseFloat(item.time) * parseFloat(item.price);
-                        subtotal += total;
-
-                        tbody.innerHTML += `
-                            <tr class="border-b">
-                                <td class="p-2 border text-center">${slNo++}</td>
-                                <td class="p-2 border font-mono">${item.code}</td>
-                                <td class="p-2 border">${item.desc}</td>
-                                <td class="p-2 border text-center">${item.unit}</td>
-                                <td class="p-2 border text-center">${item.qty}</td>
-                                <td class="p-2 border text-right">${parseFloat(item.price).toFixed(2)}</td>
-                                <td class="p-2 border text-right font-bold">${total.toFixed(2)}</td>
-                            </tr>
-                        `;
-                    });
-                }
+            const tbody = document.getElementById('invoiceItemsBody'); tbody.innerHTML = '';
+            let subtotal = 0, slNo = 1, scopes = [];
+            document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
+                const est = db.estimations[chk.value]; scopes.push(est.title);
+                est.items.forEach(item => {
+                    const total = item.qty * item.time * item.price; subtotal += total;
+                    tbody.innerHTML += `<tr class="border-b"><td class="p-2 border text-center">${slNo++}</td><td class="p-2 border">${item.code}</td><td class="p-2 border">${item.desc}</td><td class="p-2 border text-center">${item.unit}</td><td class="p-2 border text-center">${item.qty}</td><td class="p-2 border text-right">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border text-right font-bold">${total.toFixed(2)}</td></tr>`;
+                });
             });
-
-            document.getElementById('previewScope').innerText = scopes.join('; ');
-            const vat = subtotal * 0.15;
-            const grandTotal = subtotal + vat;
-
+            document.getElementById('previewScope').innerText = scopes.join(', ');
             document.getElementById('invSubtotal').innerText = subtotal.toFixed(2);
-            document.getElementById('invVat').innerText = vat.toFixed(2);
-            document.getElementById('invGrandTotal').innerText = grandTotal.toFixed(2);
-            document.getElementById('invInWords').innerText = numberToWords(grandTotal);
+            document.getElementById('invVat').innerText = (subtotal * 0.15).toFixed(2);
+            document.getElementById('invGrandTotal').innerText = (subtotal * 1.15).toFixed(2);
         }
 
         function generateProformaExcel() {
             const wb = XLSX.utils.book_new();
-            let wsData = [
-                ["CBS WORKPLACE TRANSFORMATION - PROFORMA INVOICE"],
-                ["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],
-                ["TO:", document.getElementById('previewTo').innerText],
-                ["ATTN:", document.getElementById('previewAttn').innerText],
-                ["ADD:", document.getElementById('previewAdd').innerText],
-                ["CLIENT VAT:", document.getElementById('previewClientVat').innerText],
-                [],
-                ["SL NO", "ITEM CODE", "DESCRIPTION", "UNIT", "QTY", "UNIT PRICE", "TOTAL AMOUNT"]
-            ];
-
-            let subtotal = 0;
-            let slNo = 1;
-            const checkedEsts = document.querySelectorAll('.est-checkbox');
-            checkedEsts.forEach(chk => {
-                if(chk.checked) {
-                    const est = db.estimations[chk.value];
-                    est.items.forEach(item => {
-                        const total = parseFloat(item.qty) * parseFloat(item.time) * parseFloat(item.price);
-                        subtotal += total;
-                        wsData.push([slNo++, item.code, item.desc, item.unit, item.qty, item.price, total]);
-                    });
-                }
+            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", "PRICE", "TOTAL"]];
+            let subtotal = 0, slNo = 1;
+            document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
+                db.estimations[chk.value].items.forEach(i => { const tot = i.qty * i.time * i.price; subtotal += tot; wsData.push([slNo++, i.code, i.desc, i.unit, i.qty, i.price, tot]); });
             });
-
-            const vat = subtotal * 0.15;
-            wsData.push([]);
-            wsData.push(["", "", "", "", "", "Total without VAT", subtotal]);
-            wsData.push(["", "", "", "", "", "Output VAT 15%", vat]);
-            wsData.push(["", "", "", "", "", "Grand Total SAR", subtotal + vat]);
-
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "Proforma Invoice");
-            XLSX.writeFile(wb, "CBS_Proforma_Invoice.xlsx");
+            wsData.push([]); wsData.push(["", "", "", "", "", "Subtotal", subtotal]); wsData.push(["", "", "", "", "", "VAT 15%", subtotal * 0.15]); wsData.push(["", "", "", "", "", "Grand Total", subtotal * 1.15]);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${db.company.abbr}_Invoice.xlsx`);
         }
     </script>
 </body>
