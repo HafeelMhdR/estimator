@@ -6,8 +6,8 @@
     <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- Upgraded PDF Engine for Native Arabic/Currency Symbol Rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         @media print { .no-print { display: none !important; } }
         .logo-preview { max-height: 60px; max-width: 150px; object-fit: contain; }
@@ -15,6 +15,19 @@
     </style>
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
+
+    <!-- Global Unit List for Inputs -->
+    <datalist id="unitList">
+        <option value="ITEM">
+        <option value="HRS">
+        <option value="NO">
+        <option value="SQM">
+        <option value="Cu.M">
+        <option value="LM">
+        <option value="LS">
+        <option value="SET">
+        <option value="DAYS">
+    </datalist>
 
     <header class="bg-slate-900 text-white shadow-md no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
@@ -141,10 +154,10 @@
                 <div class="flex justify-between items-center mb-6">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Estimation & Costing Builder</h2>
-                        <p class="text-xs text-slate-500">Group items by Category and assign item-level overrides for Overhead and Profit margins.</p>
+                        <p class="text-xs text-slate-500">Group items by Category and bulk assign overheads, profits, and categories.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="createNewEstimation()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">📄 New Estimation</button>
+                        <button onclick="createNewEstimation()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">📄 New</button>
                         <button onclick="addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Category</button>
                         <button onclick="addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
                         <button onclick="saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Save</button>
@@ -153,7 +166,7 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4 text-sm">
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name</label>
                         <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white">
@@ -188,17 +201,24 @@
                     </div>
                 </div>
 
-                <div class="mb-4 bg-blue-50 border border-blue-200 p-3 rounded flex items-center space-x-4">
-                    <span class="text-sm font-bold text-blue-900">Bulk Override Selected Items:</span>
+                <!-- Upgraded Bulk Actions Bar with Category Moving -->
+                <div class="mb-4 bg-blue-50 border border-blue-200 p-3 rounded flex flex-wrap items-center gap-4">
+                    <span class="text-sm font-bold text-blue-900">Bulk Actions (Checked Items):</span>
                     <div class="flex items-center space-x-2">
                         <label class="text-xs font-semibold text-slate-600">New OH %:</label>
-                        <input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="e.g. 10">
+                        <input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="OH %">
                     </div>
                     <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600">New Profit %:</label>
-                        <input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="e.g. 25">
+                        <label class="text-xs font-semibold text-slate-600">New PR %:</label>
+                        <input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="PR %">
                     </div>
-                    <button onclick="applyBulkMargins()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-3 py-1.5 rounded">Apply to Checked Rows</button>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">Move to Category:</label>
+                        <select id="bulkCategory" class="w-48 border rounded px-2 py-1 text-xs bg-white">
+                            <option value="">-- Do Not Move --</option>
+                        </select>
+                    </div>
+                    <button onclick="applyBulkMargins()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded shadow-sm">Apply Changes</button>
                 </div>
 
                 <div class="overflow-x-auto border rounded-lg">
@@ -209,7 +229,7 @@
                                 <th class="p-2 border border-blue-800 text-center w-12">#</th>
                                 <th class="p-2 border border-blue-800 w-24">Item Code</th>
                                 <th class="p-2 border border-blue-800">Description</th>
-                                <th class="p-2 border border-blue-800 w-16 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-20 text-center">Unit</th>
                                 <th class="p-2 border border-blue-800 w-16 text-center">Qty</th>
                                 <th class="p-2 border border-blue-800 w-20 text-right">Int. Cost</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">OH %</th>
@@ -217,7 +237,7 @@
                                 <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Unit Price</th>
                                 <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Total</th>
                                 <th class="p-2 border border-blue-800 w-24 text-right bg-emerald-700">Item Profit</th>
-                                <th class="p-2 border border-blue-800 w-8 text-center">Act</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Act / Move</th>
                             </tr>
                         </thead>
                         <tbody id="estimationRowsBody"></tbody>
@@ -268,7 +288,7 @@
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="generateProformaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
-                        <button onclick="window.print()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">Print / PDF</button>
+                        <button onclick="exportInvoicePDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
                     </div>
                 </div>
 
@@ -292,10 +312,10 @@
                     
                     <div class="md:col-span-4 bg-white p-3 border rounded">
                         <label class="block text-xs font-semibold text-slate-600 mb-2">Invoice Billing Mode</label>
-                        <div class="flex items-center space-x-6">
+                        <div class="flex flex-wrap items-center space-x-6">
                             <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="itemized" checked onchange="renderInvoiceTable()"> 1. Full Itemized Detail</label>
                             <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="summary" onchange="renderInvoiceTable()"> 2. Category Summary Only</label>
-                            <label class="text-xs font-bold text-emerald-700"><input type="radio" name="billMode" value="milestone" onchange="renderInvoiceTable()"> 3. Milestone / Bulk Billing (%, Advance, Progress)</label>
+                            <label class="text-xs font-bold text-emerald-700"><input type="radio" name="billMode" value="milestone" onchange="renderInvoiceTable()"> 3. Milestone / Bulk Billing</label>
                         </div>
                         <div id="milestoneInputs" class="hidden mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded flex space-x-4">
                              <div>
@@ -322,72 +342,73 @@
                     <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
 
-                <!-- Invoice Print Layout -->
-                <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-6 rounded-lg shadow-sm space-y-4">
-                    <div class="flex justify-between items-start border-b pb-4">
-                        <div class="text-xs text-slate-600 space-y-0.5">
-                            <p>CR: <span class="dyn-cr"></span></p>
-                            <p>VAT: <span class="dyn-vat"></span></p>
-                            <p>ADD: <span class="dyn-address"></span></p>
-                            <p>E: <span class="dyn-email"></span></p>
+                <!-- Live Invoice Print Area (Used by html2pdf) -->
+                <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-8 rounded-lg shadow-sm space-y-4 text-black">
+                    <div class="flex justify-between items-start border-b-2 border-slate-200 pb-4 mb-4">
+                        <div class="text-xs space-y-1">
+                            <p class="font-bold text-blue-900 text-base mb-2">PROFORMA INVOICE</p>
+                            <p><b>CR:</b> <span class="dyn-cr"></span></p>
+                            <p><b>VAT:</b> <span class="dyn-vat"></span></p>
+                            <p><b>Address:</b> <span class="dyn-address"></span></p>
+                            <p><b>Email:</b> <span class="dyn-email"></span></p>
                         </div>
-                        <div class="text-right">
-                            <img id="printLogo" src="" class="logo-preview hidden mb-2 ml-auto">
+                        <div class="text-right flex flex-col items-end">
+                            <!-- Native HTML Logo placement on the Right -->
+                            <img id="printLogo" src="" class="logo-preview hidden mb-1" style="max-height: 80px; max-width: 200px;">
                             <div class="text-emerald-700 font-black text-xl tracking-wider dyn-company-name">COMPANY</div>
-                            <div class="text-xs font-semibold text-slate-700">Proforma Invoice</div>
                         </div>
                     </div>
 
-                    <table class="w-full text-xs border border-slate-300">
+                    <table class="w-full text-xs border border-slate-300 mb-4">
                         <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold w-24">TO</td>
+                            <td class="p-2 border bg-slate-50 font-bold w-24">TO</td>
                             <td id="previewTo" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-semibold w-24">INVOICE #</td>
-                            <td id="previewInvNo" class="p-2 border font-bold">-</td>
+                            <td class="p-2 border bg-slate-50 font-bold w-24">INVOICE #</td>
+                            <td id="previewInvNo" class="p-2 border font-bold text-blue-900">-</td>
                         </tr>
                         <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold">ATTN</td>
+                            <td class="p-2 border bg-slate-50 font-bold">ATTN</td>
                             <td id="previewAttn" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-semibold">DATE</td>
+                            <td class="p-2 border bg-slate-50 font-bold">DATE</td>
                             <td id="previewDate" class="p-2 border">-</td>
                         </tr>
                         <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold">Client VAT</td>
+                            <td class="p-2 border bg-slate-50 font-bold">Client VAT</td>
                             <td id="previewClientVat" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-semibold">P.O. Ref</td>
+                            <td class="p-2 border bg-slate-50 font-bold">P.O. Ref</td>
                             <td id="previewPoRef" class="p-2 border">-</td>
                         </tr>
                         <tr>
-                            <td class="p-2 border bg-slate-50 font-semibold">SCOPE</td>
+                            <td class="p-2 border bg-slate-50 font-bold">SCOPE</td>
                             <td id="previewScope" class="p-2 border" colspan="3">-</td>
                         </tr>
                     </table>
 
                     <table class="w-full text-left border-collapse text-xs border border-slate-300">
                         <thead>
-                            <tr class="bg-slate-200 text-slate-800">
-                                <th class="p-2 border text-center w-10">SL</th>
-                                <th class="p-2 border w-24">Code</th>
-                                <th class="p-2 border">Description</th>
-                                <th class="p-2 border w-12 text-center">Unit</th>
-                                <th class="p-2 border w-12 text-center">Qty</th>
-                                <th class="p-2 border w-24 text-right">Price</th>
-                                <th class="p-2 border w-28 text-right">Total</th>
+                            <tr class="bg-blue-900 text-white">
+                                <th class="p-2 border border-slate-400 text-center w-10">SL</th>
+                                <th class="p-2 border border-slate-400 w-24">Code</th>
+                                <th class="p-2 border border-slate-400">Description</th>
+                                <th class="p-2 border border-slate-400 w-16 text-center">Unit</th>
+                                <th class="p-2 border border-slate-400 w-12 text-center">Qty</th>
+                                <th class="p-2 border border-slate-400 w-24 text-right">Price</th>
+                                <th class="p-2 border border-slate-400 w-28 text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody id="invoiceItemsBody"></tbody>
                     </table>
 
-                    <div class="flex justify-end">
-                        <div class="w-80 border text-xs">
+                    <div class="flex justify-end mt-6">
+                        <div class="w-80 border border-slate-300 text-xs">
                             <div class="flex justify-between p-2 border-b bg-slate-50">
-                                <span class="font-semibold">Subtotal</span><span id="invSubtotal" class="font-bold font-mono">0.00</span>
+                                <span class="font-bold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
                             </div>
                             <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
-                                <span class="font-semibold">VAT 15%</span><span id="invVat" class="font-bold font-mono">0.00</span>
+                                <span class="font-bold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
                             </div>
-                            <div class="flex justify-between p-2.5 bg-slate-200 text-sm">
-                                <span class="font-bold text-red-700">Grand Total</span><span id="invGrandTotal" class="font-black text-red-700 font-mono">0.00</span>
+                            <div class="flex justify-between p-3 bg-blue-50 text-sm">
+                                <span class="font-bold text-blue-900">Grand Total</span><span id="invGrandTotal" class="font-black text-blue-900">0.00</span>
                             </div>
                         </div>
                     </div>
@@ -734,6 +755,22 @@
             populateInvoiceClient();
         }
 
+        // ESTIMATION ROW MOVEMENT (UP/DOWN)
+        function moveRowUp(btn) {
+            const row = btn.closest('tr');
+            if (row.previousElementSibling) {
+                row.parentNode.insertBefore(row, row.previousElementSibling);
+                recalculateEstimation();
+            }
+        }
+        function moveRowDown(btn) {
+            const row = btn.closest('tr');
+            if (row.nextElementSibling) {
+                row.parentNode.insertBefore(row.nextElementSibling, row);
+                recalculateEstimation();
+            }
+        }
+
         // ESTIMATION BUILDER & CATEGORIES
         function createNewEstimation() {
             if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
@@ -741,10 +778,7 @@
             document.getElementById('estLocation').value = '';
             document.getElementById('estTitle').value = 'BILLS OF QUANTITIES';
             document.getElementById('estDate').valueAsDate = new Date();
-            
-            if (document.getElementById('estClientSelect').options.length > 0) {
-                document.getElementById('estClientSelect').selectedIndex = 0;
-            }
+            if (document.getElementById('estClientSelect').options.length > 0) document.getElementById('estClientSelect').selectedIndex = 0;
             
             document.getElementById('globalOverhead').value = 15;
             document.getElementById('globalProfit').value = 35;
@@ -756,29 +790,70 @@
 
         function toggleAllRows(cb) { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); }
 
+        function updateBulkCategoryDropdown() {
+            const sel = document.getElementById('bulkCategory');
+            const currVal = sel.value;
+            sel.innerHTML = '<option value="">-- Do Not Move --</option>';
+            document.querySelectorAll('.category-row').forEach((cat, idx) => {
+                if(!cat.id) cat.id = 'cat-' + Date.now() + '-' + idx;
+                const title = cat.querySelector('.cat-title').value || "Unnamed Category";
+                sel.innerHTML += `<option value="${cat.id}">${title}</option>`;
+            });
+            sel.value = currVal; 
+        }
+
         function applyBulkMargins() {
             const newOh = document.getElementById('bulkOh').value;
             const newPr = document.getElementById('bulkPr').value;
+            const targetCatId = document.getElementById('bulkCategory').value;
+            
+            const checkedItems = [];
             document.querySelectorAll('.item-row').forEach(tr => {
                 const chk = tr.querySelector('.row-chk');
-                if(chk && chk.checked) {
-                    if(newOh !== '') tr.querySelector('.item-oh').value = newOh;
-                    if(newPr !== '') tr.querySelector('.item-pr').value = newPr;
-                }
+                if(chk && chk.checked) checkedItems.push(tr);
             });
+
+            // Apply OH/PR
+            checkedItems.forEach(tr => {
+                if(newOh !== '') tr.querySelector('.item-oh').value = newOh;
+                if(newPr !== '') tr.querySelector('.item-pr').value = newPr;
+            });
+            
+            // Move to Target Category
+            if (targetCatId) {
+                const targetCatRow = document.getElementById(targetCatId);
+                if (targetCatRow) {
+                    let insertNode = targetCatRow.nextElementSibling;
+                    while (insertNode && !insertNode.classList.contains('category-row')) {
+                        insertNode = insertNode.nextElementSibling;
+                    }
+                    checkedItems.forEach(tr => {
+                        targetCatRow.parentNode.insertBefore(tr, insertNode);
+                    });
+                }
+            }
+
             recalculateEstimation();
-            document.getElementById('bulkOh').value = ''; document.getElementById('bulkPr').value = '';
+            document.getElementById('bulkOh').value = ''; 
+            document.getElementById('bulkPr').value = '';
+            document.getElementById('bulkCategory').value = '';
+            document.querySelectorAll('.row-chk').forEach(c => c.checked = false);
         }
 
-        function addEstimationCategory() {
+        function addEstimationCategory(defaultTitle = "") {
             const tbody = document.getElementById('estimationRowsBody');
-            const tr = document.createElement('tr'); tr.className = 'estimation-row category-row text-xs border-b';
+            const tr = document.createElement('tr'); tr.className = 'estimation-row category-row text-xs border-b bg-slate-200 border-slate-300';
+            tr.id = 'cat-' + Date.now() + Math.random();
             tr.innerHTML = `
-                <td class="p-1 border text-center"></td>
-                <td class="p-1 border text-center font-bold text-base item-num"></td>
-                <td class="p-1 border text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
-                <td class="p-1 border" colspan="9"><input type="text" class="w-full bg-transparent font-bold text-base px-2 py-1 cat-title outline-none" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
-                <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
+                <td class="p-1 border border-slate-300 text-center"></td>
+                <td class="p-1 border border-slate-300 text-center font-bold text-sm text-blue-900 item-num"></td>
+                <td class="p-1 border border-slate-300 text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
+                <td class="p-1 border border-slate-300" colspan="8"><input type="text" class="w-full bg-transparent font-bold text-sm text-blue-900 px-2 py-1 cat-title outline-none" value="${defaultTitle}" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
+                <td class="p-1 border border-slate-300 text-center flex justify-center space-x-1">
+                    <button onclick="moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300" title="Move Up">↑</button>
+                    <button onclick="moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300" title="Move Down">↓</button>
+                    <button onclick="this.closest('tr').remove();recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
+                </td>
             `;
             tbody.appendChild(tr); recalculateEstimation();
         }
@@ -790,8 +865,6 @@
             let opt = '<option value="">Select...</option>'; db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
             
             const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
-            
-            // REMOVED HRS COLUMN completely
             tr.innerHTML = `
                 <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
                 <td class="p-1 border text-center font-bold item-num"></td>
@@ -817,12 +890,47 @@
                 <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
                 <td class="p-1 border bg-amber-50 text-right font-bold item-total font-mono">0.00</td>
                 <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit font-mono">0.00</td>
-                <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
+                <td class="p-1 border text-center flex justify-center space-x-1">
+                    <button onclick="moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded" title="Move Up">↑</button>
+                    <button onclick="moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded" title="Move Down">↓</button>
+                    <button onclick="this.closest('tr').remove();recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded">✕</button>
+                </td>
             `;
             tbody.appendChild(tr); recalculateEstimation();
         }
 
         function recalculateEstimation() {
+            const tbody = document.getElementById('estimationRowsBody');
+            
+            // Enforce Rule: If categories exist, ALL items must be inside a category
+            const categories = tbody.querySelectorAll('.category-row');
+            const items = tbody.querySelectorAll('.item-row');
+            
+            if (categories.length > 0 && items.length > 0) {
+                const firstRow = tbody.firstElementChild;
+                if (firstRow && firstRow.classList.contains('item-row')) {
+                    // Auto-insert a General Category at the top
+                    const tr = document.createElement('tr'); 
+                    tr.className = 'estimation-row category-row text-xs border-b bg-slate-200 border-slate-300';
+                    tr.id = 'cat-' + Date.now();
+                    tr.innerHTML = `
+                        <td class="p-1 border border-slate-300 text-center"></td>
+                        <td class="p-1 border border-slate-300 text-center font-bold text-sm text-blue-900 item-num"></td>
+                        <td class="p-1 border border-slate-300 text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
+                        <td class="p-1 border border-slate-300" colspan="8"><input type="text" class="w-full bg-transparent font-bold text-sm text-blue-900 px-2 py-1 cat-title outline-none" value="General / Uncategorized"></td>
+                        <td class="p-1 border border-slate-300 text-center flex justify-center space-x-1">
+                            <button onclick="moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
+                            <button onclick="moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
+                            <button onclick="this.closest('tr').remove();recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
+                        </td>
+                    `;
+                    tbody.insertBefore(tr, firstRow);
+                }
+            }
+
+            // Update bulk dropdown with latest DOM ordering
+            updateBulkCategoryDropdown();
+
             let subtotal = 0, totalCost = 0, totalProfit = 0, totalOverhead = 0;
             const globalVat = parseFloat(document.getElementById('globalVat').value||0) / 100;
             
@@ -842,8 +950,8 @@
                     const pr = parseFloat(tr.querySelector('.item-pr').value||0) / 100;
                     
                     const price = cost * (1 + oh + pr);
-                    const lineCost = qty * cost; // Removed Time multiplication
-                    const lineTotal = qty * price; // Removed Time multiplication
+                    const lineCost = qty * cost;
+                    const lineTotal = qty * price;
                     
                     tr.querySelector('.item-price').value = price.toFixed(2);
                     tr.querySelector('.item-total').innerText = formatMoney(lineTotal);
@@ -883,7 +991,6 @@
             saveData(); alert("Estimation saved!"); renderEstimationChecklist();
         }
 
-        // Updated Excel Export (Removed Hrs column)
         function exportEstimationExcel() {
             const wb = XLSX.utils.book_new();
             const curr = db.company.currency;
@@ -923,65 +1030,97 @@
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
-        // Updated PDF Export (Landscape, Clean Columns, Subtotals)
+        // UPGRADED HTML2PDF ESTIMATION EXPORT (Perfect Logo & Currency Handling)
         function exportEstimationPDF() {
-            const { jsPDF } = window.jspdf; 
-            const doc = new jsPDF({ orientation: "landscape" }); // Switched to Landscape to fix squishing
-            const curr = db.company.currency;
+            // Build the clean HTML string manually for perfect PDF rendering
+            let h = '';
+            let cNum = 0, iNum = 0, catTotal = 0;
+            const rows = Array.from(document.querySelectorAll('.estimation-row'));
             
-            doc.setFontSize(16); doc.text(`${db.company.name} - Estimation`, 14, 15);
-            doc.setFontSize(10); doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 22); doc.text(`Client: ${document.getElementById('estClientSelect').value}`, 14, 28);
-            
-            let rows = []; let cNum=0, iNum=0;
-            let currentCatTotal = 0;
-            
-            document.querySelectorAll('.estimation-row').forEach((tr, index, array) => {
+            rows.forEach((tr, index) => {
                 if(tr.classList.contains('category-row')) {
-                    // Before starting a new category, print subtotal for the previous one if it exists
-                    if (cNum > 0) {
-                        rows.push([{content: 'Category Subtotal', colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatMoney(currentCatTotal), styles: {fontStyle: 'bold'}}]);
+                    if (cNum > 0) { // Subtotal for previous category
+                        h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">Category Subtotal</td><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
                     }
-                    cNum++; iNum=0; currentCatTotal = 0; 
-                    rows.push([{content: `${cNum}. ${tr.querySelector('.cat-title').value}`, colSpan: 7, styles: {fillColor: [241,245,249], fontStyle: 'bold'}}]);
+                    cNum++; iNum = 0; catTotal = 0;
+                    h += `<tr style="background-color: #e2e8f0; font-weight: bold;"><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${cNum}</td><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1;">${tr.querySelector('.cat-title').value}</td></tr>`;
                 } else {
                     iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                     const q = parseFloat(tr.querySelector('.item-qty').value);
                     const p = parseFloat(tr.querySelector('.item-price').value);
                     const t = q * p;
-                    currentCatTotal += t;
-                    rows.push([dNum, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, tr.querySelector('.item-unit').value, q, p.toFixed(2), t.toFixed(2)]);
+                    catTotal += t;
+                    
+                    h += `<tr>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${dNum}</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1;">${tr.querySelector('.item-code-select').value}</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1;">${tr.querySelector('.item-desc').value}</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${tr.querySelector('.item-unit').value}</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${q}</td>
+                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(t)}</td>
+                    </tr>`;
                 }
-                
-                // If it's the last row, print the final category subtotal
-                if (index === array.length - 1 && cNum > 0) {
-                    rows.push([{content: 'Category Subtotal', colSpan: 6, styles: {halign: 'right', fontStyle: 'bold'}}, {content: formatMoney(currentCatTotal), styles: {fontStyle: 'bold'}}]);
-                }
-            });
-            
-            doc.autoTable({ 
-                startY: 35, 
-                headStyles: { fillColor: [30, 58, 138] }, 
-                head: [['#', 'Code', 'Description', 'Unit', 'Qty', `Price (${curr})`, `Total (${curr})`]], 
-                body: rows,
-                columnStyles: {
-                    0: {cellWidth: 15}, 1: {cellWidth: 25}, 2: {cellWidth: 100}, // Give description plenty of room
-                    3: {cellWidth: 20}, 4: {cellWidth: 20}, 5: {cellWidth: 35}, 6: {cellWidth: 35}
+                if (index === rows.length - 1 && cNum > 0) {
+                    h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">Category Subtotal</td><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
                 }
             });
-            
-            // Add Grand Totals below the table
-            let finalY = doc.lastAutoTable.finalY + 10;
-            const globalSub = document.getElementById('summarySubtotal').innerText;
-            const globalVat = document.getElementById('summaryVat').innerText;
-            const globalGrand = document.getElementById('summaryGrandTotal').innerText;
-            
-            doc.setFontSize(10);
-            doc.text(`Subtotal: ${globalSub}`, 200, finalY);
-            doc.text(`VAT (15%): ${globalVat}`, 200, finalY + 7);
-            doc.setFontSize(12); doc.setFont(undefined, 'bold');
-            doc.text(`Grand Total: ${globalGrand}`, 200, finalY + 15);
 
-            doc.save(`${db.company.abbr}_Estimation.pdf`);
+            const logoStr = db.company.logo ? `<img src="${db.company.logo}" style="max-height: 80px; max-width: 200px; object-fit: contain; float: right;">` : `<div style="float: right; font-size: 24px; font-weight: 900; color: #047857;">${db.company.name}</div>`;
+            
+            const printHtml = `
+                <div style="padding: 40px; background: white; color: black; font-family: sans-serif; width: 800px; margin: 0 auto;">
+                    <div style="display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
+                        <div>
+                            <h1 style="font-size: 22px; font-weight: bold; color: #1e3a8a; margin: 0 0 10px 0;">ESTIMATION BOQ</h1>
+                            <p style="font-size: 13px; margin: 2px 0;"><b>Project:</b> ${document.getElementById('estProjectName').value}</p>
+                            <p style="font-size: 13px; margin: 2px 0;"><b>Location:</b> ${document.getElementById('estLocation').value}</p>
+                            <p style="font-size: 13px; margin: 2px 0;"><b>Date:</b> ${document.getElementById('estDate').value}</p>
+                        </div>
+                        <div style="text-align: right;">
+                            ${logoStr}
+                        </div>
+                    </div>
+                    <table style="width: 100%; font-size: 11px; border-collapse: collapse; text-align: left;">
+                        <thead>
+                            <tr style="background-color: #1e3a8a; color: white;">
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 5%;">#</th>
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 15%;">Code</th>
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 45%;">Description</th>
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">Unit</th>
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">Qty</th>
+                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 15%;">Total Price</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${h}
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 30px; display: flex; justify-content: flex-end;">
+                        <div style="width: 300px; font-size: 13px;">
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0;">
+                                <span>Subtotal:</span> <strong>${document.getElementById('summarySubtotal').innerText}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: #b91c1c;">
+                                <span>VAT (15%):</span> <strong>${document.getElementById('summaryVat').innerText}</strong>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 16px; font-weight: bold; color: #1e3a8a;">
+                                <span>Grand Total:</span> <span>${document.getElementById('summaryGrandTotal').innerText}</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            const printDiv = document.createElement('div');
+            printDiv.innerHTML = printHtml;
+            
+            html2pdf().set({
+                margin:       10,
+                filename:     `${db.company.abbr}_Estimation.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(printDiv).save();
         }
 
         // Operations 
@@ -1002,7 +1141,7 @@
             }; reader.readAsArrayBuffer(file);
         }
 
-        // PROFORMA INVOICING WITH BILLING MODES
+        // PROFORMA INVOICING
         function renderEstimationChecklist() {
             const filterText = document.getElementById('estFilter').value.toLowerCase();
             const container = document.getElementById('estimationChecklistContainer'); container.innerHTML = ''; let found = 0;
@@ -1042,7 +1181,7 @@
                 const est = db.estimations[chk.value]; scopes.push(est.title);
                 let estTotal = 0;
                 
-                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); }); // Removed Time
+                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
 
                 if (mode === 'milestone') {
                     globalSubtotal += estTotal; 
@@ -1050,13 +1189,13 @@
                     let catTotal = 0; let currentCat = ""; let cNum = 0;
                     est.items.forEach((item, index) => {
                         if (item.type === 'category') {
-                            if(currentCat !== "") { tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="4"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal; }
+                            if(currentCat !== "") { tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border border-slate-300 text-center font-bold">${cNum}</td><td class="p-2 border border-slate-300" colspan="4"><b>${currentCat}</b></td><td class="p-2 border border-slate-300 text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal; }
                             currentCat = item.title; catTotal = 0; cNum++;
                         } else {
                             catTotal += (item.qty * item.price);
                         }
                         if (index === est.items.length - 1 && currentCat !== "") {
-                            tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border text-center font-bold">${cNum}</td><td class="p-2 border" colspan="4"><b>${currentCat}</b></td><td class="p-2 border text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal;
+                            tbody.innerHTML += `<tr class="border-b bg-slate-50"><td class="p-2 border border-slate-300 text-center font-bold">${cNum}</td><td class="p-2 border border-slate-300" colspan="4"><b>${currentCat}</b></td><td class="p-2 border border-slate-300 text-right font-bold">${formatMoney(catTotal)}</td></tr>`; globalSubtotal += catTotal;
                         }
                     });
                 } else {
@@ -1064,11 +1203,11 @@
                     est.items.forEach(item => {
                         if (item.type === 'category') {
                             cNum++; iNum = 0;
-                            tbody.innerHTML += `<tr class="border-b bg-slate-100 font-bold"><td class="p-2 border text-center">${cNum}</td><td class="p-2 border" colspan="6">${item.title}</td></tr>`;
+                            tbody.innerHTML += `<tr class="border-b bg-slate-100 font-bold"><td class="p-2 border border-slate-300 text-center">${cNum}</td><td class="p-2 border border-slate-300" colspan="5">${item.title}</td></tr>`;
                         } else {
                             iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                             const total = item.qty * item.price; globalSubtotal += total;
-                            tbody.innerHTML += `<tr class="border-b"><td class="p-2 border text-center">${dNum}</td><td class="p-2 border">${item.code}</td><td class="p-2 border">${item.desc}</td><td class="p-2 border text-center">${item.unit}</td><td class="p-2 border text-center">${item.qty}</td><td class="p-2 border text-right font-mono">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border text-right font-bold font-mono">${formatMoney(total)}</td></tr>`;
+                            tbody.innerHTML += `<tr class="border-b"><td class="p-2 border border-slate-300 text-center">${dNum}</td><td class="p-2 border border-slate-300">${item.code}</td><td class="p-2 border border-slate-300">${item.desc}</td><td class="p-2 border border-slate-300 text-center">${item.unit}</td><td class="p-2 border border-slate-300 text-center">${item.qty}</td><td class="p-2 border border-slate-300 text-right font-bold font-mono">${formatMoney(total)}</td></tr>`;
                         }
                     });
                 }
@@ -1078,7 +1217,7 @@
                 const msVal = document.getElementById('milestoneType').value.split('|');
                 const pct = parseFloat(document.getElementById('milestonePct').value || 0) / 100;
                 const msTotal = globalSubtotal * pct;
-                tbody.innerHTML = `<tr class="border-b"><td class="p-2 border text-center">1</td><td class="p-2 border font-bold">${msVal[0]}</td><td class="p-2 border font-bold">${msVal[1]} - ${pct*100}%</td><td class="p-2 border text-center">LS</td><td class="p-2 border text-center">1</td><td class="p-2 border text-right font-mono">${msTotal.toFixed(2)}</td><td class="p-2 border text-right font-bold font-mono">${formatMoney(msTotal)}</td></tr>`;
+                tbody.innerHTML = `<tr class="border-b"><td class="p-2 border border-slate-300 text-center">1</td><td class="p-2 border border-slate-300 font-bold">${msVal[0]}</td><td class="p-2 border border-slate-300 font-bold">${msVal[1]} - ${pct*100}%</td><td class="p-2 border border-slate-300 text-center">LS</td><td class="p-2 border border-slate-300 text-center">1</td><td class="p-2 border border-slate-300 text-right font-bold font-mono">${formatMoney(msTotal)}</td></tr>`;
                 globalSubtotal = msTotal; 
             }
 
@@ -1088,10 +1227,22 @@
             document.getElementById('invGrandTotal').innerText = formatMoney(globalSubtotal * 1.15);
         }
 
+        // UPGRADED HTML2PDF INVOICE EXPORT
+        function exportInvoicePDF() {
+            const element = document.getElementById('invoicePreviewArea');
+            html2pdf().set({
+                margin:       10,
+                filename:     `${document.getElementById('invNumber').value}.pdf`,
+                image:        { type: 'jpeg', quality: 0.98 },
+                html2canvas:  { scale: 2, useCORS: true },
+                jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            }).from(element).save();
+        }
+
         function generateProformaExcel() {
             const wb = XLSX.utils.book_new();
             const curr = db.company.currency;
-            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
+            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `TOTAL (${curr})`]];
             
             const mode = document.querySelector('input[name="billMode"]:checked').value;
             let globalSubtotal = 0;
@@ -1106,19 +1257,19 @@
                     let catTotal = 0; let currentCat = ""; let cNum = 0;
                     est.items.forEach((item, index) => {
                         if (item.type === 'category') {
-                            if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", "", catTotal]); globalSubtotal += catTotal; }
+                            if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
                             currentCat = item.title; catTotal = 0; cNum++;
                         } else { catTotal += (item.qty * item.price); }
-                        if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", "", catTotal]); globalSubtotal += catTotal; }
+                        if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
                     });
                 } else {
                     let cNum = 0, iNum = 0;
                     est.items.forEach(item => {
-                        if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", "", ""]); } 
+                        if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", ""]); } 
                         else {
                             iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                             const total = item.qty * item.price; globalSubtotal += total;
-                            wsData.push([dNum, item.code, item.desc, item.unit, item.qty, parseFloat(item.price), total]);
+                            wsData.push([dNum, item.code, item.desc, item.unit, item.qty, total]);
                         }
                     });
                 }
@@ -1129,11 +1280,11 @@
                 const pct = parseFloat(document.getElementById('milestonePct').value || 0) / 100;
                 const msTotal = globalSubtotal * pct;
                 wsData = wsData.slice(0, 7); 
-                wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal, msTotal]);
+                wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal]);
                 globalSubtotal = msTotal;
             }
 
-            wsData.push([]); wsData.push(["", "", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "", "Grand Total", globalSubtotal * 1.15]);
+            wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${db.company.abbr}_Invoice.xlsx`);
         }
     </script>
