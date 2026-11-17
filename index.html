@@ -15,6 +15,18 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
+    <!-- Global Unit List for Inputs -->
+    <datalist id="unitList">
+        <option value="HRS">
+        <option value="NOS">
+        <option value="LS">
+        <option value="M2">
+        <option value="M3">
+        <option value="LM">
+        <option value="ITEM">
+        <option value="DAYS">
+    </datalist>
+
     <!-- Top Navigation Header -->
     <header class="bg-slate-900 text-white shadow-md no-print">
         <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
@@ -171,11 +183,11 @@
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label>
-                        <input type="number" id="globalOverhead" onchange="updateNewRowsDefault()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
+                        <input type="number" id="globalOverhead" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Profit %</label>
-                        <input type="number" id="globalProfit" onchange="updateNewRowsDefault()" class="w-full border rounded px-3 py-1.5 bg-white" value="35">
+                        <input type="number" id="globalProfit" class="w-full border rounded px-3 py-1.5 bg-white" value="35">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
@@ -211,13 +223,13 @@
                                 <th class="p-2 border border-blue-800">Description</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center">Qty</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center">Hrs</th>
-                                <th class="p-2 border border-blue-800 w-12 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Unit</th>
                                 <th class="p-2 border border-blue-800 w-20 text-right">Int. Cost</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">OH %</th>
                                 <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">PR %</th>
-                                <th class="p-2 border border-blue-800 w-20 text-right bg-amber-600">Unit Price</th>
-                                <th class="p-2 border border-blue-800 w-20 text-right bg-amber-600">Total</th>
-                                <th class="p-2 border border-blue-800 w-20 text-right bg-emerald-700">Item Profit</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Unit Price</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Total</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-emerald-700">Item Profit</th>
                                 <th class="p-2 border border-blue-800 w-8 text-center">Act</th>
                             </tr>
                         </thead>
@@ -225,16 +237,21 @@
                     </table>
                 </div>
 
+                <!-- Easy Add Button Below Table -->
+                <div class="mt-2">
+                    <button onclick="addEstimationRow()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded border border-slate-300 shadow-sm">+ Add Row</button>
+                </div>
+
                 <div class="mt-4 flex justify-end">
                     <div class="w-96 bg-slate-50 p-4 rounded-lg border space-y-2 text-sm">
-                        <div class="flex justify-between text-xs text-slate-500"><span>Total Internal Cost:</span> <span id="summaryCost">0.00</span></div>
-                        <div class="flex justify-between text-xs text-slate-500 border-b pb-1"><span>Total Overhead Expense:</span> <span id="summaryOverhead">0.00</span></div>
-                        <div class="flex justify-between text-emerald-700 font-bold"><span>Total Net Profit:</span> <span id="summaryProfit">0.00</span></div>
-                        <div class="flex justify-between text-xs text-slate-600 font-bold border-b pb-2"><span>Total Combined Margin/Markup:</span> <span id="summaryMargin">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-500"><span>Total Internal Cost:</span> <span id="summaryCost" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-500 border-b pb-1"><span>Total Overhead Expense:</span> <span id="summaryOverhead" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-emerald-700 font-bold"><span>Total Net Profit:</span> <span id="summaryProfit" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-600 font-bold border-b pb-2"><span>Total Combined Margin/Markup:</span> <span id="summaryMargin" class="font-mono">0.00</span></div>
                         
-                        <div class="flex justify-between pt-2"><span>Client Subtotal:</span> <span id="summarySubtotal" class="font-bold">0.00</span></div>
-                        <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold">0.00</span></div>
-                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold text-base"><span>Grand Total:</span> <span id="summaryGrandTotal">0.00</span></div>
+                        <div class="flex justify-between pt-2"><span>Client Subtotal:</span> <span id="summarySubtotal" class="font-bold font-mono">0.00</span></div>
+                        <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold font-mono">0.00</span></div>
+                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold text-base"><span>Grand Total:</span> <span id="summaryGrandTotal" class="font-mono">0.00</span></div>
                     </div>
                 </div>
             </div>
@@ -344,8 +361,8 @@
                                 <th class="p-2 border">Description</th>
                                 <th class="p-2 border w-12 text-center">Unit</th>
                                 <th class="p-2 border w-12 text-center">Qty</th>
-                                <th class="p-2 border w-20 text-right">Price</th>
-                                <th class="p-2 border w-24 text-right">Total</th>
+                                <th class="p-2 border w-24 text-right">Price</th>
+                                <th class="p-2 border w-28 text-right">Total</th>
                             </tr>
                         </thead>
                         <tbody id="invoiceItemsBody"></tbody>
@@ -354,13 +371,13 @@
                     <div class="flex justify-end">
                         <div class="w-80 border text-xs">
                             <div class="flex justify-between p-2 border-b bg-slate-50">
-                                <span class="font-semibold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
+                                <span class="font-semibold">Subtotal</span><span id="invSubtotal" class="font-bold font-mono">0.00</span>
                             </div>
                             <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
-                                <span class="font-semibold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
+                                <span class="font-semibold">VAT 15%</span><span id="invVat" class="font-bold font-mono">0.00</span>
                             </div>
                             <div class="flex justify-between p-2.5 bg-slate-200 text-sm">
-                                <span class="font-bold text-red-700">Grand Total</span><span id="invGrandTotal" class="font-black text-red-700">0.00</span>
+                                <span class="font-bold text-red-700">Grand Total</span><span id="invGrandTotal" class="font-black text-red-700 font-mono">0.00</span>
                             </div>
                         </div>
                     </div>
@@ -383,6 +400,10 @@
                     <input type="text" id="setCompAbbr" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. COMP">
                 </div>
                 <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Currency Symbol</label>
+                    <input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR, ﷼, $">
+                </div>
+                <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label>
                     <input type="text" id="setCompCR" class="w-full border rounded px-3 py-1.5 text-sm">
                 </div>
@@ -390,7 +411,7 @@
                     <label class="block text-xs font-semibold text-slate-600 mb-1">VAT Number</label>
                     <input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm">
                 </div>
-                <div>
+                <div class="col-span-2">
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
                     <input type="text" id="setCompEmail" class="w-full border rounded px-3 py-1.5 text-sm">
                 </div>
@@ -433,10 +454,15 @@
 
     <script>
         let db = {
-            company: { name: "Your Company", abbr: "COMP", cr: "", vat: "", email: "", address: "", logo: "" },
+            company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" },
             codes: [], clients: [], estimations: []
         };
         let currentDirectoryHandle = null;
+
+        // Formats money cleanly globally to 2 decimal places + Symbol
+        function formatMoney(num) {
+            return parseFloat(num || 0).toFixed(2) + ' ' + (db.company.currency || 'SAR');
+        }
 
         const idb = {
             getDB: () => new Promise((resolve, reject) => {
@@ -516,7 +542,8 @@
             const saved = localStorage.getItem('sys_db'); 
             if(saved) { 
                 db = JSON.parse(saved); 
-                if(!db.company) db.company = { name: "Your Company", abbr: "COMP", cr: "", vat: "", email: "", address: "", logo: "" };
+                if(!db.company) db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
+                if(!db.company.currency) db.company.currency = "SAR";
             } 
         }
 
@@ -544,6 +571,7 @@
                     
                     try {
                         db = JSON.parse(text); 
+                        if(!db.company.currency) db.company.currency = "SAR";
                         localStorage.setItem('sys_db', JSON.stringify(db));
                         applyCompanyDataToUI(); renderCodesTable(); renderClientTable(); populateClientDropdowns(); updateDashboardStats();
                         alert("Successfully synced database from network folder.");
@@ -589,6 +617,7 @@
         function openCompanyModal() {
             document.getElementById('setCompName').value = db.company.name;
             document.getElementById('setCompAbbr').value = db.company.abbr;
+            document.getElementById('setCompCurrency').value = db.company.currency || "SAR";
             document.getElementById('setCompCR').value = db.company.cr;
             document.getElementById('setCompVAT').value = db.company.vat;
             document.getElementById('setCompEmail').value = db.company.email;
@@ -625,11 +654,19 @@
         function saveCompanySettings() {
             db.company.name = document.getElementById('setCompName').value || "Company";
             db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
+            db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
             db.company.cr = document.getElementById('setCompCR').value;
             db.company.vat = document.getElementById('setCompVAT').value;
             db.company.email = document.getElementById('setCompEmail').value;
             db.company.address = document.getElementById('setCompAdd').value;
-            saveData(); applyCompanyDataToUI(); document.getElementById('companyModal').classList.add('hidden');
+            saveData(); 
+            applyCompanyDataToUI(); 
+            
+            // Instantly reformat numbers on currently open screens
+            recalculateEstimation();
+            if(!document.getElementById('tab-invoicing').classList.contains('hidden')) renderInvoiceTable();
+            
+            document.getElementById('companyModal').classList.add('hidden');
         }
 
         function applyCompanyDataToUI() {
@@ -695,7 +732,7 @@
             populateInvoiceClient();
         }
 
-        // ESTIMATION BUILDER (WITH ITEM MARGINS)
+        // ESTIMATION BUILDER
         function toggleAllRows(cb) {
             document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked);
         }
@@ -716,10 +753,6 @@
             document.getElementById('bulkPr').value = '';
         }
 
-        function updateNewRowsDefault() {
-            // Optional: You could update empty rows here if you wanted
-        }
-
         function addEstimationRow() {
             const tbody = document.getElementById('estimationRowsBody');
             const rowIdx = tbody.children.length + 1;
@@ -738,15 +771,15 @@
                 <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="recalculateEstimation()"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-time" value="1" oninput="recalculateEstimation()"></td>
-                <td class="p-1 border"><input type="text" class="w-full border rounded p-1 text-center item-unit" value="HRS"></td>
+                <td class="p-1 border"><input type="text" list="unitList" class="w-full border rounded p-1 text-center item-unit" value="HRS"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="recalculateEstimation()"></td>
                 
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="recalculateEstimation()"></td>
                 <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="recalculateEstimation()"></td>
                 
                 <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
-                <td class="p-1 border bg-amber-50 text-right font-bold item-total">0.00</td>
-                <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit">0.00</td>
+                <td class="p-1 border bg-amber-50 text-right font-bold item-total font-mono">0.00</td>
+                <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit font-mono">0.00</td>
                 <td class="p-1 border text-center"><button onclick="this.closest('tr').remove();recalculateEstimation()" class="text-red-600 font-bold">×</button></td>
             `;
             tbody.appendChild(tr); recalculateEstimation();
@@ -775,8 +808,8 @@
                 const lineProfit = lineCost * pr;
                 
                 tr.querySelector('.item-price').value = price.toFixed(2);
-                tr.querySelector('.item-total').innerText = lineTotal.toFixed(2);
-                tr.querySelector('.item-profit').innerText = lineProfit.toFixed(2);
+                tr.querySelector('.item-total').innerText = formatMoney(lineTotal);
+                tr.querySelector('.item-profit').innerText = formatMoney(lineProfit);
                 
                 subtotal += lineTotal;
                 totalCost += lineCost;
@@ -785,14 +818,14 @@
             });
             
             const vat = subtotal * globalVat;
-            document.getElementById('summaryCost').innerText = totalCost.toFixed(2);
-            document.getElementById('summaryOverhead').innerText = totalOverhead.toFixed(2);
-            document.getElementById('summaryProfit').innerText = totalProfit.toFixed(2);
-            document.getElementById('summaryMargin').innerText = (totalOverhead + totalProfit).toFixed(2);
+            document.getElementById('summaryCost').innerText = formatMoney(totalCost);
+            document.getElementById('summaryOverhead').innerText = formatMoney(totalOverhead);
+            document.getElementById('summaryProfit').innerText = formatMoney(totalProfit);
+            document.getElementById('summaryMargin').innerText = formatMoney(totalOverhead + totalProfit);
             
-            document.getElementById('summarySubtotal').innerText = subtotal.toFixed(2);
-            document.getElementById('summaryVat').innerText = vat.toFixed(2);
-            document.getElementById('summaryGrandTotal').innerText = (subtotal + vat).toFixed(2);
+            document.getElementById('summarySubtotal').innerText = formatMoney(subtotal);
+            document.getElementById('summaryVat').innerText = formatMoney(vat);
+            document.getElementById('summaryGrandTotal').innerText = formatMoney(subtotal + vat);
         }
 
         function saveEstimation() {
@@ -814,14 +847,14 @@
             saveData(); alert("Estimation saved!"); renderEstimationChecklist();
         }
 
-        // Excel Export (Updated with OH and PR)
+        // Excel Export
         function exportEstimationExcel() {
             const wb = XLSX.utils.book_new();
             let wsData = [
                 [`${db.company.name.toUpperCase()} - ESTIMATION BOQ`],
                 [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
                 [],
-                ["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", "INTERNAL COST", "OH %", "PROFIT %", "CLIENT PRICE", "CLIENT TOTAL", "INTERNAL TOTAL"]
+                ["ITEM", "ITEM CODE", "DESCRIPTION", "QTY", "TIME", "UNIT", `INTERNAL COST (${db.company.currency})`, "OH %", "PROFIT %", `CLIENT PRICE (${db.company.currency})`, `CLIENT TOTAL (${db.company.currency})`, `INTERNAL TOTAL (${db.company.currency})`]
             ];
             const headerRow = 4; let itemsCount = 0;
             
@@ -868,13 +901,13 @@
             let rows = [];
             document.querySelectorAll('.estimation-row').forEach((tr, idx) => {
                 const q = parseFloat(tr.querySelector('.item-qty').value), t = parseFloat(tr.querySelector('.item-time').value), p = parseFloat(tr.querySelector('.item-price').value);
-                rows.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, q, t, tr.querySelector('.item-unit').value, p.toFixed(2), (q*t*p).toFixed(2)]);
+                rows.push([idx+1, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, q, t, tr.querySelector('.item-unit').value, formatMoney(p), formatMoney(q*t*p)]);
             });
-            doc.autoTable({ startY: 35, headStyles: { fillColor: [30, 58, 138] }, head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', 'Price', 'Total']], body: rows });
+            doc.autoTable({ startY: 35, headStyles: { fillColor: [30, 58, 138] }, head: [['#', 'Code', 'Description', 'Qty', 'Hrs', 'Unit', `Price (${db.company.currency})`, `Total (${db.company.currency})`]], body: rows });
             doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
-        // Operations (Updated index for Internal Total Cost)
+        // Operations 
         function importEstimationForBudget(event) {
             const file = event.target.files[0]; if(!file) return;
             const reader = new FileReader();
@@ -884,8 +917,8 @@
                 let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
                 rows.forEach(r => {
                     if(r[1] && !isNaN(r[0])) {
-                        const costTotal = r[11] || 0; // Index 11 is now Internal Total
-                        html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-20 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=rem.toFixed(2);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700':'p-2 text-right font-bold text-red-700';"></td><td class="p-2 text-right font-bold text-emerald-700">${costTotal.toFixed(2)}</td></tr>`;
+                        const costTotal = r[11] || 0; 
+                        html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=parseFloat(rem).toFixed(2) + ' ${db.company.currency}';c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${formatMoney(costTotal)}</td></tr>`;
                     }
                 });
                 document.getElementById('operationsContent').innerHTML = html + `</table></div>`;
@@ -925,21 +958,21 @@
                 const est = db.estimations[chk.value]; scopes.push(est.title);
                 est.items.forEach(item => {
                     const total = item.qty * item.time * item.price; subtotal += total;
-                    tbody.innerHTML += `<tr class="border-b"><td class="p-2 border text-center">${slNo++}</td><td class="p-2 border">${item.code}</td><td class="p-2 border">${item.desc}</td><td class="p-2 border text-center">${item.unit}</td><td class="p-2 border text-center">${item.qty}</td><td class="p-2 border text-right">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border text-right font-bold">${total.toFixed(2)}</td></tr>`;
+                    tbody.innerHTML += `<tr class="border-b"><td class="p-2 border text-center">${slNo++}</td><td class="p-2 border">${item.code}</td><td class="p-2 border">${item.desc}</td><td class="p-2 border text-center">${item.unit}</td><td class="p-2 border text-center">${item.qty}</td><td class="p-2 border text-right font-mono">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border text-right font-bold font-mono">${formatMoney(total)}</td></tr>`;
                 });
             });
             document.getElementById('previewScope').innerText = scopes.join(', ');
-            document.getElementById('invSubtotal').innerText = subtotal.toFixed(2);
-            document.getElementById('invVat').innerText = (subtotal * 0.15).toFixed(2);
-            document.getElementById('invGrandTotal').innerText = (subtotal * 1.15).toFixed(2);
+            document.getElementById('invSubtotal').innerText = formatMoney(subtotal);
+            document.getElementById('invVat').innerText = formatMoney(subtotal * 0.15);
+            document.getElementById('invGrandTotal').innerText = formatMoney(subtotal * 1.15);
         }
 
         function generateProformaExcel() {
             const wb = XLSX.utils.book_new();
-            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", "PRICE", "TOTAL"]];
+            let wsData = [[`${db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${db.company.currency})`, `TOTAL (${db.company.currency})`]];
             let subtotal = 0, slNo = 1;
             document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
-                db.estimations[chk.value].items.forEach(i => { const tot = i.qty * i.time * i.price; subtotal += tot; wsData.push([slNo++, i.code, i.desc, i.unit, i.qty, i.price, tot]); });
+                db.estimations[chk.value].items.forEach(i => { const tot = i.qty * i.time * i.price; subtotal += tot; wsData.push([slNo++, i.code, i.desc, i.unit, i.qty, parseFloat(i.price), tot]); });
             });
             wsData.push([]); wsData.push(["", "", "", "", "", "Subtotal", subtotal]); wsData.push(["", "", "", "", "", "VAT 15%", subtotal * 0.15]); wsData.push(["", "", "", "", "", "Grand Total", subtotal * 1.15]);
             XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${db.company.abbr}_Invoice.xlsx`);
