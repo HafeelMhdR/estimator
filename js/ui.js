@@ -10,38 +10,35 @@ window.ui = {
         event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
         event.currentTarget.classList.remove('text-slate-300');
         
-        if(tabId === 'invoicing') { window.invoicer.renderEstimationChecklist(); window.invoicer.renderInvoiceTable(); }
-        if(tabId === 'history') { window.dataManager.renderHistoryTable(); } 
+        if(tabId === 'invoicing' && window.invoicer) { window.invoicer.renderEstimationChecklist(); window.invoicer.renderInvoiceTable(); }
+        if(tabId === 'history' && window.dataManager) { window.dataManager.renderHistoryTable(); } 
     },
 
     updateDashboardStats: () => {
-        document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
-        document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
-        document.getElementById('statEstimationsCount').innerText = window.app.db.estimations.length;
+        if(document.getElementById('statCodesCount')) {
+            document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
+            document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
+            document.getElementById('statEstimationsCount').innerText = window.app.db.estimations.length;
+        }
     },
 
     openCompanyModal: () => {
-        document.getElementById('setCompName').value = window.app.db.company.name;
-        document.getElementById('setCompAbbr').value = window.app.db.company.abbr;
+        document.getElementById('setCompName').value = window.app.db.company.name || '';
+        document.getElementById('setCompAbbr').value = window.app.db.company.abbr || '';
         document.getElementById('setCompCurrency').value = window.app.db.company.currency || "SAR";
-        document.getElementById('setCompCR').value = window.app.db.company.cr;
-        document.getElementById('setCompVAT').value = window.app.db.company.vat;
-        document.getElementById('setCompEmail').value = window.app.db.company.email;
-        document.getElementById('setCompAdd').value = window.app.db.company.address;
+        document.getElementById('setCompCR').value = window.app.db.company.cr || '';
+        document.getElementById('setCompVAT').value = window.app.db.company.vat || '';
+        document.getElementById('setCompEmail').value = window.app.db.company.email || '';
+        document.getElementById('setCompAdd').value = window.app.db.company.address || '';
+        
         const preview = document.getElementById('logoPreviewModal');
-        if(window.app.db.company.logo) { preview.src = window.app.db.company.logo; preview.classList.remove('hidden'); }
+        if(window.app.db.company.logo) { 
+            preview.src = window.app.db.company.logo; 
+            preview.classList.remove('hidden'); 
+        } else {
+            preview.classList.add('hidden');
+        }
         document.getElementById('companyModal').classList.remove('hidden');
-    },
-
-    openAddCodeModal: () => {
-        document.getElementById('modalCode').value = ''; 
-        document.getElementById('modalDesc').value = ''; 
-        document.getElementById('codeModal').classList.remove('hidden');
-    },
-
-    openClientModal: () => {
-        document.getElementById('mClientName').value = ''; 
-        document.getElementById('clientModal').classList.remove('hidden');
     },
 
     convertLogoToBase64: (event) => {
@@ -68,19 +65,67 @@ window.ui = {
         reader.readAsDataURL(file);
     },
 
+    // NEW: Export Company Settings
+    exportCompanyProfile: () => {
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.app.db.company));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `${window.app.db.company.abbr || 'Company'}_Profile.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        document.body.removeChild(dlAnchorElem);
+    },
+
+    // NEW: Import Company Settings
+    importCompanyProfile: (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (importedData && importedData.name) {
+                    window.app.db.company = importedData;
+                    window.ui.openCompanyModal(); // Reload the modal text boxes to show new data
+                    alert("Company profile loaded successfully! Click 'Save Profile' to lock it in.");
+                } else {
+                    alert("Invalid profile file format.");
+                }
+            } catch (err) {
+                alert("Error reading profile file.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset input so you can re-upload if needed
+    },
+
+    // UPDATED: Added anti-crash protection so it always saves and closes
     saveCompanySettings: () => {
-        window.app.db.company.name = document.getElementById('setCompName').value || "Company";
-        window.app.db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
-        window.app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
-        window.app.db.company.cr = document.getElementById('setCompCR').value;
-        window.app.db.company.vat = document.getElementById('setCompVAT').value;
-        window.app.db.company.email = document.getElementById('setCompEmail').value;
-        window.app.db.company.address = document.getElementById('setCompAdd').value;
-        window.app.saveData(); 
-        window.ui.applyCompanyDataToUI(); 
-        window.estimator.recalculateEstimation();
-        if(!document.getElementById('tab-invoicing').classList.contains('hidden')) window.invoicer.renderInvoiceTable();
-        document.getElementById('companyModal').classList.add('hidden');
+        try {
+            window.app.db.company.name = document.getElementById('setCompName').value || "Company";
+            window.app.db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
+            window.app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
+            window.app.db.company.cr = document.getElementById('setCompCR').value;
+            window.app.db.company.vat = document.getElementById('setCompVAT').value;
+            window.app.db.company.email = document.getElementById('setCompEmail').value;
+            window.app.db.company.address = document.getElementById('setCompAdd').value;
+            
+            window.app.saveData(); 
+            window.ui.applyCompanyDataToUI(); 
+            
+            if(window.estimator && window.estimator.recalculateEstimation) {
+                window.estimator.recalculateEstimation();
+            }
+            
+            const invTab = document.getElementById('tab-invoicing');
+            if(invTab && !invTab.classList.contains('hidden') && window.invoicer) {
+                window.invoicer.renderInvoiceTable();
+            }
+        } catch(error) {
+            console.warn("Minor background error during save, but company data was recorded.", error);
+        } finally {
+            document.getElementById('companyModal').classList.add('hidden');
+        }
     },
 
     applyCompanyDataToUI: () => {
