@@ -1,43 +1,6 @@
 window.estimator = {
-    validateEstimation: () => {
-        const client = document.getElementById('estClientSelect').value;
-        const proj = document.getElementById('estProjectCodeSelect').value;
-        const loc = document.getElementById('estLocation').value;
-        const title = document.getElementById('estTitle').value;
-        const date = document.getElementById('estDate').value;
-        
-        if (!client || !proj || !loc || !title || !date) {
-            alert("Please fill all header details (Client, Project Code, Date, Project Name, Location, Title) before saving or exporting.");
-            return false;
-        }
-
-        const items = document.querySelectorAll('.item-row');
-        if (items.length === 0) {
-            alert("Please add at least one item to the estimation.");
-            return false;
-        }
-
-        let isValid = true;
-        items.forEach((tr) => {
-            const code = tr.querySelector('.item-code-select').value;
-            const desc = tr.querySelector('.item-desc').value;
-            const unit = tr.querySelector('.item-unit').value;
-            const qty = tr.querySelector('.item-qty').value;
-            const cost = tr.querySelector('.item-cost').value;
-
-            if (!code || !desc || !unit || qty === "" || cost === "") {
-                isValid = false;
-            }
-        });
-
-        if (!isValid) {
-            alert("Please ensure NO blanks exist in any item row (Code, Description, Unit, Qty, Cost must all be filled).");
-            return false;
-        }
-        return true;
-    },
-
-    generateBaseId: () => {
+    // PRECISE ID GENERATOR
+    generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
         
         const clientName = document.getElementById('estClientSelect').value;
@@ -53,34 +16,102 @@ window.estimator = {
             dateStr = `${parts[1]}${parts[2]}${parts[0]}`; 
         }
         
-        return `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
+        const basePrefix = `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
+        const currentId = document.getElementById('currentEditingEstId').value;
+        let rev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
+
+        // 1. If we are editing an existing estimation (and didn't change the client/project/date)
+        if (currentId && !currentId.startsWith('EST-')) {
+            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
+            if (existingEst && existingEst.baseId && existingEst.baseId.startsWith(basePrefix)) {
+                return { baseId: existingEst.baseId, fullId: existingEst.baseId + (rev > 0 ? `R${rev}` : ''), quoteOfDay: existingEst.quoteOfDay || 1 };
+            }
+        }
+
+        // 2. If it's a NEW estimation (or we changed the client/project/date), find the highest quote number (x) for this specific prefix
+        const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && e.baseId.startsWith(basePrefix));
+        let maxX = 0;
+        samePrefixEsts.forEach(e => {
+            let q = e.quoteOfDay;
+            if (!q) {
+                let numStr = e.baseId.substring(basePrefix.length);
+                q = parseInt(numStr);
+            }
+            if (q > maxX) maxX = q;
+        });
+        
+        const x = maxX + 1;
+        const baseId = `${basePrefix}${x}`;
+        
+        // If we changed client/date on an existing quote, reset revision to 0
+        if (currentId && !currentId.startsWith('EST-')) {
+            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
+            if (existingEst && existingEst.baseId && !existingEst.baseId.startsWith(basePrefix)) {
+                rev = 0;
+                document.getElementById('currentEditingEstRev').value = 0;
+            }
+        }
+        
+        return { baseId, fullId: baseId + (rev > 0 ? `R${rev}` : ''), quoteOfDay: x };
     },
 
     updateEstIdPreview: () => {
-        const baseId = window.estimator.generateBaseId();
-        const currentId = document.getElementById('currentEditingEstId').value;
-        const rawDate = document.getElementById('estDate').value;
-        let displayId = currentId;
+        const client = document.getElementById('estClientSelect').value;
+        const proj = document.getElementById('estProjectCodeSelect').value;
+        const date = document.getElementById('estDate').value;
+        const previewEl = document.getElementById('estIdPreview');
         
-        // If new, or if they changed core fields (baseId changed)
-        if (!currentId || !currentId.startsWith(baseId)) {
-            // Find how many estimations exist purely on this calendar date to get "x"
-            const sameDate = window.app.db.estimations.filter(e => e.date === rawDate && (!currentId || e.id !== currentId));
-            const x = sameDate.length + 1;
-            displayId = `${baseId}${x}`;
+        if(!client || !proj || !date) {
+            if(previewEl) previewEl.innerText = `Estimation: [Fill details to generate ID]`;
+            return;
         }
 
-        const previewEl = document.getElementById('estIdPreview');
-        if(previewEl) previewEl.innerText = `Estimation: ${displayId}`;
+        const idData = window.estimator.generateIdData();
+        if(previewEl) previewEl.innerText = `Estimation: ${idData.fullId}`;
 
-        const projAbbr = document.getElementById('estProjectCodeSelect').value;
+        // Push project description into name box if empty
         const projNameBox = document.getElementById('estProjectName');
-        if (projAbbr && !currentId && !projNameBox.value) {
-            const p = window.app.db.projectCodes.find(x => x.code === projAbbr);
+        const currentId = document.getElementById('currentEditingEstId').value;
+        if (proj && !currentId && !projNameBox.value) {
+            const p = window.app.db.projectCodes.find(x => x.code === proj);
             if (p) projNameBox.value = p.desc;
         }
+    },
 
-        return displayId; // So save function can use it
+    // STRICT VALIDATION ENGINE
+    validateForm: () => {
+        if (!document.getElementById('estClientSelect').value) return "Validation Error: Please select a Client.";
+        if (!document.getElementById('estProjectCodeSelect').value) return "Validation Error: Please select a Project Code.";
+        if (!document.getElementById('estDate').value) return "Validation Error: Please select a Date.";
+        if (!document.getElementById('estTitle').value.trim()) return "Validation Error: Please enter a Document Title.";
+        if (!document.getElementById('estLocation').value.trim()) return "Validation Error: Please enter a Project Location.";
+        if (document.getElementById('globalOverhead').value === '') return "Validation Error: Please enter Global Overhead %.";
+        if (document.getElementById('globalProfit').value === '') return "Validation Error: Please enter Global Profit %.";
+        if (document.getElementById('globalVat').value === '') return "Validation Error: Please enter VAT %.";
+
+        const rows = document.querySelectorAll('.estimation-row');
+        if (rows.length === 0) return "Validation Error: Please add at least one category or item.";
+
+        for (let i = 0; i < rows.length; i++) {
+            const tr = rows[i];
+            if (tr.classList.contains('category-row')) {
+                const title = tr.querySelector('.cat-title').value.trim();
+                if (!title) return `Validation Error: Category row ${i+1} is missing a title.`;
+            } else if (tr.classList.contains('item-row')) {
+                const code = tr.querySelector('.item-code-select').value;
+                const desc = tr.querySelector('.item-desc').value.trim();
+                const unit = tr.querySelector('.item-unit').value;
+                const qty = tr.querySelector('.item-qty').value;
+                const cost = tr.querySelector('.item-cost').value;
+
+                if (!code) return `Validation Error: Item row ${i+1} is missing an Item Code.`;
+                if (!desc) return `Validation Error: Item row ${i+1} is missing a Description.`;
+                if (!unit) return `Validation Error: Item row ${i+1} is missing a Unit.`;
+                if (!qty || parseFloat(qty) <= 0) return `Validation Error: Item row ${i+1} is missing a valid Quantity.`;
+                if (cost === '') return `Validation Error: Item row ${i+1} is missing an Internal Cost.`;
+            }
+        }
+        return null; // Passes all validation
     },
 
     moveRowUp: (btn) => {
@@ -100,7 +131,7 @@ window.estimator = {
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
         document.getElementById('estTitle').value = '';
-        document.getElementById('estDate').value = '';
+        document.getElementById('estDate').valueAsDate = new Date();
         
         if (document.getElementById('estClientSelect').options.length > 0) document.getElementById('estClientSelect').selectedIndex = 0;
         if (document.getElementById('estProjectCodeSelect').options.length > 0) document.getElementById('estProjectCodeSelect').selectedIndex = 0;
@@ -182,17 +213,18 @@ window.estimator = {
         const tbody = document.getElementById('estimationRowsBody');
         const defOh = document.getElementById('globalOverhead').value || 15;
         const defPr = document.getElementById('globalProfit').value || 35;
-        let opt = '<option value="" disabled selected>Select...</option>'; window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+        let opt = '<option value="" disabled selected>Select...</option>'; 
+        window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
         const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
         tr.innerHTML = `
             <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
             <td class="p-1 border text-center font-bold item-num"></td>
             <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
-            <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc" placeholder="Item Desc"></td>
+            <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
             <td class="p-1 border text-center">
                 <select class="w-full border rounded p-1 text-center item-unit">
-                    <option value="" disabled selected>Unit...</option>
+                    <option value="" disabled selected>...</option>
                     <option value="ITEM">ITEM</option>
                     <option value="HRS">HRS</option>
                     <option value="NO">NO</option>
@@ -204,8 +236,8 @@ window.estimator = {
                     <option value="DAYS">DAYS</option>
                 </select>
             </td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" placeholder="Qty" oninput="window.estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="" placeholder="Cost" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
@@ -289,76 +321,68 @@ window.estimator = {
     },
 
     saveEstimation: () => {
-        if (!window.estimator.validateEstimation()) return;
+        // Enforce Validation
+        const error = window.estimator.validateForm();
+        if(error) return alert(error);
 
         let items = [];
         document.querySelectorAll('.estimation-row').forEach(tr => { 
             if (tr.classList.contains('category-row')) {
-                items.push({ type: 'category', title: tr.querySelector('.cat-title').value });
+                items.push({ type: 'category', title: tr.querySelector('.cat-title').value.trim() });
             } else {
                 items.push({ 
                     type: 'item',
-                    code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value, 
-                    unit: tr.querySelector('.item-unit').value, qty: tr.querySelector('.item-qty').value, 
-                    cost: tr.querySelector('.item-cost').value, 
-                    oh: tr.querySelector('.item-oh').value, pr: tr.querySelector('.item-pr').value,
-                    price: tr.querySelector('.item-price').value 
+                    code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value.trim(), 
+                    unit: tr.querySelector('.item-unit').value, qty: parseFloat(tr.querySelector('.item-qty').value), 
+                    cost: parseFloat(tr.querySelector('.item-cost').value), 
+                    oh: parseFloat(tr.querySelector('.item-oh').value || 0), pr: parseFloat(tr.querySelector('.item-pr').value || 0),
+                    price: parseFloat(tr.querySelector('.item-price').value) 
                 });
             }
         });
         
-        const generatedId = window.estimator.updateEstIdPreview();
+        const idData = window.estimator.generateIdData();
         const currentId = document.getElementById('currentEditingEstId').value;
         let rev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
-        let finalId = generatedId;
-
-        const baseIdFromGenerated = generatedId.replace(/R\d+$/, '');
+        let finalId = idData.fullId;
 
         const estimationData = { 
-            projectName: document.getElementById('estProjectName').value, 
-            location: document.getElementById('estLocation').value, 
-            title: document.getElementById('estTitle').value, 
+            projectName: document.getElementById('estProjectName').value.trim(), 
+            location: document.getElementById('estLocation').value.trim(), 
+            title: document.getElementById('estTitle').value.trim(), 
             date: document.getElementById('estDate').value, 
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             clientName: document.getElementById('estClientSelect').value,
             projectAbbr: document.getElementById('estProjectCodeSelect').value,
             items 
         };
 
-        if (currentId && currentId.startsWith(baseIdFromGenerated)) {
-            // Modifying the same quote
-            if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create R${rev + 1} (Preserves old version)\n[Cancel] = Overwrite Current Version`)) {
+        if (currentId) {
+            // Editing existing
+            if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version`)) {
                 rev++;
-                finalId = baseIdFromGenerated + `R${rev}`;
+                finalId = idData.baseId + `R${rev}`;
                 document.getElementById('currentEditingEstId').value = finalId;
                 document.getElementById('currentEditingEstRev').value = rev;
-                window.app.db.estimations.push({ ...estimationData, id: finalId, revision: rev });
+                window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
             } else {
+                // Overwrite current
                 const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
                 if(idx > -1) {
-                    finalId = currentId; // keep exact same ID if overwriting
-                    window.app.db.estimations[idx] = { ...estimationData, id: finalId, revision: rev };
+                    const originalTime = window.app.db.estimations[idx].time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                    window.app.db.estimations[idx] = { ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: originalTime };
+                    document.getElementById('currentEditingEstId').value = finalId;
                 }
             }
-        } else if (currentId) {
-            // They were editing, but changed the client/project/date so the ID physically changed
-            // Overwrite the old record, but apply the new ID
-            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-            if(idx > -1) {
-                window.app.db.estimations[idx] = { ...estimationData, id: finalId, revision: 0 };
-                document.getElementById('currentEditingEstId').value = finalId;
-                document.getElementById('currentEditingEstRev').value = 0;
-            }
         } else {
-            // Brand new estimation
+            // Saving brand new
             document.getElementById('currentEditingEstId').value = finalId;
-            document.getElementById('currentEditingEstRev').value = 0;
-            window.app.db.estimations.push({ ...estimationData, id: finalId, revision: 0 });
+            document.getElementById('currentEditingEstRev').value = rev;
+            window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
         }
         
         window.app.saveData(); 
         window.estimator.updateEstIdPreview(); 
-        alert(`Estimation [${finalId}] saved successfully!`); 
+        alert(`Estimation [${finalId}] saved and synced successfully!`); 
         
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
