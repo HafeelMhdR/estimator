@@ -9,7 +9,9 @@ const ui = {
         });
         event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
         event.currentTarget.classList.remove('text-slate-300');
+        
         if(tabId === 'invoicing') { invoicer.renderEstimationChecklist(); invoicer.renderInvoiceTable(); }
+        if(tabId === 'history') { dataManager.renderHistoryTable(); } // Trigger History Load
     },
 
     updateDashboardStats: () => {
