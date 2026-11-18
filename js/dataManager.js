@@ -153,13 +153,17 @@ window.dataManager = {
         const inv = document.getElementById('invClientSelect');
         const proj = document.getElementById('estProjectCodeSelect');
 
-        // Strict Defaults (Empty Option)
-        est.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
-        inv.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
-        proj.innerHTML = '<option value="" disabled selected>Select Project...</option>';
+        if(est) est.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        if(inv) inv.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        if(proj) proj.innerHTML = '<option value="" disabled selected>Select Project...</option>';
 
-        window.app.db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
-        window.app.db.projectCodes.forEach(p => { proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; });
+        window.app.db.clients.forEach(c => { 
+            if(est) est.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+            if(inv) inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+        });
+        window.app.db.projectCodes.forEach(p => { 
+            if(proj) proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; 
+        });
 
         if(typeof window.invoicer !== 'undefined' && window.invoicer.populateInvoiceClient) window.invoicer.populateInvoiceClient();
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
@@ -177,8 +181,10 @@ window.dataManager = {
         window.dataManager.renderHistoryTable();
     },
     renderHistoryTable: () => {
-        const filterText = (document.getElementById('historySearch').value || '').toLowerCase();
+        const searchEl = document.getElementById('historySearch');
+        const filterText = (searchEl ? searchEl.value : '').toLowerCase();
         const tbody = document.getElementById('historyTableBody'); 
+        if(!tbody) return;
         tbody.innerHTML = '';
         
         let sortedEstimations = [...window.app.db.estimations];
@@ -234,16 +240,17 @@ window.dataManager = {
         
         const est = window.app.db.estimations[idx];
         
-        document.getElementById('currentEditingEstId').value = est.id || '';
-        document.getElementById('currentEditingEstRev').value = est.revision || 0;
-        document.getElementById('estProjectName').value = est.projectName || '';
-        document.getElementById('estLocation').value = est.location || '';
-        document.getElementById('estTitle').value = est.title || '';
-        document.getElementById('estDate').value = est.date || '';
-        document.getElementById('estClientSelect').value = est.clientName || '';
-        if (est.projectAbbr) document.getElementById('estProjectCodeSelect').value = est.projectAbbr;
+        if(document.getElementById('currentEditingEstId')) document.getElementById('currentEditingEstId').value = est.id || '';
+        if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = est.revision || 0;
+        if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = est.projectName || '';
+        if(document.getElementById('estLocation')) document.getElementById('estLocation').value = est.location || '';
+        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || 'ESTIMATION BOQ';
+        if(document.getElementById('estDate')) document.getElementById('estDate').value = est.date || '';
+        if(document.getElementById('estClientSelect')) document.getElementById('estClientSelect').value = est.clientName || '';
+        if(document.getElementById('estProjectCodeSelect')) document.getElementById('estProjectCodeSelect').value = est.projectAbbr || '';
         
         const tbody = document.getElementById('estimationRowsBody');
+        if(!tbody) return;
         tbody.innerHTML = '';
         
         let opt = '<option value="" disabled selected>Select...</option>'; 
@@ -292,22 +299,24 @@ window.dataManager = {
                 `;
                 tbody.appendChild(tr);
                 
-                tr.querySelector('.item-code-select').value = item.code || '';
-                tr.querySelector('.item-desc').value = item.desc || '';
-                tr.querySelector('.item-comment').value = item.comment || '';
-                tr.querySelector('.item-unit').value = item.unit || '';
-                tr.querySelector('.item-qty').value = item.qty || '';
-                tr.querySelector('.item-cost').value = item.cost === 0 ? 0 : (item.cost || '');
-                tr.querySelector('.item-oh').value = item.oh || 0;
-                tr.querySelector('.item-pr').value = item.pr || 0;
+                const codeEl = tr.querySelector('.item-code-select'); if(codeEl) codeEl.value = item.code || '';
+                const descEl = tr.querySelector('.item-desc'); if(descEl) descEl.value = item.desc || '';
+                const commentEl = tr.querySelector('.item-comment'); if(commentEl) commentEl.value = item.comment || '';
+                const unitEl = tr.querySelector('.item-unit'); if(unitEl) unitEl.value = item.unit || '';
+                const qtyEl = tr.querySelector('.item-qty'); if(qtyEl) qtyEl.value = item.qty || '';
+                const costEl = tr.querySelector('.item-cost'); if(costEl) costEl.value = item.cost === 0 ? 0 : (item.cost || '');
+                const ohEl = tr.querySelector('.item-oh'); if(ohEl) ohEl.value = item.oh || 0;
+                const prEl = tr.querySelector('.item-pr'); if(prEl) prEl.value = item.pr || 0;
             }
         });
         
-        document.getElementById('termsContainer').innerHTML = '';
-        if (est.terms && est.terms.length > 0) {
-            est.terms.forEach(t => window.estimator.addTermRow(t.title, t.value));
-        } else {
-            window.estimator.resetTerms();
+        if(document.getElementById('termsContainer')) {
+            document.getElementById('termsContainer').innerHTML = '';
+            if (est.terms && est.terms.length > 0) {
+                est.terms.forEach(t => window.estimator.addTermRow(t.title, t.value));
+            } else {
+                window.estimator.resetTerms();
+            }
         }
 
         window.estimator.recalculateEstimation();
