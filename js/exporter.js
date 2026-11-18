@@ -14,9 +14,11 @@ window.exporter = {
     },
 
     exportEstimationExcel: () => {
+        if (!window.estimator.validateEstimation()) return;
+        
         const wb = XLSX.utils.book_new();
         const curr = window.app.db.company.currency;
-        const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateBaseId();
+        const estId = document.getElementById('currentEditingEstId').value || window.estimator.updateEstIdPreview();
 
         let wsData = [
             [`${window.app.db.company.name.toUpperCase()} - ESTIMATION BOQ`],
@@ -55,7 +57,9 @@ window.exporter = {
         XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${estId}.xlsx`);
     },
 
-    exportEstimationPDF: async () => {
+    exportEstimationPDF: async (event) => {
+        if (!window.estimator.validateEstimation()) return;
+        
         const btn = event ? event.currentTarget : null;
         window.exporter.setLoadingState(btn, true);
 
@@ -67,7 +71,7 @@ window.exporter = {
                 const doc = new jsPDF(orientation, 'pt', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
-                const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateBaseId();
+                const estId = document.getElementById('currentEditingEstId').value || window.estimator.updateEstIdPreview();
 
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
@@ -172,155 +176,4 @@ window.exporter = {
     generateProformaExcel: () => {
         const wb = XLSX.utils.book_new();
         const curr = window.app.db.company.currency;
-        let wsData = [[`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
-        
-        const mode = document.querySelector('input[name="billMode"]:checked').value;
-        let globalSubtotal = 0;
-
-        document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
-            const est = window.app.db.estimations[chk.value]; let estTotal = 0;
-            est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
-
-            if (mode === 'milestone') {
-                globalSubtotal += estTotal;
-            } else if (mode === 'summary') {
-                let catTotal = 0; let currentCat = ""; let cNum = 0;
-                est.items.forEach((item, index) => {
-                    if (item.type === 'category') {
-                        if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                        currentCat = item.title; catTotal = 0; cNum++;
-                    } else { catTotal += (item.qty * item.price); }
-                    if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                });
-            } else {
-                let cNum = 0, iNum = 0;
-                est.items.forEach(item => {
-                    if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", ""]); } 
-                    else {
-                        iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                        const total = item.qty * item.price; globalSubtotal += total;
-                        wsData.push([dNum, item.code, item.desc, item.unit, item.qty, parseFloat(item.price), total]);
-                    }
-                });
-            }
-        });
-
-        if (mode === 'milestone') {
-            const msVal = document.getElementById('milestoneType').value.split('|');
-            const pct = parseFloat(document.getElementById('milestonePct').value || 0) / 100;
-            const msTotal = globalSubtotal * pct;
-            wsData = wsData.slice(0, 7); 
-            wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal]);
-            globalSubtotal = msTotal;
-        }
-
-        wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${window.app.db.company.abbr}_Invoice.xlsx`);
-    },
-
-    exportInvoicePDF: async () => {
-        const btn = event ? event.currentTarget : null;
-        window.exporter.setLoadingState(btn, true);
-
-        setTimeout(() => {
-            try {
-                const { jsPDF } = window.jspdf;
-                const orientEl = document.getElementById('invPdfOrientation');
-                const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4');
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
-                const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
-
-                if (window.app.db.company.logo) {
-                    const img = new Image();
-                    img.src = window.app.db.company.logo;
-                    const ratio = (img.height || 1) / (img.width || 1);
-                    const targetWidth = 120;
-                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
-                } else {
-                    doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-                    doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
-                }
-
-                doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
-                doc.text("PROFORMA INVOICE", 40, 50);
-                
-                doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
-                doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
-                doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
-                doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100);
-
-                doc.autoTable({
-                    startY: 120,
-                    theme: 'grid',
-                    body: [
-                        [{ content: 'TO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewTo').innerText, { content: 'INVOICE #', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewInvNo').innerText, styles: { fontStyle: 'bold', textColor: [30, 58, 138] } }],
-                        [{ content: 'ATTN', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewAttn').innerText, { content: 'DATE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewDate').innerText],
-                        [{ content: 'Client VAT', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewClientVat').innerText, { content: 'P.O. Ref', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewPoRef').innerText],
-                        [{ content: 'SCOPE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
-                    ],
-                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-                    columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
-                });
-
-                let bodyData = [];
-                const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
-                rows.forEach(tr => {
-                    const cells = tr.querySelectorAll('td');
-                    if (cells.length === 2) {
-                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-                    } else if (cells.length === 3) {
-                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: formatPdfMoney(cells[2].innerText.replace(/[^\d.-]/g, '')), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-                    } else if (cells.length === 7) {
-                        bodyData.push([
-                            { content: cells[0].innerText, styles: { halign: 'center' } },
-                            cells[1].innerText, cells[2].innerText,
-                            { content: cells[3].innerText, styles: { halign: 'center' } },
-                            { content: cells[4].innerText, styles: { halign: 'center' } },
-                            { content: formatPdfMoney(cells[5].innerText.replace(/[^\d.-]/g, '')), styles: { halign: 'right' } },
-                            { content: formatPdfMoney(cells[6].innerText.replace(/[^\d.-]/g, '')), styles: { halign: 'right' } }
-                        ]);
-                    }
-                });
-
-                doc.autoTable({
-                    startY: doc.lastAutoTable.finalY + 10,
-                    head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
-                    body: bodyData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
-                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-                    columnStyles: {
-                        0: { cellWidth: 30, halign: 'center' }, 1: { cellWidth: 60 }, 2: { cellWidth: 'auto' }, 
-                        3: { cellWidth: 40, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' }, 
-                        5: { cellWidth: 60, halign: 'right' }, 6: { cellWidth: 80, halign: 'right' }
-                    }
-                });
-
-                let finalY = doc.lastAutoTable.finalY + 20;
-                if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
-
-                const summaryX = pageWidth - 200;
-                doc.setFontSize(10); doc.setFont(undefined, 'normal');
-                doc.text("Subtotal:", summaryX, finalY);
-                doc.text(formatPdfMoney(document.getElementById('invSubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
-                
-                doc.setTextColor(185, 28, 28);
-                doc.text("VAT (15%):", summaryX, finalY + 15);
-                doc.text(formatPdfMoney(document.getElementById('invVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
-                
-                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
-                doc.text("Grand Total:", summaryX, finalY + 35);
-                doc.text(formatPdfMoney(document.getElementById('invGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
-
-                doc.save(`${document.getElementById('invNumber').value}.pdf`);
-            } catch (err) {
-                console.error("PDF Generation Error:", err);
-                alert("There was an error generating the PDF.");
-            } finally {
-                window.exporter.setLoadingState(btn, false);
-            }
-        }, 100);
-    }
-};
+        let wsData = [[`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('inv
