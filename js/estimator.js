@@ -1,6 +1,16 @@
 window.estimator = {
+    // --- ADDED MISSING RESET TERMS FUNCTION ---
+    resetTerms: () => {
+        const container = document.getElementById('termsContainer');
+        if (container) container.innerHTML = '';
+        window.estimator.addTermRow('Offer Validity', '1 month');
+        window.estimator.addTermRow('Payment Terms', '100% advance payment');
+        window.estimator.addTermRow('Delivery or Execution Period', '');
+    },
+
     generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
+        
         const clientName = document.getElementById('estClientSelect').value;
         const client = window.app.db.clients.find(c => c.name === clientName);
         const cliAbbr = client && client.abbr ? client.abbr : 'CLI';
@@ -20,17 +30,17 @@ window.estimator = {
 
         if (currentId && !currentId.startsWith('EST-')) {
             const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst && existingEst.baseId && existingEst.baseId.startsWith(basePrefix)) {
+            if (existingEst && existingEst.baseId && String(existingEst.baseId).startsWith(basePrefix)) {
                 return { baseId: existingEst.baseId, fullId: existingEst.baseId + (rev > 0 ? `R${rev}` : ''), quoteOfDay: existingEst.quoteOfDay || 1 };
             }
         }
 
-        const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && e.baseId.startsWith(basePrefix));
+        const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && String(e.baseId).startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
             let q = e.quoteOfDay;
             if (!q && e.baseId) {
-                const numStr = e.baseId.substring(basePrefix.length);
+                const numStr = String(e.baseId).substring(basePrefix.length);
                 q = parseInt(numStr) || 0;
             }
             if (q > maxX) maxX = q;
@@ -41,7 +51,7 @@ window.estimator = {
         
         if (currentId && !currentId.startsWith('EST-')) {
             const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst && existingEst.baseId && !existingEst.baseId.startsWith(basePrefix)) {
+            if (existingEst && existingEst.baseId && !String(existingEst.baseId).startsWith(basePrefix)) {
                 rev = 0;
                 document.getElementById('currentEditingEstRev').value = 0;
             }
@@ -101,13 +111,21 @@ window.estimator = {
                 if (!desc) return `Validation Error: Item row ${i+1} is missing a Description.`;
                 if (!unit) return `Validation Error: Item row ${i+1} is missing a Unit.`;
                 if (!qty || parseFloat(qty) <= 0) return `Validation Error: Item row ${i+1} is missing a valid Quantity.`;
-                if (cost === '') return `Validation Error: Item row ${i+1} is missing an Internal Cost.`;
+                if (!cost || cost === '') return `Validation Error: Item row ${i+1} is missing an Internal Cost.`;
             }
         }
+        
+        let hasEmptyTermTitle = false;
+        document.querySelectorAll('.term-row').forEach(row => {
+            if (row.querySelector('.term-value').value.trim() && !row.querySelector('.term-title').value.trim()) {
+                hasEmptyTermTitle = true;
+            }
+        });
+        if (hasEmptyTermTitle) return "Validation Error: A Term & Condition row has a value but is missing a heading.";
+
         return null;
     },
 
-    // T&C Engine Actions
     moveTermUp: (btn) => {
         const row = btn.closest('.term-row');
         if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
@@ -150,8 +168,10 @@ window.estimator = {
         document.getElementById('currentEditingEstRev').value = '0';
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
-        document.getElementById('estTitle').value = 'ESTIMATION BOQ';
-        document.getElementById('estDate').valueAsDate = new Date();
+        document.getElementById('estTitle').value = '';
+        
+        const dt = window.app.getCurrentDateTime();
+        document.getElementById('estDate').value = dt.date;
         
         if (document.getElementById('estClientSelect').options.length > 0) document.getElementById('estClientSelect').selectedIndex = 0;
         if (document.getElementById('estProjectCodeSelect').options.length > 0) document.getElementById('estProjectCodeSelect').selectedIndex = 0;
@@ -163,12 +183,7 @@ window.estimator = {
         document.getElementById('estimationRowsBody').innerHTML = '';
         window.estimator.addEstimationRow();
         window.estimator.updateEstIdPreview();
-
-        // Reset T&Cs to defaults
-        document.getElementById('termsContainer').innerHTML = '';
-        window.estimator.addTermRow('Payment Terms', '');
-        window.estimator.addTermRow('Delivery or Execution Period', '');
-        window.estimator.addTermRow('Offer Validity', '');
+        window.estimator.resetTerms();
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
@@ -243,8 +258,6 @@ window.estimator = {
         window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
         const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
-        
-        // Includes the new Item Comment Field
         tr.innerHTML = `
             <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
             <td class="p-1 border text-center font-bold item-num"></td>
@@ -360,11 +373,12 @@ window.estimator = {
             if (tr.classList.contains('category-row')) {
                 items.push({ type: 'category', title: tr.querySelector('.cat-title').value.trim() });
             } else {
+                const commentEl = tr.querySelector('.item-comment');
                 items.push({ 
                     type: 'item',
                     code: tr.querySelector('.item-code-select').value, 
                     desc: tr.querySelector('.item-desc').value.trim(), 
-                    comment: tr.querySelector('.item-comment').value.trim(), // Save new comment
+                    comment: commentEl ? commentEl.value.trim() : '', 
                     unit: tr.querySelector('.item-unit').value, 
                     qty: parseFloat(tr.querySelector('.item-qty').value), 
                     cost: parseFloat(tr.querySelector('.item-cost').value), 
@@ -375,7 +389,6 @@ window.estimator = {
             }
         });
         
-        // Extract Terms & Conditions
         let terms = [];
         document.querySelectorAll('.term-row').forEach(row => {
             terms.push({
