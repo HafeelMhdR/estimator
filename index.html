@@ -338,77 +338,6 @@
                     </div>
                     <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
-
-                <!-- Live Invoice Print Area (Used by html2pdf) -->
-                <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-8 rounded-lg shadow-sm space-y-4 text-black">
-                    <div class="flex justify-between items-start border-b-2 border-slate-200 pb-4 mb-4">
-                        <div class="text-xs space-y-1">
-                            <p class="font-bold text-blue-900 text-base mb-2">PROFORMA INVOICE</p>
-                            <p><b>CR:</b> <span class="dyn-cr"></span></p>
-                            <p><b>VAT:</b> <span class="dyn-vat"></span></p>
-                            <p><b>Address:</b> <span class="dyn-address"></span></p>
-                            <p><b>Email:</b> <span class="dyn-email"></span></p>
-                        </div>
-                        <div class="text-right flex flex-col items-end">
-                            <img id="printLogo" src="" class="logo-preview hidden mb-1" style="max-height: 80px; max-width: 200px;">
-                            <div class="text-emerald-700 font-black text-xl tracking-wider dyn-company-name">COMPANY</div>
-                        </div>
-                    </div>
-
-                    <table class="w-full text-xs border border-slate-300 mb-4">
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold w-24">TO</td>
-                            <td id="previewTo" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold w-24">INVOICE #</td>
-                            <td id="previewInvNo" class="p-2 border font-bold text-blue-900">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">ATTN</td>
-                            <td id="previewAttn" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold">DATE</td>
-                            <td id="previewDate" class="p-2 border">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">Client VAT</td>
-                            <td id="previewClientVat" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold">P.O. Ref</td>
-                            <td id="previewPoRef" class="p-2 border">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">SCOPE</td>
-                            <td id="previewScope" class="p-2 border" colspan="3">-</td>
-                        </tr>
-                    </table>
-
-                    <table class="w-full text-left border-collapse text-xs border border-slate-300">
-                        <thead>
-                            <tr class="bg-blue-900 text-white">
-                                <th class="p-2 border border-slate-400 text-center w-10">SL</th>
-                                <th class="p-2 border border-slate-400 w-24">Code</th>
-                                <th class="p-2 border border-slate-400">Description</th>
-                                <th class="p-2 border border-slate-400 w-16 text-center">Unit</th>
-                                <th class="p-2 border border-slate-400 w-12 text-center">Qty</th>
-                                <th class="p-2 border border-slate-400 w-24 text-right">Price</th>
-                                <th class="p-2 border border-slate-400 w-28 text-right">Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="invoiceItemsBody"></tbody>
-                    </table>
-
-                    <div class="flex justify-end mt-6 page-break-inside-avoid">
-                        <div class="w-80 border border-slate-300 text-xs">
-                            <div class="flex justify-between p-2 border-b bg-slate-50">
-                                <span class="font-bold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
-                            </div>
-                            <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
-                                <span class="font-bold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
-                            </div>
-                            <div class="flex justify-between p-3 bg-blue-50 text-sm">
-                                <span class="font-bold text-blue-900">Grand Total</span><span id="invGrandTotal" class="font-black text-blue-900">0.00</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </section>
     </main>
@@ -695,20 +624,13 @@
             document.getElementById('dashCompanyName').innerText = db.company.name;
             document.getElementById('headerLogoText').innerText = db.company.abbr;
             document.getElementById('dashCompanyDetails').innerText = `CR: ${db.company.cr || '-'} | VAT: ${db.company.vat || '-'}`;
-            document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = db.company.name);
-            document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = db.company.cr);
-            document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = db.company.vat);
-            document.querySelectorAll('.dyn-address').forEach(el => el.innerText = db.company.address);
-            document.querySelectorAll('.dyn-email').forEach(el => el.innerText = db.company.email);
             
-            const mainLogo = document.getElementById('headerLogo'), printLogo = document.getElementById('printLogo');
+            const mainLogo = document.getElementById('headerLogo');
             if(db.company.logo) {
                 mainLogo.src = db.company.logo; mainLogo.classList.remove('hidden');
                 document.getElementById('headerLogoText').classList.add('hidden');
-                printLogo.src = db.company.logo; printLogo.classList.remove('hidden');
             } else {
                 mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
-                printLogo.classList.add('hidden');
             }
         }
 
@@ -748,26 +670,17 @@
             const est = document.getElementById('estClientSelect'), inv = document.getElementById('invClientSelect');
             est.innerHTML = ''; inv.innerHTML = '';
             db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
-            populateInvoiceClient();
         }
 
-        // ESTIMATION ROW MOVEMENT (UP/DOWN)
         function moveRowUp(btn) {
             const row = btn.closest('tr');
-            if (row.previousElementSibling) {
-                row.parentNode.insertBefore(row, row.previousElementSibling);
-                recalculateEstimation();
-            }
+            if (row.previousElementSibling) { row.parentNode.insertBefore(row, row.previousElementSibling); recalculateEstimation(); }
         }
         function moveRowDown(btn) {
             const row = btn.closest('tr');
-            if (row.nextElementSibling) {
-                row.parentNode.insertBefore(row.nextElementSibling, row);
-                recalculateEstimation();
-            }
+            if (row.nextElementSibling) { row.parentNode.insertBefore(row.nextElementSibling, row); recalculateEstimation(); }
         }
 
-        // ESTIMATION BUILDER & CATEGORIES
         function createNewEstimation() {
             if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
             document.getElementById('estProjectName').value = '';
@@ -818,12 +731,8 @@
                 const targetCatRow = document.getElementById(targetCatId);
                 if (targetCatRow) {
                     let insertNode = targetCatRow.nextElementSibling;
-                    while (insertNode && !insertNode.classList.contains('category-row')) {
-                        insertNode = insertNode.nextElementSibling;
-                    }
-                    checkedItems.forEach(tr => {
-                        targetCatRow.parentNode.insertBefore(tr, insertNode);
-                    });
+                    while (insertNode && !insertNode.classList.contains('category-row')) { insertNode = insertNode.nextElementSibling; }
+                    checkedItems.forEach(tr => { targetCatRow.parentNode.insertBefore(tr, insertNode); });
                 }
             }
 
@@ -844,8 +753,8 @@
                 <td class="p-1 border border-slate-300 text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
                 <td class="p-1 border border-slate-300" colspan="8"><input type="text" class="w-full bg-transparent font-bold text-sm text-blue-900 px-2 py-1 cat-title outline-none" value="${defaultTitle}" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
                 <td class="p-1 border border-slate-300 text-center flex justify-center space-x-1">
-                    <button onclick="moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300" title="Move Up">↑</button>
-                    <button onclick="moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300" title="Move Down">↓</button>
+                    <button onclick="moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
+                    <button onclick="moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
                     <button onclick="this.closest('tr').remove();recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
                 </td>
             `;
@@ -885,8 +794,8 @@
                 <td class="p-1 border bg-amber-50 text-right font-bold item-total font-mono">0.00</td>
                 <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit font-mono">0.00</td>
                 <td class="p-1 border text-center flex justify-center space-x-1">
-                    <button onclick="moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded" title="Move Up">↑</button>
-                    <button onclick="moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded" title="Move Down">↓</button>
+                    <button onclick="moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↑</button>
+                    <button onclick="moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↓</button>
                     <button onclick="this.closest('tr').remove();recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded">✕</button>
                 </td>
             `;
@@ -896,7 +805,6 @@
         function recalculateEstimation() {
             const tbody = document.getElementById('estimationRowsBody');
             
-            // Enforce Rule: If categories exist, ALL items must be inside a category
             const categories = tbody.querySelectorAll('.category-row');
             const items = tbody.querySelectorAll('.item-row');
             
@@ -1022,7 +930,6 @@
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
-        // UPGRADED HTML2PDF ESTIMATION EXPORT (Dynamic Scale & Full Totals)
         function exportEstimationPDF() {
             let h = '';
             let cNum = 0, iNum = 0, catTotal = 0;
@@ -1031,7 +938,7 @@
             
             rows.forEach((tr, index) => {
                 if(tr.classList.contains('category-row')) {
-                    if (cNum > 0) { // Subtotal for previous category
+                    if (cNum > 0) { 
                         h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">${currentCatName} Subtotal</td><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
                     }
                     cNum++; iNum = 0; catTotal = 0;
@@ -1060,8 +967,9 @@
 
             const logoStr = db.company.logo ? `<img src="${db.company.logo}" style="max-height: 80px; max-width: 200px; object-fit: contain;">` : `<div style="font-size: 24px; font-weight: 900; color: #047857;">${db.company.name}</div>`;
             
+            // Fixed width explicitly to exactly 800px so html2pdf always scales it correctly into A4.
             const printHtml = `
-                <div style="padding: 40px; background: white; color: black; font-family: sans-serif; width: 100%; box-sizing: border-box;">
+                <div style="padding: 40px; background: white; color: black; font-family: sans-serif; width: 800px; margin: 0 auto; box-sizing: border-box;">
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
                         <div>
                             <h1 style="font-size: 22px; font-weight: bold; color: #1e3a8a; margin: 0 0 10px 0;">ESTIMATION BOQ</h1>
@@ -1069,7 +977,7 @@
                             <p style="font-size: 13px; margin: 2px 0;"><b>Location:</b> ${document.getElementById('estLocation').value}</p>
                             <p style="font-size: 13px; margin: 2px 0;"><b>Date:</b> ${document.getElementById('estDate').value}</p>
                         </div>
-                        <div style="text-align: right;">
+                        <div style="text-align: right; margin-left: auto;">
                             ${logoStr}
                         </div>
                     </div>
@@ -1111,7 +1019,7 @@
                 margin:       10,
                 filename:     `${db.company.abbr}_Estimation.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: 1000 },
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
             }).from(printDiv).save();
         }
@@ -1220,16 +1128,24 @@
             document.getElementById('invGrandTotal').innerText = formatMoney(globalSubtotal * 1.15);
         }
 
-        // UPGRADED HTML2PDF INVOICE EXPORT
+        // UPGRADED HTML2PDF INVOICE EXPORT (FIXED WIDTH TO AVOID CLIPPING)
         function exportInvoicePDF() {
+            // Apply a strict temporary width so html2pdf captures perfectly
             const element = document.getElementById('invoicePreviewArea');
+            const originalWidth = element.style.width;
+            element.style.width = '800px'; 
+            element.style.margin = '0 auto';
+
             html2pdf().set({
                 margin:       10,
                 filename:     `${document.getElementById('invNumber').value}.pdf`,
                 image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: 1000 },
+                html2canvas:  { scale: 2, useCORS: true },
                 jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            }).from(element).save();
+            }).from(element).save().then(() => {
+                // Restore fluid width for the screen UI
+                element.style.width = originalWidth;
+            });
         }
 
         function generateProformaExcel() {
