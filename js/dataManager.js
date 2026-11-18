@@ -180,7 +180,7 @@ window.dataManager = {
         }
         window.dataManager.renderHistoryTable();
     },
-    renderHistoryTable: () => {
+    renderHistoryTable: (highlightId = null) => {
         const searchEl = document.getElementById('historySearch');
         const filterText = (searchEl ? searchEl.value : '').toLowerCase();
         const tbody = document.getElementById('historyTableBody'); 
@@ -205,17 +205,23 @@ window.dataManager = {
             if(searchStr.includes(filterText)) {
                 const itemCount = (est.items || []).filter(i => i.type === 'item').length;
                 
+                // Highlight logic
+                let rowClass = 'hover:bg-slate-50 transition border-b';
+                if (highlightId && est.id === highlightId) rowClass = 'bg-emerald-100 transition border-b';
+
                 tbody.innerHTML += `
-                    <tr class="border-b hover:bg-slate-50 transition">
+                    <tr class="${rowClass}">
                         <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
                         <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
                         <td class="p-3 font-mono text-slate-600">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
                         <td class="p-3 text-center font-bold">${itemCount}</td>
-                        <td class="p-3 text-right space-x-3">
-                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex})" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs">Load / Revise</button>
-                            <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
+                        <td class="p-3 text-right space-x-2">
+                            <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
+                            <button onclick="window.exporter.exportEstimationExcel(${originalIndex}, event)" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">Excel</button>
+                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex})" class="text-blue-600 hover:text-blue-800 font-bold text-xs ml-2">Load / Revise</button>
+                            <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-slate-500 hover:text-red-700 font-bold text-xs ml-2">Delete</button>
                         </td>
                     </tr>
                 `;
@@ -244,7 +250,7 @@ window.dataManager = {
         if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = est.revision || 0;
         if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = est.projectName || '';
         if(document.getElementById('estLocation')) document.getElementById('estLocation').value = est.location || '';
-        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || 'ESTIMATION BOQ';
+        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || '';
         if(document.getElementById('estDate')) document.getElementById('estDate').value = est.date || '';
         if(document.getElementById('estClientSelect')) document.getElementById('estClientSelect').value = est.clientName || '';
         if(document.getElementById('estProjectCodeSelect')) document.getElementById('estProjectCodeSelect').value = est.projectAbbr || '';
