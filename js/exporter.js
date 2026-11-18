@@ -1,331 +1,579 @@
-// PDF and Excel Exporters
-window.exporter = {
-    // Helper function to manage button loading states
-    setLoadingState: (button, isLoading) => {
-        if (!button) return;
-        if (isLoading) {
-            button.dataset.originalText = button.innerText;
-            button.innerText = "Generating PDF...";
-            button.disabled = true;
-            button.classList.add('opacity-50', 'cursor-not-allowed');
-        } else {
-            button.innerText = button.dataset.originalText || "Export PDF";
-            button.disabled = false;
-            button.classList.remove('opacity-50', 'cursor-not-allowed');
-        }
-    },
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Estimation & Invoicing System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <link rel="stylesheet" href="css/styles.css?v=8">
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
-    exportEstimationExcel: () => {
-        const wb = XLSX.utils.book_new();
-        const curr = window.app.db.company.currency;
-        let wsData = [
-            [`${window.app.db.company.name.toUpperCase()} - ESTIMATION BOQ`],
-            [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
-            [],
-            ["#", "CODE", "DESCRIPTION", "UNIT", "QTY", `INT. COST (${curr})`, "OH %", "PR %", `CLIENT PRICE (${curr})`, `CLIENT TOTAL (${curr})`, `INTERNAL TOTAL (${curr})`]
-        ];
-        let cNum = 0, iNum = 0, headerRow = 4;
-        
-        document.querySelectorAll('.estimation-row').forEach((tr) => {
-            const r = headerRow + 1 + wsData.length - 4; 
-            if(tr.classList.contains('category-row')) {
-                cNum++; iNum = 0;
-                wsData.push([cNum, "", tr.querySelector('.cat-title').value, "", "", "", "", "", "", "", ""]);
-            } else {
-                iNum++; let numStr = iNum < 10 ? `0${iNum}` : iNum;
-                let displayNum = cNum > 0 ? `${cNum}.${numStr}` : iNum;
-                wsData.push([
-                    displayNum, tr.querySelector('.item-code-select').value, tr.querySelector('.item-desc').value, 
-                    tr.querySelector('.item-unit').value, parseFloat(tr.querySelector('.item-qty').value), 
-                    parseFloat(tr.querySelector('.item-cost').value),
-                    parseFloat(tr.querySelector('.item-oh').value) / 100, parseFloat(tr.querySelector('.item-pr').value) / 100,
-                    {t:'n', f:`F${r}*(1+G${r}+H${r})`}, {t:'n', f:`E${r}*I${r}`}, {t:'n', f:`E${r}*F${r}`}
-                ]);
-            }
-        });
-        const endRow = headerRow + wsData.length - 4;
-        wsData.push([]); 
-        wsData.push(["", "", "", "", "", "", "", "", "Subtotal", {t:'n', f:`SUM(J5:J${endRow})`}]); 
-        wsData.push(["", "", "", "", "", "", "", "", "VAT 15%", {t:'n', f:`J${endRow+2}*0.15`}]); 
-        wsData.push(["", "", "", "", "", "", "", "", "Grand Total", {t:'n', f:`J${endRow+2}+J${endRow+3}`}]);
-        
-        const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:K${endRow}` };
-        for(let i=5; i<=endRow; i++) { if(ws[`G${i}`]) ws[`G${i}`].z = '0%'; if(ws[`H${i}`]) ws[`H${i}`].z = '0%'; }
-        XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${window.app.db.company.abbr}_Estimation.xlsx`);
-    },
+    <datalist id="unitList">
+        <option value="ITEM"></option>
+        <option value="HRS"></option>
+        <option value="NO"></option>
+        <option value="SQM"></option>
+        <option value="Cu.M"></option>
+        <option value="LM"></option>
+        <option value="LS"></option>
+        <option value="SET"></option>
+        <option value="DAYS"></option>
+    </datalist>
 
-    // --- TRUE VECTOR ENGINE FOR ESTIMATION PDF ---
-    exportEstimationPDF: async () => {
-        const btn = event ? event.currentTarget : null;
-        window.exporter.setLoadingState(btn, true);
+    <header class="bg-slate-900 text-white shadow-md no-print">
+        <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap justify-between items-center">
+            <div class="flex items-center space-x-3">
+                <img id="headerLogo" src="" alt="Logo" class="logo-preview hidden bg-white p-1 rounded">
+                <div id="headerLogoText" class="bg-emerald-600 text-white font-bold px-3 py-1.5 rounded text-lg tracking-wider">COMP</div>
+                <div>
+                    <h1 id="headerCompanyName" class="text-lg font-bold tracking-tight">Company Name</h1>
+                    <p class="text-xs text-slate-400">Estimation & Proforma Invoicing System</p>
+                </div>
+            </div>
+            <div class="flex items-center space-x-2 mt-2 sm:mt-0">
+                <button id="networkBtn" onclick="window.app.connectNetworkFolder()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1">
+                    <span>📁</span> <span id="networkBtnText">Connect Shared LAN Folder</span>
+                </button>
+                <button id="btnDisconnect" onclick="window.app.disconnectFolder()" class="hidden bg-slate-700 hover:bg-red-600 text-white font-bold text-xs px-2 py-2 rounded transition" title="Disconnect and forget folder">✕</button>
+                <span id="folderStatus" class="text-xs text-amber-400 font-medium">Local Storage</span>
+            </div>
+        </div>
+        <nav class="bg-slate-800 border-t border-slate-700">
+            <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto">
+                <button onclick="window.ui.switchTab('dashboard')" class="tab-btn active-tab px-4 py-2.5 text-xs font-semibold text-emerald-400 border-b-2 border-emerald-400 whitespace-nowrap">Dashboard</button>
+                <button onclick="window.ui.switchTab('libraries')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Data Libraries</button>
+                <button onclick="window.ui.switchTab('clients')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Client Directory</button>
+                <button onclick="window.ui.switchTab('estimation')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Estimation Builder</button>
+                <button onclick="window.ui.switchTab('history')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Saved Estimations</button>
+                <button onclick="window.ui.switchTab('operations')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Operations Tracker</button>
+                <button onclick="window.ui.switchTab('invoicing')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Proforma Invoice</button>
+            </div>
+        </nav>
+    </header>
 
-        // Allow UI to update before heavy processing blocks the thread
-        setTimeout(() => {
-            try {
-                const { jsPDF } = window.jspdf;
-                const orientEl = document.getElementById('estPdfOrientation');
-                const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4');
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+    <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+        <!-- DASHBOARD -->
+        <section id="tab-dashboard" class="tab-content space-y-6">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-start mb-6">
+                    <div>
+                        <h2 class="text-xl font-bold text-slate-900 mb-1">System Dashboard</h2>
+                        <p class="text-sm text-slate-600">Manage item codes, client estimations, and invoices.</p>
+                    </div>
+                    <button onclick="window.ui.openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">⚙️ Company Settings</button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Item Codes</p>
+                        <p id="statCodesCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Saved Clients</p>
+                        <p id="statClientsCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                        <p class="text-xs text-slate-500 font-semibold uppercase">Estimations</p>
+                        <p id="statEstimationsCount" class="text-2xl font-bold text-slate-900 mt-1">0</p>
+                    </div>
+                    <div class="bg-emerald-50 p-4 rounded-lg border border-emerald-200">
+                        <p class="text-xs text-emerald-700 font-semibold uppercase">Active Profile</p>
+                        <p id="dashCompanyName" class="text-sm font-bold text-slate-900 mt-1">Company Name</p>
+                        <p id="dashCompanyDetails" class="text-xs text-slate-600 mt-0.5">CR: - | VAT: -</p>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-                // Header Section
-                doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
-                doc.text("ESTIMATION BOQ", 40, 50);
+        <!-- DATA LIBRARIES (Items & Projects) -->
+        <section id="tab-libraries" class="tab-content space-y-6 hidden">
+            <!-- PROJECT CODES -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Project Codes Library (3-Letter)</h2>
+                        <p class="text-xs text-slate-500">Defines the project abbreviation in the Estimation ID (e.g. SIF).</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="window.dataManager.exportProjectCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
+                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
+                            <span>📤 Import CSV</span>
+                            <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importProjectCodesCSV(event)">
+                        </label>
+                        <button onclick="window.ui.openAddProjectCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Project Code</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-64 border rounded">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
+                                <th class="p-3 w-32">Project Code</th>
+                                <th class="p-3">Project Description</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectCodesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ITEM CODES -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Item Code Library</h2>
+                        <p class="text-xs text-slate-500">Add material/service codes manually or import via CSV.</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="window.dataManager.exportCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
+                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
+                            <span>📤 Import CSV</span>
+                            <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importCodesCSV(event)">
+                        </label>
+                        <button onclick="window.ui.openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item Code</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-96 border rounded">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
+                                <th class="p-3 w-32">Item Code</th>
+                                <th class="p-3">Predefined Description</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="codesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- CLIENTS -->
+        <section id="tab-clients" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div><h2 class="text-lg font-bold text-slate-900">Client Directory</h2></div>
+                    <button onclick="window.ui.openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
+                </div>
+                <div class="overflow-x-auto border rounded">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
+                                <th class="p-3">Abbr</th>
+                                <th class="p-3">Company Name</th>
+                                <th class="p-3">Attn</th>
+                                <th class="p-3">Address</th>
+                                <th class="p-3">Client VAT</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientTableBody" class="text-sm divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ESTIMATION BUILDER -->
+        <section id="tab-estimation" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 
-                doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal');
-                doc.text(`Project: ${document.getElementById('estProjectName').value}`, 40, 70);
-                doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
-                doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
-                
-                // Render Logo cleanly without stretch
-                if (window.app.db.company.logo) {
-                    const img = new Image();
-                    img.src = window.app.db.company.logo;
-                    const ratio = (img.height || 1) / (img.width || 1);
-                    const targetWidth = 120;
-                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
-                } else {
-                    doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-                    doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
-                }
-
-                let bodyData = [];
-                let cNum = 0, iNum = 0, catTotal = 0;
-                let currentCatName = "";
-                const rows = Array.from(document.querySelectorAll('.estimation-row'));
-                
-                rows.forEach((tr, index) => {
-                    if(tr.classList.contains('category-row')) {
-                        if (cNum > 0) {
-                            bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
-                        }
-                        cNum++; iNum = 0; catTotal = 0;
-                        currentCatName = tr.querySelector('.cat-title').value || "Category";
-                        bodyData.push([{ content: cNum.toString(), styles: { halign: 'center', fontStyle: 'bold', fillColor: [226, 232, 240] } }, { content: currentCatName, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }]);
-                    } else {
-                        iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                        const code = tr.querySelector('.item-code-select').value;
-                        const desc = tr.querySelector('.item-desc').value;
-                        const unit = tr.querySelector('.item-unit').value;
-                        const q = parseFloat(tr.querySelector('.item-qty').value) || 0;
-                        const p = parseFloat(tr.querySelector('.item-price').value) || 0;
-                        const t = q * p;
-                        catTotal += t;
+                <div class="flex justify-between items-center mb-4 border-b pb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Estimation Builder</h2>
+                        <!-- Dynamic ID Preview -->
+                        <div id="estIdPreview" class="text-2xl font-black text-blue-900 mt-1 tracking-tight">Estimation ID</div>
+                        <input type="hidden" id="currentEditingEstId" value="">
+                        <input type="hidden" id="currentEditingEstRev" value="0">
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="window.estimator.createNewEstimation()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">📄 New</button>
+                        <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Category</button>
+                        <button onclick="window.estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
+                        <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded shadow-md">Save & Sync</button>
                         
-                        bodyData.push([
-                            { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
-                            { content: unit, styles: { halign: 'center' } },
-                            { content: q.toString(), styles: { halign: 'center' } },
-                            { content: parseFloat(t).toFixed(2) + ' ' + curr, styles: { halign: 'right' } }
-                        ]);
-                    }
-                    if (index === rows.length - 1 && cNum > 0) {
-                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
-                    }
-                });
+                        <select id="estPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded">
+                            <option value="portrait">Portrait</option>
+                            <option value="landscape">Landscape</option>
+                        </select>
+                        <button onclick="window.exporter.exportEstimationPDF(event)" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
+                        <button onclick="window.exporter.exportEstimationExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
+                    </div>
+                </div>
 
-                // Native Vector Grid Builder
-                doc.autoTable({
-                    startY: 120,
-                    head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Total Price']],
-                    body: bodyData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
-                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-                    columnStyles: {
-                        0: { cellWidth: 30, halign: 'center' },
-                        1: { cellWidth: 60 },
-                        2: { cellWidth: 'auto' },
-                        3: { cellWidth: 40, halign: 'center' },
-                        4: { cellWidth: 40, halign: 'center' },
-                        5: { cellWidth: 80, halign: 'right' }
-                    }
-                });
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4 text-sm">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
+                        <select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Code (Abbr)</label>
+                        <select id="estProjectCodeSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
+                        <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name (Display Only)</label>
+                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Full Project Title">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Location</label>
+                        <input type="text" id="estLocation" class="w-full border rounded px-3 py-1.5 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label>
+                        <input type="number" id="globalOverhead" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Profit %</label>
+                        <input type="number" id="globalProfit" class="w-full border rounded px-3 py-1.5 bg-white" value="35">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
+                        <input type="number" id="globalVat" onchange="window.estimator.recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
+                    </div>
+                </div>
 
-                let finalY = doc.lastAutoTable.finalY + 20;
-                if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+                <div class="mb-4 bg-blue-50 border border-blue-200 p-3 rounded flex flex-wrap items-center gap-4">
+                    <span class="text-sm font-bold text-blue-900">Bulk Actions (Checked Items):</span>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">New OH %:</label>
+                        <input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="OH %">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">New PR %:</label>
+                        <input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="PR %">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-semibold text-slate-600">Move to Category:</label>
+                        <select id="bulkCategory" class="w-48 border rounded px-2 py-1 text-xs bg-white">
+                            <option value="">-- Do Not Move --</option>
+                        </select>
+                    </div>
+                    <button onclick="window.estimator.applyBulkMargins()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded shadow-sm">Apply Changes</button>
+                </div>
 
-                const summaryX = pageWidth - 200;
-                doc.setFontSize(10); doc.setFont(undefined, 'normal');
-                doc.text("Subtotal:", summaryX, finalY);
-                doc.text(document.getElementById('summarySubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
-                
-                doc.setTextColor(185, 28, 28);
-                doc.text("VAT (15%):", summaryX, finalY + 15);
-                doc.text(document.getElementById('summaryVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
-                
-                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
-                doc.text("Grand Total:", summaryX, finalY + 35);
-                doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+                <div class="overflow-x-auto border rounded-lg">
+                    <table class="w-full text-left border-collapse text-xs" id="estTable">
+                        <thead>
+                            <tr class="bg-blue-900 text-white">
+                                <th class="p-2 border border-blue-800 text-center w-8"><input type="checkbox" onchange="window.estimator.toggleAllRows(this)"></th>
+                                <th class="p-2 border border-blue-800 text-center w-12">#</th>
+                                <th class="p-2 border border-blue-800 w-24">Item Code</th>
+                                <th class="p-2 border border-blue-800">Description</th>
+                                <th class="p-2 border border-blue-800 w-20 text-center">Unit</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Qty</th>
+                                <th class="p-2 border border-blue-800 w-20 text-right">Int. Cost</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">OH %</th>
+                                <th class="p-2 border border-blue-800 w-12 text-center bg-indigo-800">PR %</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Unit Price</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-amber-600">Total</th>
+                                <th class="p-2 border border-blue-800 w-24 text-right bg-emerald-700">Item Profit</th>
+                                <th class="p-2 border border-blue-800 w-16 text-center">Act / Move</th>
+                            </tr>
+                        </thead>
+                        <tbody id="estimationRowsBody"></tbody>
+                    </table>
+                </div>
 
-                doc.save(`${window.app.db.company.abbr}_Estimation.pdf`);
-            } catch (err) {
-                console.error("PDF Generation Error:", err);
-                alert("There was an error generating the PDF.");
-            } finally {
-                window.exporter.setLoadingState(btn, false);
-            }
-        }, 100);
-    },
+                <div class="mt-3 flex space-x-2">
+                    <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 text-xs font-bold px-3 py-1.5 rounded border border-slate-400 shadow-sm">+ Add Category</button>
+                    <button onclick="window.estimator.addEstimationRow()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded border border-slate-300 shadow-sm">+ Add Row</button>
+                </div>
 
-    generateProformaExcel: () => {
-        const wb = XLSX.utils.book_new();
-        const curr = window.app.db.company.currency;
-        let wsData = [[`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
-        
-        const mode = document.querySelector('input[name="billMode"]:checked').value;
-        let globalSubtotal = 0;
+                <div class="mt-4 flex justify-end">
+                    <div class="w-96 bg-slate-50 p-4 rounded-lg border space-y-2 text-sm">
+                        <div class="flex justify-between text-xs text-slate-500"><span>Total Internal Cost:</span> <span id="summaryCost" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-500 border-b pb-1"><span>Total Overhead Expense:</span> <span id="summaryOverhead" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-emerald-700 font-bold"><span>Total Net Profit:</span> <span id="summaryProfit" class="font-mono">0.00</span></div>
+                        <div class="flex justify-between text-xs text-slate-600 font-bold border-b pb-2"><span>Total Combined Margin/Markup:</span> <span id="summaryMargin" class="font-mono">0.00</span></div>
+                        
+                        <div class="flex justify-between pt-2"><span>Client Subtotal:</span> <span id="summarySubtotal" class="font-bold font-mono">0.00</span></div>
+                        <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold font-mono">0.00</span></div>
+                        <div class="flex justify-between border-t pt-2 text-blue-900 font-bold text-base"><span>Grand Total:</span> <span id="summaryGrandTotal" class="font-mono">0.00</span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
 
-        document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
-            const est = window.app.db.estimations[chk.value]; let estTotal = 0;
-            est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
+        <!-- ESTIMATION HISTORY & RECALL -->
+        <section id="tab-history" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Saved Estimations History</h2>
+                        <p class="text-xs text-slate-500">View, Load (Edit/Revise), or Delete previously saved estimations.</p>
+                    </div>
+                    <input type="text" id="historySearch" placeholder="Search by Client, ID, or Project..." class="border rounded px-3 py-1.5 text-xs w-64" onkeyup="window.dataManager.renderHistoryTable()">
+                </div>
+                <div class="overflow-x-auto border rounded">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
+                                <th class="p-3">Estimation ID</th>
+                                <th class="p-3">Date</th>
+                                <th class="p-3">Client</th>
+                                <th class="p-3">Project Name</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
-            if (mode === 'milestone') {
-                globalSubtotal += estTotal;
-            } else if (mode === 'summary') {
-                let catTotal = 0; let currentCat = ""; let cNum = 0;
-                est.items.forEach((item, index) => {
-                    if (item.type === 'category') {
-                        if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                        currentCat = item.title; catTotal = 0; cNum++;
-                    } else { catTotal += (item.qty * item.price); }
-                    if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                });
-            } else {
-                let cNum = 0, iNum = 0;
-                est.items.forEach(item => {
-                    if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", ""]); } 
-                    else {
-                        iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                        const total = item.qty * item.price; globalSubtotal += total;
-                        wsData.push([dNum, item.code, item.desc, item.unit, item.qty, parseFloat(item.price), total]);
-                    }
-                });
-            }
-        });
+        <!-- OPERATIONS TRACKER -->
+        <section id="tab-operations" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div><h2 class="text-lg font-bold text-slate-900">Operations & Budget Tracker</h2></div>
+                    <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
+                        <span>Upload Approved Estimation (.xlsx)</span>
+                        <input type="file" accept=".xlsx" class="hidden" onchange="window.dataManager.importEstimationForBudget(event)">
+                    </label>
+                </div>
+                <div id="operationsContent" class="text-center py-12 text-slate-400 text-sm">No estimation loaded.</div>
+            </div>
+        </section>
 
-        if (mode === 'milestone') {
-            const msVal = document.getElementById('milestoneType').value.split('|');
-            const pct = parseFloat(document.getElementById('milestonePct').value || 0) / 100;
-            const msTotal = globalSubtotal * pct;
-            wsData = wsData.slice(0, 7); 
-            wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal]);
-            globalSubtotal = msTotal;
-        }
+        <!-- PROFORMA INVOICE -->
+        <section id="tab-invoicing" class="tab-content space-y-6 hidden">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Proforma Invoice</h2>
+                        <p class="text-xs text-slate-500">Select estimations and choose a billing mode.</p>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <select id="invPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded">
+                            <option value="portrait">PDF: Portrait</option>
+                            <option value="landscape">PDF: Landscape</option>
+                        </select>
+                        <button onclick="window.exporter.generateProformaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
+                        <button onclick="window.exporter.exportInvoicePDF(event)" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
+                    </div>
+                </div>
 
-        wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${window.app.db.company.abbr}_Invoice.xlsx`);
-    },
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
+                        <select id="invClientSelect" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Number</label>
+                        <input type="text" id="invNumber" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="INV-001">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Date</label>
+                        <input type="date" id="invDate" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">P.O. Reference</label>
+                        <input type="text" id="invPoRef" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="Email Confirmation">
+                    </div>
+                    
+                    <div class="md:col-span-4 bg-white p-3 border rounded">
+                        <label class="block text-xs font-semibold text-slate-600 mb-2">Invoice Billing Mode</label>
+                        <div class="flex flex-wrap items-center space-x-6">
+                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="itemized" checked onchange="window.invoicer.renderInvoiceTable()"> 1. Full Itemized Detail</label>
+                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="summary" onchange="window.invoicer.renderInvoiceTable()"> 2. Category Summary Only</label>
+                            <label class="text-xs font-bold text-emerald-700"><input type="radio" name="billMode" value="milestone" onchange="window.invoicer.renderInvoiceTable()"> 3. Milestone / Bulk Billing</label>
+                        </div>
+                        <div id="milestoneInputs" class="hidden mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded flex space-x-4">
+                             <div>
+                                 <label class="block text-[10px] font-bold text-slate-500 uppercase">Payment Stage</label>
+                                 <select id="milestoneType" class="border rounded px-2 py-1 text-xs" onchange="window.invoicer.renderInvoiceTable()">
+                                     <option value="10030|Advance Payment">Advance Payment</option>
+                                     <option value="10038|Progress Payment">Progress Payment</option>
+                                     <option value="10032|Final Payment">Final Payment</option>
+                                 </select>
+                             </div>
+                             <div>
+                                 <label class="block text-[10px] font-bold text-slate-500 uppercase">% of Approved Estimation</label>
+                                 <input type="number" id="milestonePct" class="border rounded px-2 py-1 text-xs w-24" placeholder="e.g. 20" value="100" oninput="window.invoicer.renderInvoiceTable()">
+                             </div>
+                        </div>
+                    </div>
+                </div>
 
-    // --- TRUE VECTOR ENGINE FOR INVOICE PDF ---
-    exportInvoicePDF: async () => {
-        const btn = event ? event.currentTarget : null;
-        window.exporter.setLoadingState(btn, true);
+                <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <div class="flex justify-between items-center mb-3">
+                        <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Select Estimations to Include:</p>
+                        <input type="text" id="estFilter" placeholder="Filter by ID, client, project..." class="border rounded px-3 py-1 text-xs w-64" onkeyup="window.invoicer.renderEstimationChecklist()">
+                    </div>
+                    <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
+                </div>
 
-        // Allow UI to update before processing blocks the thread
-        setTimeout(() => {
-            try {
-                const { jsPDF } = window.jspdf;
-                const orientEl = document.getElementById('invPdfOrientation');
-                const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4');
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+                <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-8 rounded-lg shadow-sm space-y-4 text-black">
+                    <div class="flex justify-between items-start border-b-2 border-slate-200 pb-4 mb-4">
+                        <div class="text-xs space-y-1">
+                            <p class="font-bold text-blue-900 text-base mb-2">PROFORMA INVOICE</p>
+                            <p><b>CR:</b> <span class="dyn-cr"></span></p>
+                            <p><b>VAT:</b> <span class="dyn-vat"></span></p>
+                            <p><b>Address:</b> <span class="dyn-address"></span></p>
+                            <p><b>Email:</b> <span class="dyn-email"></span></p>
+                        </div>
+                        <div class="text-right flex flex-col items-end">
+                            <img id="printLogo" src="" class="logo-preview hidden mb-1" style="max-height: 80px; max-width: 200px;">
+                            <div class="text-emerald-700 font-black text-xl tracking-wider dyn-company-name">COMPANY</div>
+                        </div>
+                    </div>
 
-                // Header Drawing
-                if (window.app.db.company.logo) {
-                    const img = new Image();
-                    img.src = window.app.db.company.logo;
-                    const ratio = (img.height || 1) / (img.width || 1);
-                    const targetWidth = 120;
-                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
-                } else {
-                    doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-                    doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
-                }
+                    <table class="w-full text-xs border border-slate-300 mb-4">
+                        <tr>
+                            <td class="p-2 border bg-slate-50 font-bold w-24">TO</td>
+                            <td id="previewTo" class="p-2 border">-</td>
+                            <td class="p-2 border bg-slate-50 font-bold w-24">INVOICE #</td>
+                            <td id="previewInvNo" class="p-2 border font-bold text-blue-900">-</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2 border bg-slate-50 font-bold">ATTN</td>
+                            <td id="previewAttn" class="p-2 border">-</td>
+                            <td class="p-2 border bg-slate-50 font-bold">DATE</td>
+                            <td id="previewDate" class="p-2 border">-</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2 border bg-slate-50 font-bold">Client VAT</td>
+                            <td id="previewClientVat" class="p-2 border">-</td>
+                            <td class="p-2 border bg-slate-50 font-bold">P.O. Ref</td>
+                            <td id="previewPoRef" class="p-2 border">-</td>
+                        </tr>
+                        <tr>
+                            <td class="p-2 border bg-slate-50 font-bold">SCOPE</td>
+                            <td id="previewScope" class="p-2 border" colspan="3">-</td>
+                        </tr>
+                    </table>
 
-                doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
-                doc.text("PROFORMA INVOICE", 40, 50);
-                
-                doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
-                doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
-                doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
-                doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100);
+                    <table class="w-full text-left border-collapse text-xs border border-slate-300">
+                        <thead>
+                            <tr class="bg-blue-900 text-white">
+                                <th class="p-2 border border-slate-400 text-center w-10">SL</th>
+                                <th class="p-2 border border-slate-400 w-24">Code</th>
+                                <th class="p-2 border border-slate-400">Description</th>
+                                <th class="p-2 border border-slate-400 w-16 text-center">Unit</th>
+                                <th class="p-2 border border-slate-400 w-12 text-center">Qty</th>
+                                <th class="p-2 border border-slate-400 w-24 text-right">Price</th>
+                                <th class="p-2 border border-slate-400 w-28 text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="invoiceItemsBody"></tbody>
+                    </table>
 
-                // Client Info Box AutoTable
-                doc.autoTable({
-                    startY: 120,
-                    theme: 'grid',
-                    body: [
-                        [{ content: 'TO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewTo').innerText, { content: 'INVOICE #', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewInvNo').innerText, styles: { fontStyle: 'bold', textColor: [30, 58, 138] } }],
-                        [{ content: 'ATTN', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewAttn').innerText, { content: 'DATE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewDate').innerText],
-                        [{ content: 'Client VAT', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewClientVat').innerText, { content: 'P.O. Ref', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewPoRef').innerText],
-                        [{ content: 'SCOPE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
-                    ],
-                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-                    columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
-                });
+                    <div class="flex justify-end mt-6 page-break-inside-avoid">
+                        <div class="w-80 border border-slate-300 text-xs">
+                            <div class="flex justify-between p-2 border-b bg-slate-50">
+                                <span class="font-bold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
+                            </div>
+                            <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
+                                <span class="font-bold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
+                            </div>
+                            <div class="flex justify-between p-3 bg-blue-50 text-sm">
+                                <span class="font-bold text-blue-900">Grand Total</span><span id="invGrandTotal" class="font-black text-blue-900">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 
-                // Extract Line Items
-                let bodyData = [];
-                const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
-                rows.forEach(tr => {
-                    const cells = tr.querySelectorAll('td');
-                    if (cells.length === 2) {
-                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-                    } else if (cells.length === 3) {
-                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-                    } else if (cells.length === 7) {
-                        bodyData.push([
-                            { content: cells[0].innerText, styles: { halign: 'center' } },
-                            cells[1].innerText, cells[2].innerText,
-                            { content: cells[3].innerText, styles: { halign: 'center' } },
-                            { content: cells[4].innerText, styles: { halign: 'center' } },
-                            { content: cells[5].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } },
-                            { content: cells[6].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } }
-                        ]);
-                    }
-                });
+    <!-- COMPANY SETTINGS MODAL -->
+    <div id="companyModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Company Settings</h3>
+            <div class="grid grid-cols-2 gap-3">
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Company Name</label>
+                    <input type="text" id="setCompName" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Abbreviation (Header Badge)</label>
+                    <input type="text" id="setCompAbbr" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Currency Symbol</label>
+                    <input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR, $, AED">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label>
+                    <input type="text" id="setCompCR" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">VAT Number</label>
+                    <input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
+                    <input type="text" id="setCompEmail" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Address</label>
+                    <input type="text" id="setCompAdd" class="w-full border rounded px-3 py-1.5 text-sm">
+                </div>
+                <div class="col-span-2 border-b border-slate-200 pb-4">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Company Logo (JPG/PNG)</label>
+                    <input type="file" accept="image/*" id="setCompLogo" class="w-full text-xs" onchange="window.ui.convertLogoToBase64(event)">
+                    <img id="logoPreviewModal" src="" class="logo-preview hidden mt-2 border rounded shadow-sm">
+                </div>
+            </div>
+            <div class="flex justify-between items-center pt-2">
+                <div class="flex space-x-2">
+                    <label class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm cursor-pointer transition">
+                        <span>⬆️ Import Profile</span>
+                        <input type="file" accept=".json" class="hidden" onchange="window.ui.importCompanyProfile(event)">
+                    </label>
+                    <button onclick="window.ui.exportCompanyProfile()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm transition">⬇️ Export</button>
+                </div>
+                <div class="flex space-x-2">
+                    <button onclick="document.getElementById('companyModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Cancel</button>
+                    <button onclick="window.ui.saveCompanySettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-xs font-semibold shadow-sm transition">Save Profile</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                // Invoice Grid
-                doc.autoTable({
-                    startY: doc.lastAutoTable.finalY + 10,
-                    head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
-                    body: bodyData,
-                    theme: 'grid',
-                    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
-                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-                    columnStyles: {
-                        0: { cellWidth: 30, halign: 'center' }, 1: { cellWidth: 60 }, 2: { cellWidth: 'auto' }, 
-                        3: { cellWidth: 40, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' }, 
-                        5: { cellWidth: 60, halign: 'right' }, 6: { cellWidth: 80, halign: 'right' }
-                    }
-                });
+    <!-- CODE & CLIENT MODALS -->
+    <div id="codeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Add Item Code</h3>
+            <input type="text" id="modalCode" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Code">
+            <input type="text" id="modalDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('codeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
+        </div>
+    </div>
 
-                let finalY = doc.lastAutoTable.finalY + 20;
-                if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+    <div id="projectCodeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Add Project Code</h3>
+            <input type="text" id="modalProjCode" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Abbreviation (e.g. SIF)" maxlength="5">
+            <input type="text" id="modalProjDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description (e.g. Supply and installation of Furnitures)">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('projectCodeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveProjectCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
+        </div>
+    </div>
 
-                const summaryX = pageWidth - 200;
-                doc.setFontSize(10); doc.setFont(undefined, 'normal');
-                doc.text("Subtotal:", summaryX, finalY);
-                doc.text(document.getElementById('invSubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
-                
-                doc.setTextColor(185, 28, 28);
-                doc.text("VAT (15%):", summaryX, finalY + 15);
-                doc.text(document.getElementById('invVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
-                
-                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
-                doc.text("Grand Total:", summaryX, finalY + 35);
-                doc.text(document.getElementById('invGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+    <div id="clientModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Add Client</h3>
+            <input type="text" id="mClientAbbr" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="3-Letter Abbreviation (e.g. TKM)" maxlength="4">
+            <input type="text" id="mClientName" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Full Company Name">
+            <input type="text" id="mClientAttn" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Attention">
+            <input type="text" id="mClientAdd" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Address">
+            <input type="text" id="mClientVat" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="VAT Number">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('clientModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveClientItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
+        </div>
+    </div>
 
-                doc.save(`${document.getElementById('invNumber').value}.pdf`);
-            } catch (err) {
-                console.error("PDF Generation Error:", err);
-                alert("There was an error generating the PDF.");
-            } finally {
-                window.exporter.setLoadingState(btn, false);
-            }
-        }, 100);
-    }
-};
+    <!-- Script Links -->
+    <script src="js/app.js?v=8"></script>
+    <script src="js/ui.js?v=8"></script>
+    <script src="js/dataManager.js?v=8"></script>
+    <script src="js/estimator.js?v=8"></script>
+    <script src="js/invoicer.js?v=8"></script>
+    <script src="js/exporter.js?v=8"></script>
+</body>
+</html>
