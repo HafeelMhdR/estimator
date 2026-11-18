@@ -5,7 +5,10 @@ window.app = {
     },
     currentDirectoryHandle: null,
 
-    formatMoney: (num) => parseFloat(num || 0).toFixed(2) + ' ' + (window.app.db.company.currency || 'SAR'),
+    formatMoney: (num) => {
+        const val = parseFloat(num || 0);
+        return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (window.app.db.company.currency || 'SAR');
+    },
 
     idb: {
         getDB: () => new Promise((resolve, reject) => {
@@ -53,36 +56,7 @@ window.app = {
             if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
             if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
             if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
-            window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
-        } 
-    },
-
-    connectNetworkFolder: async () => {
-        try {
-            if (!window.app.currentDirectoryHandle) {
-                window.app.currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                await window.app.idb.set(window.app.currentDirectoryHandle);
-            }
-            const opts = { mode: 'readwrite' };
-            if ((await window.app.currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
-                if ((await window.app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
-            }
-
-            document.getElementById('networkBtnText').innerText = "Connected to LAN";
-            document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-            document.getElementById('folderStatus').innerText = "Live Sync Active";
-            document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
-            document.getElementById('btnDisconnect').classList.remove('hidden');
-
-            try {
-                const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
-                const file = await fileHandle.getFile();
-                const text = await file.text();
-                try {
-                    window.app.db = JSON.parse(text); 
-                    if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
-                    if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
-                    window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
+            window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; }); } },  connectNetworkFolder: async () => { try { if (!window.app.currentDirectoryHandle) { window.app.currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' }); await window.app.idb.set(window.app.currentDirectoryHandle); } const opts = { mode: 'readwrite' }; if ((await window.app.currentDirectoryHandle.queryPermission(opts)) !== 'granted') { if ((await window.app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied"); }  document.getElementById('networkBtnText').innerText = "Connected to LAN"; document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1"; document.getElementById('folderStatus').innerText = "Live Sync Active"; document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium"; document.getElementById('btnDisconnect').classList.remove('hidden');  try { const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false }); const file = await fileHandle.getFile(); const text = await file.text(); try { window.app.db = JSON.parse(text); if(!window.app.db.company.currency) window.app.db.company.currency = "SAR"; if(!window.app.db.projectCodes) window.app.db.projectCodes = []; window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
                     
                     localStorage.setItem('sys_db', JSON.stringify(window.app.db));
                     window.ui.applyCompanyDataToUI(); 
