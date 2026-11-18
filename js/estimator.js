@@ -1,8 +1,6 @@
 window.estimator = {
-    // PRECISE ID GENERATOR
     generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
-        
         const clientName = document.getElementById('estClientSelect').value;
         const client = window.app.db.clients.find(c => c.name === clientName);
         const cliAbbr = client && client.abbr ? client.abbr : 'CLI';
@@ -20,7 +18,6 @@ window.estimator = {
         const currentId = document.getElementById('currentEditingEstId').value;
         let rev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
 
-        // 1. If we are editing an existing estimation (and didn't change the client/project/date)
         if (currentId && !currentId.startsWith('EST-')) {
             const existingEst = window.app.db.estimations.find(e => e.id === currentId);
             if (existingEst && existingEst.baseId && existingEst.baseId.startsWith(basePrefix)) {
@@ -28,14 +25,13 @@ window.estimator = {
             }
         }
 
-        // 2. If it's a NEW estimation (or we changed the client/project/date), find the highest quote number (x) for this specific prefix
         const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && e.baseId.startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
             let q = e.quoteOfDay;
-            if (!q) {
-                let numStr = e.baseId.substring(basePrefix.length);
-                q = parseInt(numStr);
+            if (!q && e.baseId) {
+                const numStr = e.baseId.substring(basePrefix.length);
+                q = parseInt(numStr) || 0;
             }
             if (q > maxX) maxX = q;
         });
@@ -43,7 +39,6 @@ window.estimator = {
         const x = maxX + 1;
         const baseId = `${basePrefix}${x}`;
         
-        // If we changed client/date on an existing quote, reset revision to 0
         if (currentId && !currentId.startsWith('EST-')) {
             const existingEst = window.app.db.estimations.find(e => e.id === currentId);
             if (existingEst && existingEst.baseId && !existingEst.baseId.startsWith(basePrefix)) {
@@ -69,7 +64,6 @@ window.estimator = {
         const idData = window.estimator.generateIdData();
         if(previewEl) previewEl.innerText = `Estimation: ${idData.fullId}`;
 
-        // Push project description into name box if empty
         const projNameBox = document.getElementById('estProjectName');
         const currentId = document.getElementById('currentEditingEstId').value;
         if (proj && !currentId && !projNameBox.value) {
@@ -78,7 +72,6 @@ window.estimator = {
         }
     },
 
-    // STRICT VALIDATION ENGINE
     validateForm: () => {
         if (!document.getElementById('estClientSelect').value) return "Validation Error: Please select a Client.";
         if (!document.getElementById('estProjectCodeSelect').value) return "Validation Error: Please select a Project Code.";
@@ -111,7 +104,34 @@ window.estimator = {
                 if (cost === '') return `Validation Error: Item row ${i+1} is missing an Internal Cost.`;
             }
         }
-        return null; // Passes all validation
+        return null;
+    },
+
+    // T&C Engine Actions
+    moveTermUp: (btn) => {
+        const row = btn.closest('.term-row');
+        if (row.previousElementSibling) row.parentNode.insertBefore(row, row.previousElementSibling);
+    },
+    
+    moveTermDown: (btn) => {
+        const row = btn.closest('.term-row');
+        if (row.nextElementSibling) row.parentNode.insertBefore(row.nextElementSibling, row);
+    },
+
+    addTermRow: (title = "", value = "") => {
+        const container = document.getElementById('termsContainer');
+        const div = document.createElement('div');
+        div.className = 'term-row flex items-start space-x-2';
+        div.innerHTML = `
+            <input type="text" class="term-title border rounded px-2 py-1.5 text-xs font-bold w-1/4" placeholder="Term Heading" value="${title}">
+            <input type="text" class="term-value border rounded px-2 py-1.5 text-xs w-3/4" placeholder="Term Value or Description" value="${value}">
+            <div class="flex space-x-1">
+                <button onclick="window.estimator.moveTermUp(this)" class="bg-slate-200 hover:bg-slate-300 px-2 py-1 text-xs rounded shadow-sm">↑</button>
+                <button onclick="window.estimator.moveTermDown(this)" class="bg-slate-200 hover:bg-slate-300 px-2 py-1 text-xs rounded shadow-sm">↓</button>
+                <button onclick="this.closest('.term-row').remove()" class="bg-red-100 hover:bg-red-200 text-red-600 px-2 py-1 text-xs rounded shadow-sm">✕</button>
+            </div>
+        `;
+        container.appendChild(div);
     },
 
     moveRowUp: (btn) => {
@@ -130,7 +150,7 @@ window.estimator = {
         document.getElementById('currentEditingEstRev').value = '0';
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
-        document.getElementById('estTitle').value = '';
+        document.getElementById('estTitle').value = 'ESTIMATION BOQ';
         document.getElementById('estDate').valueAsDate = new Date();
         
         if (document.getElementById('estClientSelect').options.length > 0) document.getElementById('estClientSelect').selectedIndex = 0;
@@ -143,6 +163,12 @@ window.estimator = {
         document.getElementById('estimationRowsBody').innerHTML = '';
         window.estimator.addEstimationRow();
         window.estimator.updateEstIdPreview();
+
+        // Reset T&Cs to defaults
+        document.getElementById('termsContainer').innerHTML = '';
+        window.estimator.addTermRow('Payment Terms', '');
+        window.estimator.addTermRow('Delivery or Execution Period', '');
+        window.estimator.addTermRow('Offer Validity', '');
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
@@ -217,11 +243,16 @@ window.estimator = {
         window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
         const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
+        
+        // Includes the new Item Comment Field
         tr.innerHTML = `
             <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
             <td class="p-1 border text-center font-bold item-num"></td>
             <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
-            <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
+            <td class="p-1 border">
+                <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description">
+                <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
+            </td>
             <td class="p-1 border text-center">
                 <select class="w-full border rounded p-1 text-center item-unit">
                     <option value="" disabled selected>...</option>
@@ -321,7 +352,6 @@ window.estimator = {
     },
 
     saveEstimation: () => {
-        // Enforce Validation
         const error = window.estimator.validateForm();
         if(error) return alert(error);
 
@@ -332,13 +362,26 @@ window.estimator = {
             } else {
                 items.push({ 
                     type: 'item',
-                    code: tr.querySelector('.item-code-select').value, desc: tr.querySelector('.item-desc').value.trim(), 
-                    unit: tr.querySelector('.item-unit').value, qty: parseFloat(tr.querySelector('.item-qty').value), 
+                    code: tr.querySelector('.item-code-select').value, 
+                    desc: tr.querySelector('.item-desc').value.trim(), 
+                    comment: tr.querySelector('.item-comment').value.trim(), // Save new comment
+                    unit: tr.querySelector('.item-unit').value, 
+                    qty: parseFloat(tr.querySelector('.item-qty').value), 
                     cost: parseFloat(tr.querySelector('.item-cost').value), 
-                    oh: parseFloat(tr.querySelector('.item-oh').value || 0), pr: parseFloat(tr.querySelector('.item-pr').value || 0),
+                    oh: parseFloat(tr.querySelector('.item-oh').value || 0), 
+                    pr: parseFloat(tr.querySelector('.item-pr').value || 0),
                     price: parseFloat(tr.querySelector('.item-price').value) 
                 });
             }
+        });
+        
+        // Extract Terms & Conditions
+        let terms = [];
+        document.querySelectorAll('.term-row').forEach(row => {
+            terms.push({
+                title: row.querySelector('.term-title').value.trim(),
+                value: row.querySelector('.term-value').value.trim()
+            });
         });
         
         const idData = window.estimator.generateIdData();
@@ -353,11 +396,11 @@ window.estimator = {
             date: document.getElementById('estDate').value, 
             clientName: document.getElementById('estClientSelect').value,
             projectAbbr: document.getElementById('estProjectCodeSelect').value,
-            items 
+            items,
+            terms
         };
 
         if (currentId) {
-            // Editing existing
             if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version`)) {
                 rev++;
                 finalId = idData.baseId + `R${rev}`;
@@ -365,7 +408,6 @@ window.estimator = {
                 document.getElementById('currentEditingEstRev').value = rev;
                 window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
             } else {
-                // Overwrite current
                 const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
                 if(idx > -1) {
                     const originalTime = window.app.db.estimations[idx].time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -374,7 +416,6 @@ window.estimator = {
                 }
             }
         } else {
-            // Saving brand new
             document.getElementById('currentEditingEstId').value = finalId;
             document.getElementById('currentEditingEstRev').value = rev;
             window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
