@@ -3,20 +3,23 @@ window.exporter = {
         if (!button) return;
         if (isLoading) {
             button.dataset.originalText = button.innerText;
-            button.innerText = "Generating PDF...";
+            button.innerText = "Generating...";
             button.disabled = true;
             button.classList.add('opacity-50', 'cursor-not-allowed');
         } else {
-            button.innerText = button.dataset.originalText || "Export PDF";
+            button.innerText = button.dataset.originalText || "Export";
             button.disabled = false;
             button.classList.remove('opacity-50', 'cursor-not-allowed');
         }
     },
 
     exportEstimationExcel: () => {
+        const error = window.estimator.validateForm();
+        if(error) return alert(error);
+
         const wb = XLSX.utils.book_new();
         const curr = window.app.db.company.currency;
-        const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateBaseId();
+        const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateIdData().fullId;
 
         let wsData = [
             [`${window.app.db.company.name.toUpperCase()} - ESTIMATION BOQ`],
@@ -56,6 +59,9 @@ window.exporter = {
     },
 
     exportEstimationPDF: async () => {
+        const error = window.estimator.validateForm();
+        if(error) return alert(error);
+
         const btn = event ? event.currentTarget : null;
         window.exporter.setLoadingState(btn, true);
 
@@ -67,7 +73,7 @@ window.exporter = {
                 const doc = new jsPDF(orientation, 'pt', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
-                const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateBaseId();
+                const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateIdData().fullId;
 
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
