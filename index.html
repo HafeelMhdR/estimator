@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=6">
+    <link rel="stylesheet" href="css/styles.css?v=8">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -45,7 +45,7 @@
         <nav class="bg-slate-800 border-t border-slate-700">
             <div class="max-w-7xl mx-auto px-4 flex space-x-1 overflow-x-auto">
                 <button onclick="window.ui.switchTab('dashboard')" class="tab-btn active-tab px-4 py-2.5 text-xs font-semibold text-emerald-400 border-b-2 border-emerald-400 whitespace-nowrap">Dashboard</button>
-                <button onclick="window.ui.switchTab('codes')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Item Code Library</button>
+                <button onclick="window.ui.switchTab('libraries')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Data Libraries</button>
                 <button onclick="window.ui.switchTab('clients')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Client Directory</button>
                 <button onclick="window.ui.switchTab('estimation')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Estimation Builder</button>
                 <button onclick="window.ui.switchTab('history')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Saved Estimations</button>
@@ -88,27 +88,59 @@
             </div>
         </section>
 
-        <!-- ITEM CODES -->
-        <section id="tab-codes" class="tab-content space-y-6 hidden">
+        <!-- DATA LIBRARIES (Items & Projects) -->
+        <section id="tab-libraries" class="tab-content space-y-6 hidden">
+            <!-- PROJECT CODES -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Item Code & Description Library</h2>
-                        <p class="text-xs text-slate-500">Add codes manually or import via CSV.</p>
+                        <h2 class="text-lg font-bold text-slate-900">Project Codes Library (3-Letter)</h2>
+                        <p class="text-xs text-slate-500">Defines the project abbreviation in the Estimation ID (e.g. SIF).</p>
                     </div>
                     <div class="flex space-x-2">
+                        <button onclick="window.dataManager.exportProjectCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
+                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
+                            <span>📤 Import CSV</span>
+                            <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importProjectCodesCSV(event)">
+                        </label>
+                        <button onclick="window.ui.openAddProjectCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Project Code</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto max-h-64 border rounded">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
+                                <th class="p-3 w-32">Project Code</th>
+                                <th class="p-3">Project Description</th>
+                                <th class="p-3 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="projectCodesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- ITEM CODES -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Item Code Library</h2>
+                        <p class="text-xs text-slate-500">Add material/service codes manually or import via CSV.</p>
+                    </div>
+                    <div class="flex space-x-2">
+                        <button onclick="window.dataManager.exportCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
                         <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
                             <span>📤 Import CSV</span>
                             <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importCodesCSV(event)">
                         </label>
-                        <button onclick="window.ui.openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add New Code</button>
+                        <button onclick="window.ui.openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item Code</button>
                     </div>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto max-h-96 border rounded">
                     <table class="w-full text-left border-collapse">
                         <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
-                                <th class="p-3">Item Code</th>
+                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
+                                <th class="p-3 w-32">Item Code</th>
                                 <th class="p-3">Predefined Description</th>
                                 <th class="p-3 text-right">Actions</th>
                             </tr>
@@ -126,10 +158,11 @@
                     <div><h2 class="text-lg font-bold text-slate-900">Client Directory</h2></div>
                     <button onclick="window.ui.openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto border rounded">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
+                                <th class="p-3">Abbr</th>
                                 <th class="p-3">Company Name</th>
                                 <th class="p-3">Attn</th>
                                 <th class="p-3">Address</th>
@@ -146,43 +179,50 @@
         <!-- ESTIMATION BUILDER -->
         <section id="tab-estimation" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-6">
+                
+                <div class="flex justify-between items-center mb-4 border-b pb-4">
                     <div>
-                        <h2 class="text-lg font-bold text-slate-900">Estimation & Costing Builder</h2>
-                        <p class="text-xs text-slate-500">Group items by Category and bulk assign overheads, profits, and categories.</p>
+                        <h2 class="text-lg font-bold text-slate-900">Estimation Builder</h2>
+                        <!-- Dynamic ID Preview -->
+                        <div id="estIdPreview" class="text-2xl font-black text-blue-900 mt-1 tracking-tight">Estimation ID</div>
                         <input type="hidden" id="currentEditingEstId" value="">
+                        <input type="hidden" id="currentEditingEstRev" value="0">
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="window.estimator.createNewEstimation()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">📄 New</button>
                         <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Category</button>
                         <button onclick="window.estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
-                        <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Save & Sync</button>
+                        <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded shadow-md">Save & Sync</button>
                         
                         <select id="estPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded">
                             <option value="portrait">Portrait</option>
                             <option value="landscape">Landscape</option>
                         </select>
-                        <button onclick="window.exporter.exportEstimationPDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
+                        <button onclick="window.exporter.exportEstimationPDF(event)" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
                         <button onclick="window.exporter.exportEstimationExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4 text-sm">
                     <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name</label>
-                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white">
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
+                        <select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Code (Abbr)</label>
+                        <select id="estProjectCodeSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
+                        <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name (Display Only)</label>
+                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Full Project Title">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Project Location</label>
                         <input type="text" id="estLocation" class="w-full border rounded px-3 py-1.5 bg-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Document Title</label>
-                        <input type="text" id="estTitle" class="w-full border rounded px-3 py-1.5 bg-white" value="BILLS OF QUANTITIES">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Date</label>
-                        <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label>
@@ -195,10 +235,6 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
                         <input type="number" id="globalVat" onchange="window.estimator.recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
-                        <select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white"></select>
                     </div>
                 </div>
 
@@ -270,18 +306,18 @@
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Saved Estimations History</h2>
-                        <p class="text-xs text-slate-500">View, Load (Edit), or Delete previously saved estimations.</p>
+                        <p class="text-xs text-slate-500">View, Load (Edit/Revise), or Delete previously saved estimations.</p>
                     </div>
-                    <input type="text" id="historySearch" placeholder="Search by Client or Project..." class="border rounded px-3 py-1.5 text-xs w-64" onkeyup="window.dataManager.renderHistoryTable()">
+                    <input type="text" id="historySearch" placeholder="Search by Client, ID, or Project..." class="border rounded px-3 py-1.5 text-xs w-64" onkeyup="window.dataManager.renderHistoryTable()">
                 </div>
-                <div class="overflow-x-auto">
+                <div class="overflow-x-auto border rounded">
                     <table class="w-full text-left border-collapse">
                         <thead>
                             <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
-                                <th class="p-3">Date</th>
-                                <th class="p-3">Client Name</th>
-                                <th class="p-3">Project Name</th>
-                                <th class="p-3 text-center">Items</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('id')">Estimation ID ↕</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('date')">Date ↕</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('projectName')">Project Name ↕</th>
                                 <th class="p-3 text-right">Actions</th>
                             </tr>
                         </thead>
@@ -319,7 +355,7 @@
                             <option value="landscape">PDF: Landscape</option>
                         </select>
                         <button onclick="window.exporter.generateProformaExcel()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
-                        <button onclick="window.exporter.exportInvoicePDF()" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
+                        <button onclick="window.exporter.exportInvoicePDF(event)" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
                     </div>
                 </div>
 
@@ -368,7 +404,7 @@
                 <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <div class="flex justify-between items-center mb-3">
                         <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Select Estimations to Include:</p>
-                        <input type="text" id="estFilter" placeholder="Filter by client, project, or date..." class="border rounded px-3 py-1 text-xs w-64" onkeyup="window.invoicer.renderEstimationChecklist()">
+                        <input type="text" id="estFilter" placeholder="Filter by ID, client, project..." class="border rounded px-3 py-1 text-xs w-64" onkeyup="window.invoicer.renderEstimationChecklist()">
                     </div>
                     <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
@@ -446,7 +482,7 @@
         </section>
     </main>
 
-    <!-- COMPANY SETTINGS MODAL (Now With Import/Export Profile) -->
+    <!-- COMPANY SETTINGS MODAL -->
     <div id="companyModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
             <h3 class="text-base font-bold text-slate-900">Company Settings</h3>
@@ -486,7 +522,6 @@
                 </div>
             </div>
             
-            <!-- EXPORT & IMPORT BUTTONS ADDED HERE -->
             <div class="flex justify-between items-center pt-2">
                 <div class="flex space-x-2">
                     <label class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm cursor-pointer transition">
@@ -503,7 +538,7 @@
         </div>
     </div>
 
-    <!-- CODE & CLIENT MODALS -->
+    <!-- MODALS -->
     <div id="codeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
             <h3 class="text-base font-bold text-slate-900">Add Item Code</h3>
@@ -512,10 +547,21 @@
             <div class="flex justify-end space-x-2"><button onclick="document.getElementById('codeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
         </div>
     </div>
+
+    <div id="projectCodeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+        <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+            <h3 class="text-base font-bold text-slate-900">Add Project Code</h3>
+            <input type="text" id="modalProjCode" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="Abbreviation (e.g. SIF)" maxlength="5">
+            <input type="text" id="modalProjDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description (e.g. Supply and installation of Furnitures)">
+            <div class="flex justify-end space-x-2"><button onclick="document.getElementById('projectCodeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveProjectCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
+        </div>
+    </div>
+
     <div id="clientModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
         <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
             <h3 class="text-base font-bold text-slate-900">Add Client</h3>
-            <input type="text" id="mClientName" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Company Name">
+            <input type="text" id="mClientAbbr" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="3-Letter Abbreviation (e.g. TKM)" maxlength="4">
+            <input type="text" id="mClientName" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Full Company Name">
             <input type="text" id="mClientAttn" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Attention">
             <input type="text" id="mClientAdd" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Address">
             <input type="text" id="mClientVat" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="VAT Number">
@@ -524,11 +570,11 @@
     </div>
 
     <!-- Script Links -->
-    <script src="js/app.js?v=6"></script>
-    <script src="js/ui.js?v=6"></script>
-    <script src="js/dataManager.js?v=6"></script>
-    <script src="js/estimator.js?v=6"></script>
-    <script src="js/invoicer.js?v=6"></script>
-    <script src="js/exporter.js?v=6"></script>
+    <script src="js/app.js?v=8"></script>
+    <script src="js/ui.js?v=8"></script>
+    <script src="js/dataManager.js?v=8"></script>
+    <script src="js/estimator.js?v=8"></script>
+    <script src="js/invoicer.js?v=8"></script>
+    <script src="js/exporter.js?v=8"></script>
 </body>
 </html>
