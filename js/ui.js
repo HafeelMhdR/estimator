@@ -1,4 +1,3 @@
-// User Interface, Company Settings & Tab Switching
 window.ui = {
     switchTab: (tabId) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -65,7 +64,6 @@ window.ui = {
         reader.readAsDataURL(file);
     },
 
-    // NEW: Export Company Settings
     exportCompanyProfile: () => {
         const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.app.db.company));
         const dlAnchorElem = document.createElement('a');
@@ -76,7 +74,6 @@ window.ui = {
         document.body.removeChild(dlAnchorElem);
     },
 
-    // NEW: Import Company Settings
     importCompanyProfile: (event) => {
         const file = event.target.files[0];
         if (!file) return;
@@ -86,7 +83,7 @@ window.ui = {
                 const importedData = JSON.parse(e.target.result);
                 if (importedData && importedData.name) {
                     window.app.db.company = importedData;
-                    window.ui.openCompanyModal(); // Reload the modal text boxes to show new data
+                    window.ui.openCompanyModal(); 
                     alert("Company profile loaded successfully! Click 'Save Profile' to lock it in.");
                 } else {
                     alert("Invalid profile file format.");
@@ -96,10 +93,9 @@ window.ui = {
             }
         };
         reader.readAsText(file);
-        event.target.value = ''; // Reset input so you can re-upload if needed
+        event.target.value = '';
     },
 
-    // UPDATED: Added anti-crash protection so it always saves and closes
     saveCompanySettings: () => {
         try {
             window.app.db.company.name = document.getElementById('setCompName').value || "Company";
@@ -115,6 +111,7 @@ window.ui = {
             
             if(window.estimator && window.estimator.recalculateEstimation) {
                 window.estimator.recalculateEstimation();
+                window.estimator.updateEstIdPreview();
             }
             
             const invTab = document.getElementById('tab-invoicing');
@@ -150,5 +147,26 @@ window.ui = {
             mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
             if(printLogo) printLogo.classList.add('hidden');
         }
+    },
+
+    openAddCodeModal: () => {
+        document.getElementById('modalCode').value = ''; 
+        document.getElementById('modalDesc').value = ''; 
+        document.getElementById('codeModal').classList.remove('hidden');
+    },
+
+    openAddProjectCodeModal: () => {
+        document.getElementById('modalProjCode').value = ''; 
+        document.getElementById('modalProjDesc').value = ''; 
+        document.getElementById('projectCodeModal').classList.remove('hidden');
+    },
+
+    openClientModal: () => {
+        document.getElementById('mClientAbbr').value = '';
+        document.getElementById('mClientName').value = ''; 
+        document.getElementById('mClientAttn').value = ''; 
+        document.getElementById('mClientAdd').value = ''; 
+        document.getElementById('mClientVat').value = ''; 
+        document.getElementById('clientModal').classList.remove('hidden');
     }
 };
