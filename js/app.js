@@ -1,6 +1,6 @@
 window.app = {
     db: {
-        company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" },
+        company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "", timezone: "local" },
         codes: [], projectCodes: [], clients: [], estimations: []
     },
     currentDirectoryHandle: null,
@@ -8,6 +8,29 @@ window.app = {
     formatMoney: (num) => {
         const val = parseFloat(num || 0);
         return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (window.app.db.company.currency || 'SAR');
+    },
+
+    // NEW: Timezone Engine
+    getCurrentDateTime: () => {
+        const tz = window.app.db.company.timezone;
+        const now = new Date();
+        
+        if (!tz || tz === 'local') {
+            return {
+                date: now.toLocaleDateString('en-CA'), // YYYY-MM-DD
+                time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+        }
+        
+        // Calculate fixed UTC offset based on Dropdown
+        const offsetHours = parseFloat(tz);
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const fixedDate = new Date(utc + (3600000 * offsetHours));
+        
+        return {
+            date: fixedDate.toLocaleDateString('en-CA'),
+            time: fixedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        };
     },
 
     idb: {
@@ -53,10 +76,18 @@ window.app = {
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
             window.app.db = JSON.parse(saved); 
-            if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
+            if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "", timezone: "local" };
             if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
+            if(!window.app.db.company.timezone) window.app.db.company.timezone = "local";
             if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
             window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
+            
+            // Repair older corrupted estimations that were missing time/baseId
+            window.app.db.estimations.forEach(e => {
+                if (!e.time) e.time = "12:00 AM";
+                if (!e.baseId) e.baseId = e.id;
+                if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
+            });
         } 
     },
 
@@ -84,6 +115,7 @@ window.app = {
                 try {
                     window.app.db = JSON.parse(text); 
                     if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
+                    if(!window.app.db.company.timezone) window.app.db.company.timezone = "local";
                     if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
                     window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
                     
@@ -131,9 +163,9 @@ window.app = {
 window.onload = async function() {
     window.app.loadData();
     
-    // Blank out defaults initially
-    document.getElementById('estDate').value = "";
-    document.getElementById('invDate').valueAsDate = new Date();
+    const dt = window.app.getCurrentDateTime();
+    document.getElementById('estDate').value = dt.date;
+    document.getElementById('invDate').value = dt.date;
     
     window.ui.applyCompanyDataToUI();
     window.dataManager.renderCodesTable();
@@ -142,6 +174,8 @@ window.onload = async function() {
     window.dataManager.populateClientDropdowns();
     
     if(document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
+    if(document.getElementById('termsContainer') && document.getElementById('termsContainer').children.length === 0) window.estimator.resetTerms();
+    
     window.ui.updateDashboardStats();
     window.estimator.updateEstIdPreview();
 
