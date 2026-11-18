@@ -162,6 +162,7 @@ window.ui = {
     },
 
     openClientModal: () => {
+        document.getElementById('mClientIndex').value = '';
         document.getElementById('mClientAbbr').value = '';
         document.getElementById('mClientName').value = ''; 
         document.getElementById('mClientAttn').value = ''; 
