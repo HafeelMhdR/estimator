@@ -1,8 +1,7 @@
-// Core Database State & Networking - FORCED TO GLOBAL WINDOW
 window.app = {
     db: {
         company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" },
-        codes: [], clients: [], estimations: []
+        codes: [], projectCodes: [], clients: [], estimations: []
     },
     currentDirectoryHandle: null,
 
@@ -43,7 +42,7 @@ window.app = {
 
     saveData: () => { 
         localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
-        window.ui.updateDashboardStats(); 
+        if(window.ui) window.ui.updateDashboardStats(); 
         window.app.syncToNetworkFolder(); 
     },
 
@@ -51,8 +50,12 @@ window.app = {
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
             window.app.db = JSON.parse(saved); 
+            // Fallbacks for legacy databases
             if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
             if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
+            if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
+            // Map legacy clients with no abbr
+            window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
         } 
     },
 
@@ -80,9 +83,13 @@ window.app = {
                 try {
                     window.app.db = JSON.parse(text); 
                     if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
+                    if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
+                    window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
+                    
                     localStorage.setItem('sys_db', JSON.stringify(window.app.db));
                     window.ui.applyCompanyDataToUI(); 
                     window.dataManager.renderCodesTable(); 
+                    window.dataManager.renderProjectCodesTable();
                     window.dataManager.renderClientTable(); 
                     window.dataManager.populateClientDropdowns(); 
                     window.ui.updateDashboardStats();
@@ -126,10 +133,12 @@ window.onload = async function() {
     document.getElementById('invDate').valueAsDate = new Date();
     window.ui.applyCompanyDataToUI();
     window.dataManager.renderCodesTable();
+    window.dataManager.renderProjectCodesTable();
     window.dataManager.renderClientTable();
     window.dataManager.populateClientDropdowns();
     if(document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
     window.ui.updateDashboardStats();
+    window.estimator.updateEstIdPreview();
 
     try {
         const savedHandle = await window.app.idb.get();
