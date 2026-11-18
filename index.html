@@ -6,7 +6,6 @@
     <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- True Vector PDF Engines -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <link rel="stylesheet" href="styles.css">
@@ -49,7 +48,6 @@
                 <button onclick="ui.switchTab('codes')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Item Code Library</button>
                 <button onclick="ui.switchTab('clients')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Client Directory</button>
                 <button onclick="ui.switchTab('estimation')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Estimation Builder</button>
-                <!-- NEW TAB BUTTON -->
                 <button onclick="ui.switchTab('history')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Saved Estimations</button>
                 <button onclick="ui.switchTab('operations')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Operations Tracker</button>
                 <button onclick="ui.switchTab('invoicing')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Proforma Invoice</button>
@@ -152,14 +150,12 @@
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Estimation & Costing Builder</h2>
                         <p class="text-xs text-slate-500">Group items by Category and bulk assign overheads, profits, and categories.</p>
-                        <!-- NEW: Hidden field to track if we are editing an existing estimation -->
                         <input type="hidden" id="currentEditingEstId" value="">
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="estimator.createNewEstimation()" class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded">📄 New</button>
                         <button onclick="estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Category</button>
                         <button onclick="estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item</button>
-                        <!-- UPDATED: Save Button -->
                         <button onclick="estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Save & Sync</button>
                         
                         <select id="estPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded">
@@ -268,7 +264,7 @@
             </div>
         </section>
 
-        <!-- NEW TAB: ESTIMATION HISTORY & RECALL -->
+        <!-- ESTIMATION HISTORY & RECALL -->
         <section id="tab-history" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
