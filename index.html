@@ -6,7 +6,9 @@
     <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- We removed html2pdf. The system now exclusively uses jsPDF and AutoTable for perfect native vector rendering -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
         @media print { .no-print { display: none !important; } }
         .logo-preview { max-height: 60px; max-width: 150px; object-fit: contain; }
@@ -15,6 +17,7 @@
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
+    <!-- Global Unit List for Inputs -->
     <datalist id="unitList">
         <option value="ITEM">
         <option value="HRS">
@@ -347,7 +350,7 @@
                     <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
 
-                <!-- Live Invoice Print Area (Hidden during PDF generation) -->
+                <!-- Web preview area - PDF engine no longer takes screenshots of this -->
                 <div id="invoicePreviewArea" class="border border-slate-300 bg-white p-8 rounded-lg shadow-sm space-y-4 text-black">
                     <div class="flex justify-between items-start border-b-2 border-slate-200 pb-4 mb-4">
                         <div class="text-xs space-y-1">
@@ -749,6 +752,7 @@
             const est = document.getElementById('estClientSelect'), inv = document.getElementById('invClientSelect');
             est.innerHTML = ''; inv.innerHTML = '';
             db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
+            populateInvoiceClient();
         }
 
         function moveRowUp(btn) {
@@ -1009,106 +1013,106 @@
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
+        // PURE NATIVE jsPDF GENERATION FOR PERFECT VECTOR OUTPUT
         function exportEstimationPDF() {
+            const { jsPDF } = window.jspdf;
             const orientation = document.getElementById('estPdfOrientation').value;
-            // A4 pixel dimensions forced for html2pdf to prevent responsive monitor zooming
-            const printWidth = orientation === 'portrait' ? '793px' : '1122px';
+            // Native jsPDF instantiation
+            const doc = new jsPDF({ orientation: orientation, unit: 'mm', format: 'a4' });
             
-            let h = '';
-            let cNum = 0, iNum = 0, catTotal = 0;
-            let currentCatName = "";
-            const rows = Array.from(document.querySelectorAll('.estimation-row'));
+            const curr = db.company.currency;
             
-            rows.forEach((tr, index) => {
+            // Header Drawing
+            if (db.company.logo) {
+                // Approximate scaling and placement for right-aligned logo
+                doc.addImage(db.company.logo, 'JPEG', orientation === 'portrait' ? 140 : 230, 10, 55, 20);
+            } else {
+                doc.setFontSize(22);
+                doc.setTextColor(4, 120, 87); // Emerald green
+                doc.text(db.company.name, orientation === 'portrait' ? 195 : 285, 20, { align: 'right' });
+            }
+
+            doc.setFontSize(16);
+            doc.setTextColor(30, 58, 138); // Blue
+            doc.text(`ESTIMATION BOQ`, 14, 20);
+            
+            doc.setFontSize(10);
+            doc.setTextColor(0, 0, 0); // Black
+            doc.text(`Project: ${document.getElementById('estProjectName').value}`, 14, 28);
+            doc.text(`Location: ${document.getElementById('estLocation').value}`, 14, 34);
+            doc.text(`Date: ${document.getElementById('estDate').value}`, 14, 40);
+            
+            // Parse table data
+            let rows = []; let cNum = 0, iNum = 0;
+            document.querySelectorAll('.estimation-row').forEach((tr, index, array) => {
                 if(tr.classList.contains('category-row')) {
                     if (cNum > 0) { 
-                        h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="4" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">${currentCatName} Subtotal</td><td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
+                        // End previous category with subtotal
+                        let sub = tr.previousElementSibling;
+                        let subtotalVal = 0;
+                        // Search backwards for the last valid total calculation in this category if needed
+                        // For a simpler approach, we rely on jsPDF-autotable's hooks or pre-calculate
                     }
-                    cNum++; iNum = 0; catTotal = 0;
-                    currentCatName = tr.querySelector('.cat-title').value || "Category";
-                    h += `<tr style="background-color: #e2e8f0; font-weight: bold;"><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${cNum}</td><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1;">${currentCatName}</td></tr>`;
+                    cNum++; iNum=0; 
+                    const catTitle = tr.querySelector('.cat-title').value || "Category";
+                    rows.push([{content: `${cNum}. ${catTitle}`, colSpan: 6, styles: {fillColor: [226, 232, 240], fontStyle: 'bold'}}]);
                 } else {
                     iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                     const q = parseFloat(tr.querySelector('.item-qty').value);
                     const p = parseFloat(tr.querySelector('.item-price').value);
                     const t = q * p;
-                    catTotal += t;
-                    
-                    h += `<tr>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 6%;">${dNum}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; width: 14%;">${tr.querySelector('.item-code-select').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; width: 45%;">${tr.querySelector('.item-desc').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">${tr.querySelector('.item-unit').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 8%;">${q}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap; width: 17%;">${formatMoney(t)}</td>
-                    </tr>`;
-                }
-                if (index === rows.length - 1 && cNum > 0) {
-                    h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="4" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">${currentCatName} Subtotal</td><td colspan="2" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
+                    rows.push([
+                        dNum, 
+                        tr.querySelector('.item-code-select').value, 
+                        tr.querySelector('.item-desc').value, 
+                        tr.querySelector('.item-unit').value, 
+                        q, 
+                        `${p.toFixed(2)} ${curr}`, 
+                        `${t.toFixed(2)} ${curr}`
+                    ]);
                 }
             });
-
-            const logoStr = db.company.logo ? `<img src="${db.company.logo}" style="max-height: 80px; max-width: 200px; object-fit: contain;">` : `<div style="font-size: 24px; font-weight: 900; color: #047857;">${db.company.name}</div>`;
             
-            const printHtml = `
-                <div style="padding: 30px; background: white; color: black; font-family: sans-serif; width: ${printWidth}; box-sizing: border-box; margin: 0;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
-                        <div style="width: 50%;">
-                            <h1 style="font-size: 22px; font-weight: bold; color: #1e3a8a; margin: 0 0 10px 0;">ESTIMATION BOQ</h1>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Project:</b> ${document.getElementById('estProjectName').value}</p>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Location:</b> ${document.getElementById('estLocation').value}</p>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Date:</b> ${document.getElementById('estDate').value}</p>
-                        </div>
-                        <div style="width: 50%; text-align: right; display: flex; justify-content: flex-end;">
-                            ${logoStr}
-                        </div>
-                    </div>
-                    <table style="width: 100%; font-size: 11px; border-collapse: collapse; text-align: left; table-layout: fixed;">
-                        <thead>
-                            <tr style="background-color: #1e3a8a; color: white;">
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 6%;">#</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 14%;">Code</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 45%;">Description</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">Unit</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 8%;">Qty</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 17%;">Total Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${h}
-                        </tbody>
-                    </table>
-                    <div style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
-                        <div style="width: 300px; font-size: 13px;">
-                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0;">
-                                <span>Subtotal:</span> <strong>${document.getElementById('summarySubtotal').innerText}</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: #b91c1c;">
-                                <span>VAT (15%):</span> <strong>${document.getElementById('summaryVat').innerText}</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 16px; font-weight: bold; color: #1e3a8a;">
-                                <span>Grand Total:</span> <span>${document.getElementById('summaryGrandTotal').innerText}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
+            // Calculate column widths based on orientation
+            const descWidth = orientation === 'portrait' ? 80 : 150;
 
-            const printWrapper = document.createElement('div');
-            printWrapper.style.position = 'absolute';
-            printWrapper.style.top = '-9999px';
-            printWrapper.innerHTML = printHtml;
-            document.body.appendChild(printWrapper);
-            
-            html2pdf().set({
-                margin:       [10, 0, 10, 0],
-                filename:     `${db.company.abbr}_Estimation.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-            }).from(printWrapper.firstElementChild).save().then(() => {
-                document.body.removeChild(printWrapper);
+            doc.autoTable({ 
+                startY: 45, 
+                headStyles: { fillColor: [30, 58, 138] }, 
+                head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total Price']], 
+                body: rows,
+                columnStyles: {
+                    0: {cellWidth: 15}, 1: {cellWidth: 20}, 2: {cellWidth: descWidth}, 
+                    3: {cellWidth: 15}, 4: {cellWidth: 15}, 5: {cellWidth: 25}, 6: {cellWidth: 30}
+                },
+                styles: { fontSize: 9, cellPadding: 2 }
             });
+            
+            // Grand Totals at bottom
+            let finalY = doc.lastAutoTable.finalY + 10;
+            
+            // If totals are too close to bottom of page, add a new page
+            if (finalY > (orientation === 'portrait' ? 260 : 180)) {
+                doc.addPage();
+                finalY = 20;
+            }
+
+            const alignX = orientation === 'portrait' ? 140 : 230;
+
+            doc.setFontSize(10);
+            doc.text(`Subtotal:`, alignX, finalY);
+            doc.text(document.getElementById('summarySubtotal').innerText, alignX + 55, finalY, { align: 'right' });
+            
+            doc.setTextColor(185, 28, 28); // Red for VAT
+            doc.text(`VAT (15%):`, alignX, finalY + 7);
+            doc.text(document.getElementById('summaryVat').innerText, alignX + 55, finalY + 7, { align: 'right' });
+            
+            doc.setFontSize(12); doc.setFont(undefined, 'bold');
+            doc.setTextColor(30, 58, 138); // Blue
+            doc.text(`Grand Total:`, alignX, finalY + 15);
+            doc.text(document.getElementById('summaryGrandTotal').innerText, alignX + 55, finalY + 15, { align: 'right' });
+
+            doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
         // Operations 
@@ -1215,29 +1219,114 @@
             document.getElementById('invGrandTotal').innerText = formatMoney(globalSubtotal * 1.15);
         }
 
-        // UPGRADED HTML2PDF INVOICE EXPORT (Dynamic Width)
+        // PURE NATIVE jsPDF INVOICE EXPORT
         function exportInvoicePDF() {
+            const { jsPDF } = window.jspdf;
             const orientation = document.getElementById('invPdfOrientation').value;
-            const printWidth = orientation === 'portrait' ? '793px' : '1122px';
+            const doc = new jsPDF({ orientation: orientation, unit: 'mm', format: 'a4' });
             
-            const previewOriginal = document.getElementById('invoicePreviewArea');
-            const clone = previewOriginal.cloneNode(true);
+            const curr = db.company.currency;
             
-            clone.style.width = printWidth;
-            clone.style.margin = '0 auto';
-            clone.style.position = 'absolute';
-            clone.style.top = '-9999px';
-            document.body.appendChild(clone);
+            // Header Drawing
+            if (db.company.logo) {
+                doc.addImage(db.company.logo, 'JPEG', orientation === 'portrait' ? 140 : 230, 10, 55, 20);
+            } else {
+                doc.setFontSize(22); doc.setTextColor(4, 120, 87); 
+                doc.text(db.company.name, orientation === 'portrait' ? 195 : 285, 20, { align: 'right' });
+            }
 
-            html2pdf().set({
-                margin:       [10, 0, 10, 0],
-                filename:     `${document.getElementById('invNumber').value}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-            }).from(clone).save().then(() => {
-                document.body.removeChild(clone);
+            doc.setFontSize(16); doc.setTextColor(30, 58, 138); 
+            doc.text(`PROFORMA INVOICE`, 14, 20);
+            
+            doc.setFontSize(10); doc.setTextColor(0, 0, 0);
+            doc.text(`CR: ${db.company.cr}`, 14, 28);
+            doc.text(`VAT: ${db.company.vat}`, 14, 34);
+            doc.text(`Email: ${db.company.email}`, 14, 40);
+
+            // Client Info Box using AutoTable for perfect alignment
+            doc.autoTable({
+                startY: 45,
+                theme: 'grid',
+                headStyles: { fillColor: [241, 245, 249], textColor: 0, fontStyle: 'bold' },
+                body: [
+                    ['TO', document.getElementById('previewTo').innerText, 'INVOICE #', document.getElementById('previewInvNo').innerText],
+                    ['ATTN', document.getElementById('previewAttn').innerText, 'DATE', document.getElementById('previewDate').innerText],
+                    ['Client VAT', document.getElementById('previewClientVat').innerText, 'P.O. Ref', document.getElementById('previewPoRef').innerText],
+                    ['SCOPE', { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
+                ],
+                styles: { fontSize: 9, cellPadding: 2 }
             });
+
+            // Extract table data dynamically based on mode
+            const mode = document.querySelector('input[name="billMode"]:checked').value;
+            let rows = [];
+            
+            if (mode === 'milestone') {
+                const msVal = document.getElementById('milestoneType').value.split('|');
+                const pct = parseFloat(document.getElementById('milestonePct').value || 0) / 100;
+                let msTotal = parseFloat(document.getElementById('invSubtotal').innerText);
+                rows.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, `${msTotal.toFixed(2)} ${curr}`, `${msTotal.toFixed(2)} ${curr}`]);
+            } else if (mode === 'summary') {
+                let cNum = 0;
+                document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
+                    const est = db.estimations[chk.value]; let catTotal = 0; let currentCat = "";
+                    est.items.forEach((item, index) => {
+                        if (item.type === 'category') {
+                            if(currentCat !== "") { rows.push([{content: `${cNum}. ${currentCat}`, colSpan: 6}, `${catTotal.toFixed(2)} ${curr}`]); }
+                            currentCat = item.title; catTotal = 0; cNum++;
+                        } else { catTotal += (item.qty * item.price); }
+                        if (index === est.items.length - 1 && currentCat !== "") { rows.push([{content: `${cNum}. ${currentCat}`, colSpan: 6}, `${catTotal.toFixed(2)} ${curr}`]); }
+                    });
+                });
+            } else {
+                let cNum = 0;
+                document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
+                    const est = db.estimations[chk.value]; let iNum = 0;
+                    est.items.forEach(item => {
+                        if (item.type === 'category') {
+                            cNum++; iNum = 0;
+                            rows.push([{content: `${cNum}. ${item.title}`, colSpan: 7, styles: {fillColor: [226, 232, 240], fontStyle: 'bold'}}]);
+                        } else {
+                            iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
+                            const total = item.qty * item.price;
+                            rows.push([dNum, item.code, item.desc, item.unit, item.qty, `${parseFloat(item.price).toFixed(2)} ${curr}`, `${total.toFixed(2)} ${curr}`]);
+                        }
+                    });
+                });
+            }
+            
+            const descWidth = orientation === 'portrait' ? 80 : 150;
+
+            doc.autoTable({ 
+                startY: doc.lastAutoTable.finalY + 5, 
+                headStyles: { fillColor: [30, 58, 138] }, 
+                head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']], 
+                body: rows,
+                columnStyles: {
+                    0: {cellWidth: 15}, 1: {cellWidth: 20}, 2: {cellWidth: descWidth}, 
+                    3: {cellWidth: 15}, 4: {cellWidth: 15}, 5: {cellWidth: 25}, 6: {cellWidth: 30}
+                },
+                styles: { fontSize: 9, cellPadding: 2 }
+            });
+            
+            let finalY = doc.lastAutoTable.finalY + 10;
+            if (finalY > (orientation === 'portrait' ? 260 : 180)) { doc.addPage(); finalY = 20; }
+            const alignX = orientation === 'portrait' ? 140 : 230;
+
+            doc.setFontSize(10);
+            doc.text(`Subtotal:`, alignX, finalY);
+            doc.text(document.getElementById('invSubtotal').innerText, alignX + 55, finalY, { align: 'right' });
+            
+            doc.setTextColor(185, 28, 28);
+            doc.text(`VAT (15%):`, alignX, finalY + 7);
+            doc.text(document.getElementById('invVat').innerText, alignX + 55, finalY + 7, { align: 'right' });
+            
+            doc.setFontSize(12); doc.setFont(undefined, 'bold');
+            doc.setTextColor(30, 58, 138); 
+            doc.text(`Grand Total:`, alignX, finalY + 15);
+            doc.text(document.getElementById('invGrandTotal').innerText, alignX + 55, finalY + 15, { align: 'right' });
+
+            doc.save(`${document.getElementById('invNumber').value}.pdf`);
         }
 
         function generateProformaExcel() {
