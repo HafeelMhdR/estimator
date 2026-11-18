@@ -1,18 +1,18 @@
 // Estimation Builder Logic
-const estimator = {
+window.estimator = {
     moveRowUp: (btn) => {
         const row = btn.closest('tr');
-        if (row.previousElementSibling) { row.parentNode.insertBefore(row, row.previousElementSibling); estimator.recalculateEstimation(); }
+        if (row.previousElementSibling) { row.parentNode.insertBefore(row, row.previousElementSibling); window.estimator.recalculateEstimation(); }
     },
     
     moveRowDown: (btn) => {
         const row = btn.closest('tr');
-        if (row.nextElementSibling) { row.parentNode.insertBefore(row.nextElementSibling, row); estimator.recalculateEstimation(); }
+        if (row.nextElementSibling) { row.parentNode.insertBefore(row.nextElementSibling, row); window.estimator.recalculateEstimation(); }
     },
 
     createNewEstimation: () => {
         if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
-        document.getElementById('currentEditingEstId').value = ''; // CLEAR THE ID TRACKER
+        document.getElementById('currentEditingEstId').value = ''; 
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
         document.getElementById('estTitle').value = 'BILLS OF QUANTITIES';
@@ -24,7 +24,7 @@ const estimator = {
         document.getElementById('globalVat').value = 15;
         
         document.getElementById('estimationRowsBody').innerHTML = '';
-        estimator.addEstimationRow();
+        window.estimator.addEstimationRow();
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
@@ -66,7 +66,7 @@ const estimator = {
             }
         }
 
-        estimator.recalculateEstimation();
+        window.estimator.recalculateEstimation();
         document.getElementById('bulkOh').value = ''; 
         document.getElementById('bulkPr').value = '';
         document.getElementById('bulkCategory').value = '';
@@ -83,25 +83,25 @@ const estimator = {
             <td class="p-1 border border-slate-300 text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
             <td class="p-1 border border-slate-300" colspan="8"><input type="text" class="w-full bg-transparent font-bold text-sm text-blue-900 px-2 py-1 cat-title outline-none" value="${defaultTitle}" placeholder="Enter Category Name (e.g. CIVIL WORKS)"></td>
             <td class="p-1 border border-slate-300 text-center flex justify-center space-x-1">
-                <button onclick="estimator.moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
-                <button onclick="estimator.moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
-                <button onclick="this.closest('tr').remove();estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
+                <button onclick="window.estimator.moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
+                <button onclick="window.estimator.moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
+                <button onclick="this.closest('tr').remove();window.estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
             </td>
         `;
-        tbody.appendChild(tr); estimator.recalculateEstimation();
+        tbody.appendChild(tr); window.estimator.recalculateEstimation();
     },
 
     addEstimationRow: () => {
         const tbody = document.getElementById('estimationRowsBody');
         const defOh = document.getElementById('globalOverhead').value || 15;
         const defPr = document.getElementById('globalProfit').value || 35;
-        let opt = '<option value="">Select...</option>'; app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+        let opt = '<option value="">Select...</option>'; window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
         const tr = document.createElement('tr'); tr.className = 'estimation-row item-row border-b text-xs';
         tr.innerHTML = `
             <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
             <td class="p-1 border text-center font-bold item-num"></td>
-            <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
+            <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
             <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
             <td class="p-1 border text-center">
                 <select class="w-full border rounded p-1 text-center item-unit">
@@ -116,20 +116,20 @@ const estimator = {
                     <option value="DAYS">DAYS</option>
                 </select>
             </td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="100" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
             <td class="p-1 border bg-amber-50 text-right font-bold item-total font-mono">0.00</td>
             <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit font-mono">0.00</td>
             <td class="p-1 border text-center flex justify-center space-x-1">
-                <button onclick="estimator.moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↑</button>
-                <button onclick="estimator.moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↓</button>
-                <button onclick="this.closest('tr').remove();estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded">✕</button>
+                <button onclick="window.estimator.moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↑</button>
+                <button onclick="window.estimator.moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↓</button>
+                <button onclick="this.closest('tr').remove();window.estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded">✕</button>
             </td>
         `;
-        tbody.appendChild(tr); estimator.recalculateEstimation();
+        tbody.appendChild(tr); window.estimator.recalculateEstimation();
     },
 
     recalculateEstimation: () => {
@@ -149,16 +149,16 @@ const estimator = {
                     <td class="p-1 border border-slate-300 text-center font-bold text-slate-500 uppercase tracking-wide">Category</td>
                     <td class="p-1 border border-slate-300" colspan="8"><input type="text" class="w-full bg-transparent font-bold text-sm text-blue-900 px-2 py-1 cat-title outline-none" value="General / Uncategorized"></td>
                     <td class="p-1 border border-slate-300 text-center flex justify-center space-x-1">
-                        <button onclick="estimator.moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
-                        <button onclick="estimator.moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
-                        <button onclick="this.closest('tr').remove();estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
+                        <button onclick="window.estimator.moveRowUp(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↑</button>
+                        <button onclick="window.estimator.moveRowDown(this)" class="bg-white hover:bg-slate-100 text-slate-700 px-1.5 rounded border border-slate-300">↓</button>
+                        <button onclick="this.closest('tr').remove();window.estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded border border-red-200">✕</button>
                     </td>
                 `;
                 tbody.insertBefore(tr, firstRow);
             }
         }
 
-        estimator.updateBulkCategoryDropdown();
+        window.estimator.updateBulkCategoryDropdown();
 
         let subtotal = 0, totalCost = 0, totalProfit = 0, totalOverhead = 0;
         const globalVat = parseFloat(document.getElementById('globalVat').value||0) / 100;
@@ -183,24 +183,23 @@ const estimator = {
                 const lineTotal = qty * price;
                 
                 tr.querySelector('.item-price').value = price.toFixed(2);
-                tr.querySelector('.item-total').innerText = app.formatMoney(lineTotal);
-                tr.querySelector('.item-profit').innerText = app.formatMoney(lineCost * pr);
+                tr.querySelector('.item-total').innerText = window.app.formatMoney(lineTotal);
+                tr.querySelector('.item-profit').innerText = window.app.formatMoney(lineCost * pr);
                 
                 subtotal += lineTotal; totalCost += lineCost;
                 totalOverhead += (lineCost * oh); totalProfit += (lineCost * pr);
             }
         });
         
-        document.getElementById('summaryCost').innerText = app.formatMoney(totalCost);
-        document.getElementById('summaryOverhead').innerText = app.formatMoney(totalOverhead);
-        document.getElementById('summaryProfit').innerText = app.formatMoney(totalProfit);
-        document.getElementById('summaryMargin').innerText = app.formatMoney(totalOverhead + totalProfit);
-        document.getElementById('summarySubtotal').innerText = app.formatMoney(subtotal);
-        document.getElementById('summaryVat').innerText = app.formatMoney(subtotal * globalVat);
-        document.getElementById('summaryGrandTotal').innerText = app.formatMoney(subtotal + (subtotal * globalVat));
+        document.getElementById('summaryCost').innerText = window.app.formatMoney(totalCost);
+        document.getElementById('summaryOverhead').innerText = window.app.formatMoney(totalOverhead);
+        document.getElementById('summaryProfit').innerText = window.app.formatMoney(totalProfit);
+        document.getElementById('summaryMargin').innerText = window.app.formatMoney(totalOverhead + totalProfit);
+        document.getElementById('summarySubtotal').innerText = window.app.formatMoney(subtotal);
+        document.getElementById('summaryVat').innerText = window.app.formatMoney(subtotal * globalVat);
+        document.getElementById('summaryGrandTotal').innerText = window.app.formatMoney(subtotal + (subtotal * globalVat));
     },
 
-    // UPDATED: Save Logic now Handles Overwriting
     saveEstimation: () => {
         let items = [];
         document.querySelectorAll('.estimation-row').forEach(tr => { 
@@ -230,22 +229,20 @@ const estimator = {
         };
         
         if (currentId) {
-            // Find and replace existing
-            const idx = app.db.estimations.findIndex(e => e.id === currentId);
+            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
             if (idx > -1) {
-                app.db.estimations[idx] = estimationData;
+                window.app.db.estimations[idx] = estimationData;
             } else {
-                app.db.estimations.push(estimationData);
+                window.app.db.estimations.push(estimationData);
             }
         } else {
-            // Save brand new
             document.getElementById('currentEditingEstId').value = estimationData.id;
-            app.db.estimations.push(estimationData);
+            window.app.db.estimations.push(estimationData);
         }
         
-        app.saveData(); 
+        window.app.saveData(); 
         alert("Estimation saved and synced successfully!"); 
-        dataManager.renderHistoryTable(); // Update the new tab
-        if(typeof invoicer !== 'undefined') invoicer.renderEstimationChecklist(); // Update invoice tab
+        window.dataManager.renderHistoryTable(); 
+        if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
     }
 };
