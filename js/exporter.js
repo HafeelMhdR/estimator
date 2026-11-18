@@ -2,9 +2,9 @@
 window.exporter = {
     exportEstimationExcel: () => {
         const wb = XLSX.utils.book_new();
-        const curr = app.db.company.currency;
+        const curr = window.app.db.company.currency;
         let wsData = [
-            [`${app.db.company.name.toUpperCase()} - ESTIMATION BOQ`],
+            [`${window.app.db.company.name.toUpperCase()} - ESTIMATION BOQ`],
             [`PROJECT: ${document.getElementById('estProjectName').value} | LOCATION: ${document.getElementById('estLocation').value}`],
             [],
             ["#", "CODE", "DESCRIPTION", "UNIT", "QTY", `INT. COST (${curr})`, "OH %", "PR %", `CLIENT PRICE (${curr})`, `CLIENT TOTAL (${curr})`, `INTERNAL TOTAL (${curr})`]
@@ -36,7 +36,7 @@ window.exporter = {
         
         const ws = XLSX.utils.aoa_to_sheet(wsData); ws['!autofilter'] = { ref: `A4:K${endRow}` };
         for(let i=5; i<=endRow; i++) { if(ws[`G${i}`]) ws[`G${i}`].z = '0%'; if(ws[`H${i}`]) ws[`H${i}`].z = '0%'; }
-        XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${app.db.company.abbr}_Estimation.xlsx`);
+        XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${window.app.db.company.abbr}_Estimation.xlsx`);
     },
 
     // --- TRUE VECTOR ENGINE FOR ESTIMATION PDF ---
@@ -46,7 +46,7 @@ window.exporter = {
         const orientation = orientEl ? orientEl.value : 'portrait';
         const doc = new jsPDF(orientation, 'pt', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
-        const curr = (app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+        const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
 
         // Header Section
         doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
@@ -57,16 +57,15 @@ window.exporter = {
         doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
         doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
         
-        // Render Logo cleanly without stretch
-        if (app.db.company.logo) {
+        if (window.app.db.company.logo) {
             const img = new Image();
-            img.src = app.db.company.logo;
+            img.src = window.app.db.company.logo;
             const ratio = (img.height || 1) / (img.width || 1);
             const targetWidth = 120;
-            doc.addImage(app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+            doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
         } else {
             doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-            doc.text(app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+            doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
         }
 
         let bodyData = [];
@@ -138,19 +137,19 @@ window.exporter = {
         doc.text("Grand Total:", summaryX, finalY + 35);
         doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
 
-        doc.save(`${app.db.company.abbr}_Estimation.pdf`);
+        doc.save(`${window.app.db.company.abbr}_Estimation.pdf`);
     },
 
     generateProformaExcel: () => {
         const wb = XLSX.utils.book_new();
-        const curr = app.db.company.currency;
-        let wsData = [[`${app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
+        const curr = window.app.db.company.currency;
+        let wsData = [[`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
         
         const mode = document.querySelector('input[name="billMode"]:checked').value;
         let globalSubtotal = 0;
 
         document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
-            const est = app.db.estimations[chk.value]; let estTotal = 0;
+            const est = window.app.db.estimations[chk.value]; let estTotal = 0;
             est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
 
             if (mode === 'milestone') {
@@ -187,7 +186,7 @@ window.exporter = {
         }
 
         wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${app.db.company.abbr}_Invoice.xlsx`);
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); XLSX.writeFile(wb, `${window.app.db.company.abbr}_Invoice.xlsx`);
     },
 
     // --- TRUE VECTOR ENGINE FOR INVOICE PDF ---
@@ -197,29 +196,27 @@ window.exporter = {
         const orientation = orientEl ? orientEl.value : 'portrait';
         const doc = new jsPDF(orientation, 'pt', 'a4');
         const pageWidth = doc.internal.pageSize.getWidth();
-        const curr = (app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+        const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
 
-        // Header Drawing
-        if (app.db.company.logo) {
+        if (window.app.db.company.logo) {
             const img = new Image();
-            img.src = app.db.company.logo;
+            img.src = window.app.db.company.logo;
             const ratio = (img.height || 1) / (img.width || 1);
             const targetWidth = 120;
-            doc.addImage(app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+            doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
         } else {
             doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-            doc.text(app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+            doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
         }
 
         doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
         doc.text("PROFORMA INVOICE", 40, 50);
         
         doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
-        doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(app.db.company.cr || '-', 70, 70);
-        doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(app.db.company.vat || '-', 70, 85);
-        doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(app.db.company.address || '-', 90, 100);
+        doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
+        doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
+        doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100);
 
-        // Client Info Box AutoTable
         doc.autoTable({
             startY: 120,
             theme: 'grid',
@@ -233,7 +230,6 @@ window.exporter = {
             columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
         });
 
-        // Extract Line Items
         let bodyData = [];
         const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
         rows.forEach(tr => {
@@ -254,7 +250,6 @@ window.exporter = {
             }
         });
 
-        // Invoice Grid
         doc.autoTable({
             startY: doc.lastAutoTable.finalY + 10,
             head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
