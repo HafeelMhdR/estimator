@@ -1,5 +1,5 @@
 // User Interface, Company Settings & Tab Switching
-const ui = {
+window.ui = {
     switchTab: (tabId) => {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         document.getElementById('tab-' + tabId).classList.remove('hidden');
@@ -10,26 +10,26 @@ const ui = {
         event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
         event.currentTarget.classList.remove('text-slate-300');
         
-        if(tabId === 'invoicing') { invoicer.renderEstimationChecklist(); invoicer.renderInvoiceTable(); }
-        if(tabId === 'history') { dataManager.renderHistoryTable(); } // Trigger History Load
+        if(tabId === 'invoicing') { window.invoicer.renderEstimationChecklist(); window.invoicer.renderInvoiceTable(); }
+        if(tabId === 'history') { window.dataManager.renderHistoryTable(); } 
     },
 
     updateDashboardStats: () => {
-        document.getElementById('statCodesCount').innerText = app.db.codes.length;
-        document.getElementById('statClientsCount').innerText = app.db.clients.length;
-        document.getElementById('statEstimationsCount').innerText = app.db.estimations.length;
+        document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
+        document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
+        document.getElementById('statEstimationsCount').innerText = window.app.db.estimations.length;
     },
 
     openCompanyModal: () => {
-        document.getElementById('setCompName').value = app.db.company.name;
-        document.getElementById('setCompAbbr').value = app.db.company.abbr;
-        document.getElementById('setCompCurrency').value = app.db.company.currency || "SAR";
-        document.getElementById('setCompCR').value = app.db.company.cr;
-        document.getElementById('setCompVAT').value = app.db.company.vat;
-        document.getElementById('setCompEmail').value = app.db.company.email;
-        document.getElementById('setCompAdd').value = app.db.company.address;
+        document.getElementById('setCompName').value = window.app.db.company.name;
+        document.getElementById('setCompAbbr').value = window.app.db.company.abbr;
+        document.getElementById('setCompCurrency').value = window.app.db.company.currency || "SAR";
+        document.getElementById('setCompCR').value = window.app.db.company.cr;
+        document.getElementById('setCompVAT').value = window.app.db.company.vat;
+        document.getElementById('setCompEmail').value = window.app.db.company.email;
+        document.getElementById('setCompAdd').value = window.app.db.company.address;
         const preview = document.getElementById('logoPreviewModal');
-        if(app.db.company.logo) { preview.src = app.db.company.logo; preview.classList.remove('hidden'); }
+        if(window.app.db.company.logo) { preview.src = window.app.db.company.logo; preview.classList.remove('hidden'); }
         document.getElementById('companyModal').classList.remove('hidden');
     },
 
@@ -59,7 +59,7 @@ const ui = {
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
-                app.db.company.logo = dataUrl;
+                window.app.db.company.logo = dataUrl;
                 document.getElementById('logoPreviewModal').src = dataUrl;
                 document.getElementById('logoPreviewModal').classList.remove('hidden');
             };
@@ -69,38 +69,38 @@ const ui = {
     },
 
     saveCompanySettings: () => {
-        app.db.company.name = document.getElementById('setCompName').value || "Company";
-        app.db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
-        app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
-        app.db.company.cr = document.getElementById('setCompCR').value;
-        app.db.company.vat = document.getElementById('setCompVAT').value;
-        app.db.company.email = document.getElementById('setCompEmail').value;
-        app.db.company.address = document.getElementById('setCompAdd').value;
-        app.saveData(); 
-        ui.applyCompanyDataToUI(); 
-        estimator.recalculateEstimation();
-        if(!document.getElementById('tab-invoicing').classList.contains('hidden')) invoicer.renderInvoiceTable();
+        window.app.db.company.name = document.getElementById('setCompName').value || "Company";
+        window.app.db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
+        window.app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
+        window.app.db.company.cr = document.getElementById('setCompCR').value;
+        window.app.db.company.vat = document.getElementById('setCompVAT').value;
+        window.app.db.company.email = document.getElementById('setCompEmail').value;
+        window.app.db.company.address = document.getElementById('setCompAdd').value;
+        window.app.saveData(); 
+        window.ui.applyCompanyDataToUI(); 
+        window.estimator.recalculateEstimation();
+        if(!document.getElementById('tab-invoicing').classList.contains('hidden')) window.invoicer.renderInvoiceTable();
         document.getElementById('companyModal').classList.add('hidden');
     },
 
     applyCompanyDataToUI: () => {
-        document.getElementById('headerCompanyName').innerText = app.db.company.name;
-        document.getElementById('dashCompanyName').innerText = app.db.company.name;
-        document.getElementById('headerLogoText').innerText = app.db.company.abbr;
-        document.getElementById('dashCompanyDetails').innerText = `CR: ${app.db.company.cr || '-'} | VAT: ${app.db.company.vat || '-'}`;
+        document.getElementById('headerCompanyName').innerText = window.app.db.company.name;
+        document.getElementById('dashCompanyName').innerText = window.app.db.company.name;
+        document.getElementById('headerLogoText').innerText = window.app.db.company.abbr;
+        document.getElementById('dashCompanyDetails').innerText = `CR: ${window.app.db.company.cr || '-'} | VAT: ${window.app.db.company.vat || '-'}`;
         
-        document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = app.db.company.name);
-        document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = app.db.company.cr);
-        document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = app.db.company.vat);
-        document.querySelectorAll('.dyn-address').forEach(el => el.innerText = app.db.company.address);
-        document.querySelectorAll('.dyn-email').forEach(el => el.innerText = app.db.company.email);
+        document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = window.app.db.company.name);
+        document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = window.app.db.company.cr);
+        document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = window.app.db.company.vat);
+        document.querySelectorAll('.dyn-address').forEach(el => el.innerText = window.app.db.company.address);
+        document.querySelectorAll('.dyn-email').forEach(el => el.innerText = window.app.db.company.email);
         
         const mainLogo = document.getElementById('headerLogo');
         const printLogo = document.getElementById('printLogo');
-        if(app.db.company.logo) {
-            mainLogo.src = app.db.company.logo; mainLogo.classList.remove('hidden');
+        if(window.app.db.company.logo) {
+            mainLogo.src = window.app.db.company.logo; mainLogo.classList.remove('hidden');
             document.getElementById('headerLogoText').classList.add('hidden');
-            if(printLogo) { printLogo.src = app.db.company.logo; printLogo.classList.remove('hidden'); }
+            if(printLogo) { printLogo.src = window.app.db.company.logo; printLogo.classList.remove('hidden'); }
         } else {
             mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
             if(printLogo) printLogo.classList.add('hidden');
