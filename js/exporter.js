@@ -98,7 +98,6 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('estPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                // Removed 'true' to disable core compression
                 const doc = new jsPDF(orientation, 'pt', 'a4'); 
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
@@ -125,7 +124,6 @@ window.exporter = {
                         let imgFormat = 'PNG';
                         if (window.app.db.company.logo.includes('image/jpeg')) imgFormat = 'JPEG';
 
-                        // High Quality Render - No FAST compression alias
                         doc.addImage(window.app.db.company.logo, imgFormat, pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio);
                     } catch (imgErr) {
                         console.warn("Could not parse logo dimensions, falling back to text.", imgErr);
@@ -236,7 +234,7 @@ window.exporter = {
                 doc.save(`${estId}.pdf`);
             } catch (err) {
                 console.error("PDF Generation Error:", err);
-                alert("There was an error generating the PDF. Make sure your logo is a valid JPG/PNG.");
+                alert(`There was an error generating the PDF:\n${err.message}\nMake sure your logo is a valid JPG/PNG.`);
             } finally {
                 window.exporter.setLoadingState(btn, false);
             }
@@ -308,7 +306,6 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('invPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                // Removed 'true' to disable core compression
                 const doc = new jsPDF(orientation, 'pt', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
