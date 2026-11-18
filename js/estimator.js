@@ -1,5 +1,4 @@
 window.estimator = {
-    // NEW: Auto-generate the Estimation ID Preview
     generateBaseId: () => {
         const comp = window.app.db.company.abbr || 'COMP';
         
@@ -24,15 +23,12 @@ window.estimator = {
         let displayId = currentId;
         
         if (!currentId) {
-            // New estimation being built
             displayId = window.estimator.generateBaseId();
         } 
-        // If there's a current ID, it's loaded from history. The user should see that ID until they revise.
 
         const previewEl = document.getElementById('estIdPreview');
         if(previewEl) previewEl.innerText = `Estimation: ${displayId}`;
 
-        // Also push the project description into the name box if empty
         const projAbbr = document.getElementById('estProjectCodeSelect').value;
         const projNameBox = document.getElementById('estProjectName');
         if (projAbbr && !currentId) {
@@ -260,7 +256,6 @@ window.estimator = {
             }
         });
         
-        // Advanced ID & Revision Logic
         const baseId = window.estimator.generateBaseId();
         const currentId = document.getElementById('currentEditingEstId').value;
         let rev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
@@ -272,22 +267,20 @@ window.estimator = {
             location: document.getElementById('estLocation').value, 
             title: document.getElementById('estTitle').value, 
             date: document.getElementById('estDate').value, 
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
             clientName: document.getElementById('estClientSelect').value,
             projectAbbr: document.getElementById('estProjectCodeSelect').value,
             items 
         };
 
         if (currentId) {
-            // We are editing an existing estimation
             if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version`)) {
-                // User wants a new revision
                 rev++;
                 finalId = baseId + `R${rev}`;
                 document.getElementById('currentEditingEstId').value = finalId;
                 document.getElementById('currentEditingEstRev').value = rev;
                 window.app.db.estimations.push({ ...estimationData, id: finalId, baseId, revision: rev });
             } else {
-                // Overwrite current
                 const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
                 if(idx > -1) {
                     finalId = baseId + (rev > 0 ? `R${rev}` : '');
@@ -296,7 +289,6 @@ window.estimator = {
                 }
             }
         } else {
-            // Brand new estimation, check if base exists to auto-bump
             const existing = window.app.db.estimations.filter(e => e.baseId === baseId);
             if (existing.length > 0) {
                 rev = Math.max(...existing.map(e => e.revision || 0)) + 1;
@@ -309,7 +301,7 @@ window.estimator = {
         }
         
         window.app.saveData(); 
-        window.estimator.updateEstIdPreview(); // Lock in the UI text
+        window.estimator.updateEstIdPreview(); 
         alert(`Estimation [${finalId}] saved and synced successfully!`); 
         
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(); 
