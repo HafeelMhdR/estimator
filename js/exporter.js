@@ -69,6 +69,8 @@ window.exporter = {
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateBaseId();
 
+                const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
+
                 doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
                 doc.text("ESTIMATION BOQ", 40, 50);
                 
@@ -97,7 +99,7 @@ window.exporter = {
                 rows.forEach((tr, index) => {
                     if(tr.classList.contains('category-row')) {
                         if (cNum > 0) {
-                            bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                            bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                         }
                         cNum++; iNum = 0; catTotal = 0;
                         currentCatName = tr.querySelector('.cat-title').value || "Category";
@@ -116,11 +118,11 @@ window.exporter = {
                             { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
                             { content: unit, styles: { halign: 'center' } },
                             { content: q.toString(), styles: { halign: 'center' } },
-                            { content: parseFloat(t).toFixed(2) + ' ' + curr, styles: { halign: 'right' } }
+                            { content: formatPdfMoney(t), styles: { halign: 'right' } }
                         ]);
                     }
                     if (index === rows.length - 1 && cNum > 0) {
-                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                     }
                 });
 
@@ -147,15 +149,15 @@ window.exporter = {
                 const summaryX = pageWidth - 200;
                 doc.setFontSize(10); doc.setFont(undefined, 'normal');
                 doc.text("Subtotal:", summaryX, finalY);
-                doc.text(document.getElementById('summarySubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('summarySubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
                 
                 doc.setTextColor(185, 28, 28);
                 doc.text("VAT (15%):", summaryX, finalY + 15);
-                doc.text(document.getElementById('summaryVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('summaryVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
                 
                 doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
                 doc.text("Grand Total:", summaryX, finalY + 35);
-                doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('summaryGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
 
                 doc.save(`${estId}.pdf`);
             } catch (err) {
@@ -228,6 +230,7 @@ window.exporter = {
                 const doc = new jsPDF(orientation, 'pt', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+                const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
                 if (window.app.db.company.logo) {
                     const img = new Image();
@@ -268,15 +271,15 @@ window.exporter = {
                     if (cells.length === 2) {
                         bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
                     } else if (cells.length === 3) {
-                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: formatPdfMoney(cells[2].innerText.replace(/[^\d.-]/g, '')), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
                     } else if (cells.length === 7) {
                         bodyData.push([
                             { content: cells[0].innerText, styles: { halign: 'center' } },
                             cells[1].innerText, cells[2].innerText,
                             { content: cells[3].innerText, styles: { halign: 'center' } },
                             { content: cells[4].innerText, styles: { halign: 'center' } },
-                            { content: cells[5].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } },
-                            { content: cells[6].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } }
+                            { content: formatPdfMoney(cells[5].innerText.replace(/[^\d.-]/g, '')), styles: { halign: 'right' } },
+                            { content: formatPdfMoney(cells[6].innerText.replace(/[^\d.-]/g, '')), styles: { halign: 'right' } }
                         ]);
                     }
                 });
@@ -301,15 +304,15 @@ window.exporter = {
                 const summaryX = pageWidth - 200;
                 doc.setFontSize(10); doc.setFont(undefined, 'normal');
                 doc.text("Subtotal:", summaryX, finalY);
-                doc.text(document.getElementById('invSubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('invSubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
                 
                 doc.setTextColor(185, 28, 28);
                 doc.text("VAT (15%):", summaryX, finalY + 15);
-                doc.text(document.getElementById('invVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('invVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
                 
                 doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
                 doc.text("Grand Total:", summaryX, finalY + 35);
-                doc.text(document.getElementById('invGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+                doc.text(formatPdfMoney(document.getElementById('invGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
 
                 doc.save(`${document.getElementById('invNumber').value}.pdf`);
             } catch (err) {
