@@ -12,6 +12,7 @@ const estimator = {
 
     createNewEstimation: () => {
         if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
+        document.getElementById('currentEditingEstId').value = ''; // CLEAR THE ID TRACKER
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
         document.getElementById('estTitle').value = 'BILLS OF QUANTITIES';
@@ -199,6 +200,7 @@ const estimator = {
         document.getElementById('summaryGrandTotal').innerText = app.formatMoney(subtotal + (subtotal * globalVat));
     },
 
+    // UPDATED: Save Logic now Handles Overwriting
     saveEstimation: () => {
         let items = [];
         document.querySelectorAll('.estimation-row').forEach(tr => { 
@@ -215,9 +217,35 @@ const estimator = {
                 });
             }
         });
-        app.db.estimations.push({ id: 'EST-' + Date.now(), projectName: document.getElementById('estProjectName').value, location: document.getElementById('estLocation').value, title: document.getElementById('estTitle').value, date: document.getElementById('estDate').value, clientName: document.getElementById('estClientSelect').value, items });
+        
+        const currentId = document.getElementById('currentEditingEstId').value;
+        const estimationData = { 
+            id: currentId || ('EST-' + Date.now()), 
+            projectName: document.getElementById('estProjectName').value, 
+            location: document.getElementById('estLocation').value, 
+            title: document.getElementById('estTitle').value, 
+            date: document.getElementById('estDate').value, 
+            clientName: document.getElementById('estClientSelect').value, 
+            items 
+        };
+        
+        if (currentId) {
+            // Find and replace existing
+            const idx = app.db.estimations.findIndex(e => e.id === currentId);
+            if (idx > -1) {
+                app.db.estimations[idx] = estimationData;
+            } else {
+                app.db.estimations.push(estimationData);
+            }
+        } else {
+            // Save brand new
+            document.getElementById('currentEditingEstId').value = estimationData.id;
+            app.db.estimations.push(estimationData);
+        }
+        
         app.saveData(); 
-        alert("Estimation saved!"); 
-        invoicer.renderEstimationChecklist();
+        alert("Estimation saved and synced successfully!"); 
+        dataManager.renderHistoryTable(); // Update the new tab
+        if(typeof invoicer !== 'undefined') invoicer.renderEstimationChecklist(); // Update invoice tab
     }
 };
