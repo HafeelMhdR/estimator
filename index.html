@@ -6,7 +6,7 @@
     <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <!-- Upgraded to True Vector PDF Engines for perfect zoom quality -->
+    <!-- True Vector PDF Engines (Replaces html2pdf screenshot engine) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -438,7 +438,7 @@
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">Currency Symbol</label>
-                    <input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR, ﷼, $">
+                    <input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR, $, AED">
                 </div>
                 <div>
                     <label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label>
@@ -498,12 +498,6 @@
 
         function formatMoney(num) {
             return parseFloat(num || 0).toFixed(2) + ' ' + (db.company.currency || 'SAR');
-        }
-
-        // Dedicated PDF formatter to clean Unicode symbols preventing JS crashes
-        function formatPdfMoney(num) {
-            const curr = (db.company.currency || 'SAR').replace('﷼', 'SAR');
-            return parseFloat(num || 0).toFixed(2) + ' ' + curr;
         }
 
         const idb = {
@@ -721,10 +715,10 @@
             if(db.company.logo) {
                 mainLogo.src = db.company.logo; mainLogo.classList.remove('hidden');
                 document.getElementById('headerLogoText').classList.add('hidden');
-                printLogo.src = db.company.logo; printLogo.classList.remove('hidden');
+                if(printLogo) { printLogo.src = db.company.logo; printLogo.classList.remove('hidden'); }
             } else {
                 mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
-                printLogo.classList.add('hidden');
+                if(printLogo) printLogo.classList.add('hidden');
             }
         }
 
@@ -767,7 +761,6 @@
             populateInvoiceClient();
         }
 
-        // ESTIMATION ROW MOVEMENT (UP/DOWN)
         function moveRowUp(btn) {
             const row = btn.closest('tr');
             if (row.previousElementSibling) {
@@ -783,7 +776,6 @@
             }
         }
 
-        // ESTIMATION BUILDER & CATEGORIES
         function createNewEstimation() {
             if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
             document.getElementById('estProjectName').value = '';
@@ -1036,13 +1028,14 @@
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
-        // UPGRADED PDF ENGINE: jsPDF-AutoTable (Native Vector Text - No Cropping, Perfect Zoom)
+        // --- NEW TRUE VECTOR ENGINE FOR ESTIMATION PDF ---
         function exportEstimationPDF() {
             const { jsPDF } = window.jspdf;
             const orientEl = document.getElementById('estPdfOrientation');
             const orientation = orientEl ? orientEl.value : 'portrait';
             const doc = new jsPDF(orientation, 'pt', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
+            const curr = (db.company.currency || 'SAR').replace('﷼', 'SAR'); // Strips custom unicode to avoid PDF engine crashes
 
             // Header Section
             doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
@@ -1053,16 +1046,18 @@
             doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
             doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
             
+            // Render Logo cleanly without stretch
             if (db.company.logo) {
-                try {
-                    doc.addImage(db.company.logo, 'JPEG', pageWidth - 160, 40, 120, 50, '', 'FAST');
-                } catch(e) { console.error(e); }
+                const img = new Image();
+                img.src = db.company.logo;
+                const ratio = (img.height || 1) / (img.width || 1);
+                const targetWidth = 120;
+                doc.addImage(db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
             } else {
                 doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
                 doc.text(db.company.name, pageWidth - 40, 70, { align: 'right' });
             }
 
-            // Extract Data from Visual Table
             let bodyData = [];
             let cNum = 0, iNum = 0, catTotal = 0;
             let currentCatName = "";
@@ -1071,7 +1066,7 @@
             rows.forEach((tr, index) => {
                 if(tr.classList.contains('category-row')) {
                     if (cNum > 0) {
-                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                     }
                     cNum++; iNum = 0; catTotal = 0;
                     currentCatName = tr.querySelector('.cat-title').value || "Category";
@@ -1081,8 +1076,8 @@
                     const code = tr.querySelector('.item-code-select').value;
                     const desc = tr.querySelector('.item-desc').value;
                     const unit = tr.querySelector('.item-unit').value;
-                    const q = parseFloat(tr.querySelector('.item-qty').value);
-                    const p = parseFloat(tr.querySelector('.item-price').value);
+                    const q = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                    const p = parseFloat(tr.querySelector('.item-price').value) || 0;
                     const t = q * p;
                     catTotal += t;
                     
@@ -1090,15 +1085,15 @@
                         { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
                         { content: unit, styles: { halign: 'center' } },
                         { content: q.toString(), styles: { halign: 'center' } },
-                        { content: formatPdfMoney(t), styles: { halign: 'right' } }
+                        { content: parseFloat(t).toFixed(2) + ' ' + curr, styles: { halign: 'right' } }
                     ]);
                 }
                 if (index === rows.length - 1 && cNum > 0) {
-                    bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                    bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                 }
             });
 
-            // Render Table via AutoTable
+            // Native Vector Grid Builder
             doc.autoTable({
                 startY: 120,
                 head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Total Price']],
@@ -1109,29 +1104,28 @@
                 columnStyles: {
                     0: { cellWidth: 30, halign: 'center' },
                     1: { cellWidth: 60 },
-                    2: { cellWidth: 'auto' }, // Auto resizes based on page orientation
+                    2: { cellWidth: 'auto' },
                     3: { cellWidth: 40, halign: 'center' },
                     4: { cellWidth: 40, halign: 'center' },
                     5: { cellWidth: 80, halign: 'right' }
                 }
             });
 
-            // Summary Totals Bottom Right
             let finalY = doc.lastAutoTable.finalY + 20;
             if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
 
             const summaryX = pageWidth - 200;
             doc.setFontSize(10); doc.setFont(undefined, 'normal');
             doc.text("Subtotal:", summaryX, finalY);
-            doc.text(formatPdfMoney(document.getElementById('summarySubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
+            doc.text(document.getElementById('summarySubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
             
             doc.setTextColor(185, 28, 28);
             doc.text("VAT (15%):", summaryX, finalY + 15);
-            doc.text(formatPdfMoney(document.getElementById('summaryVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
+            doc.text(document.getElementById('summaryVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
             
             doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
             doc.text("Grand Total:", summaryX, finalY + 35);
-            doc.text(formatPdfMoney(document.getElementById('summaryGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
+            doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
 
             doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
@@ -1240,15 +1234,27 @@
             document.getElementById('invGrandTotal').innerText = formatMoney(globalSubtotal * 1.15);
         }
 
-        // UPGRADED PDF ENGINE: jsPDF-AutoTable (Vector based Invoice)
+        // --- NEW TRUE VECTOR ENGINE FOR INVOICE PDF ---
         function exportInvoicePDF() {
             const { jsPDF } = window.jspdf;
             const orientEl = document.getElementById('invPdfOrientation');
             const orientation = orientEl ? orientEl.value : 'portrait';
             const doc = new jsPDF(orientation, 'pt', 'a4');
             const pageWidth = doc.internal.pageSize.getWidth();
+            const curr = (db.company.currency || 'SAR').replace('﷼', 'SAR');
 
-            // Header Section
+            // Header Drawing
+            if (db.company.logo) {
+                const img = new Image();
+                img.src = db.company.logo;
+                const ratio = (img.height || 1) / (img.width || 1);
+                const targetWidth = 120;
+                doc.addImage(db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+            } else {
+                doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                doc.text(db.company.name, pageWidth - 40, 70, { align: 'right' });
+            }
+
             doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
             doc.text("PROFORMA INVOICE", 40, 50);
             
@@ -1256,15 +1262,8 @@
             doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(db.company.cr || '-', 70, 70);
             doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(db.company.vat || '-', 70, 85);
             doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(db.company.address || '-', 90, 100);
-            
-            if (db.company.logo) {
-                try { doc.addImage(db.company.logo, 'JPEG', pageWidth - 160, 40, 120, 50, '', 'FAST'); } catch(e) {}
-            } else {
-                doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-                doc.text(db.company.name, pageWidth - 40, 70, { align: 'right' });
-            }
 
-            // Top Details Box
+            // Client Info Box AutoTable
             doc.autoTable({
                 startY: 120,
                 theme: 'grid',
@@ -1286,15 +1285,15 @@
                 if (cells.length === 2) {
                     bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
                 } else if (cells.length === 3) {
-                    bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace('﷼', 'SAR'), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                    bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
                 } else if (cells.length === 7) {
                     bodyData.push([
                         { content: cells[0].innerText, styles: { halign: 'center' } },
                         cells[1].innerText, cells[2].innerText,
                         { content: cells[3].innerText, styles: { halign: 'center' } },
                         { content: cells[4].innerText, styles: { halign: 'center' } },
-                        { content: cells[5].innerText.replace('﷼', 'SAR'), styles: { halign: 'right' } },
-                        { content: cells[6].innerText.replace('﷼', 'SAR'), styles: { halign: 'right' } }
+                        { content: cells[5].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } },
+                        { content: cells[6].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } }
                     ]);
                 }
             });
@@ -1308,32 +1307,27 @@
                 headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
                 styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
                 columnStyles: {
-                    0: { cellWidth: 30, halign: 'center' },
-                    1: { cellWidth: 60 },
-                    2: { cellWidth: 'auto' }, // Adapts automatically to Landscape vs Portrait
-                    3: { cellWidth: 40, halign: 'center' },
-                    4: { cellWidth: 30, halign: 'center' },
-                    5: { cellWidth: 60, halign: 'right' },
-                    6: { cellWidth: 80, halign: 'right' }
+                    0: { cellWidth: 30, halign: 'center' }, 1: { cellWidth: 60 }, 2: { cellWidth: 'auto' }, 
+                    3: { cellWidth: 40, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' }, 
+                    5: { cellWidth: 60, halign: 'right' }, 6: { cellWidth: 80, halign: 'right' }
                 }
             });
 
-            // Summary Totals
             let finalY = doc.lastAutoTable.finalY + 20;
             if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
 
             const summaryX = pageWidth - 200;
             doc.setFontSize(10); doc.setFont(undefined, 'normal');
             doc.text("Subtotal:", summaryX, finalY);
-            doc.text(formatPdfMoney(document.getElementById('invSubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
+            doc.text(document.getElementById('invSubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
             
             doc.setTextColor(185, 28, 28);
             doc.text("VAT (15%):", summaryX, finalY + 15);
-            doc.text(formatPdfMoney(document.getElementById('invVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
+            doc.text(document.getElementById('invVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
             
             doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
             doc.text("Grand Total:", summaryX, finalY + 35);
-            doc.text(formatPdfMoney(document.getElementById('invGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
+            doc.text(document.getElementById('invGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
 
             doc.save(`${document.getElementById('invNumber').value}.pdf`);
         }
