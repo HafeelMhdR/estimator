@@ -2,7 +2,7 @@ window.dataManager = {
     exportToCSV: (filename, rows) => {
         let csvContent = "data:text/csv;charset=utf-8,";
         rows.forEach(rowArray => {
-            let row = rowArray.map(item => `"${(item || '').replace(/"/g, '""')}"`).join(",");
+            let row = rowArray.map(item => `"${(item || '').toString().replace(/"/g, '""')}"`).join(",");
             csvContent += row + "\r\n";
         });
         const encodedUri = encodeURI(csvContent);
@@ -101,12 +101,12 @@ window.dataManager = {
         const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
         window.app.db.clients.forEach((c, idx) => {
             tbody.innerHTML += `
-            <tr class="border-b">
+            <tr class="border-b hover:bg-slate-50">
                 <td class="p-3 font-bold text-sky-800">${c.abbr || '-'}</td>
-                <td class="p-3">${c.name}</td>
-                <td class="p-3">${c.attn}</td>
-                <td class="p-3 text-xs">${c.add}</td>
-                <td class="p-3 text-xs">${c.vat}</td>
+                <td class="p-3">${c.name || ''}</td>
+                <td class="p-3">${c.attn || ''}</td>
+                <td class="p-3 text-xs">${c.add || ''}</td>
+                <td class="p-3 text-xs">${c.vat || ''}</td>
                 <td class="p-3 text-right space-x-2">
                     <button onclick="window.dataManager.openEditClientModal(${idx})" class="text-sky-600 text-xs font-bold">Edit</button>
                     <button onclick="window.app.db.clients.splice(${idx},1);window.app.saveData();window.dataManager.renderClientTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button>
@@ -130,7 +130,6 @@ window.dataManager = {
 
         if (!abbr) return alert("Client abbreviation cannot be empty.");
         
-        // Check Duplicates, ignoring the one we are actively editing
         const isDupe = window.app.db.clients.find((c, i) => c.abbr === abbr && i.toString() !== idx);
         if(isDupe) return alert("This Client Abbreviation already exists!");
 
@@ -157,10 +156,17 @@ window.dataManager = {
         const inv = document.getElementById('invClientSelect');
         const proj = document.getElementById('estProjectCodeSelect');
 
-        est.innerHTML = ''; inv.innerHTML = ''; proj.innerHTML = '';
+        est.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        inv.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        proj.innerHTML = '<option value="" disabled selected>Select Project...</option>';
 
-        window.app.db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
-        window.app.db.projectCodes.forEach(p => { proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; });
+        window.app.db.clients.forEach(c => { 
+            est.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+            inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+        });
+        window.app.db.projectCodes.forEach(p => { 
+            proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; 
+        });
 
         if(typeof window.invoicer !== 'undefined' && window.invoicer.populateInvoiceClient) window.invoicer.populateInvoiceClient();
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
@@ -196,17 +202,17 @@ window.dataManager = {
         
         sortedEstimations.forEach((est) => {
             const originalIndex = window.app.db.estimations.indexOf(est);
-            // Safe string generation to prevent crashes on legacy entries
+            // Securely handle undefined properties to prevent crashes
             const searchStr = `${est.id || ''} ${est.clientName || ''} ${est.projectName || ''} ${est.date || ''}`.toLowerCase();
 
             if(searchStr.includes(filterText)) {
-                // Count only actual physical items, exclude category headers
                 const itemCount = (est.items || []).filter(i => i.type === 'item').length;
                 
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-slate-50 transition">
                         <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
-                        <td class="p-3 font-mono text-slate-600">${est.date || '-'} <span class="text-xs text-slate-400 block">${est.time || ''}</span></td>
+                        <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
+                        <td class="p-3 font-mono text-slate-500">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
                         <td class="p-3 text-center font-bold">${itemCount}</td>
@@ -219,7 +225,7 @@ window.dataManager = {
             }
         });
         if(tbody.innerHTML === '') {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
         }
     },
     
@@ -249,7 +255,7 @@ window.dataManager = {
         const tbody = document.getElementById('estimationRowsBody');
         tbody.innerHTML = '';
         
-        let opt = '<option value="">Select...</option>'; 
+        let opt = '<option value="" disabled selected>Select...</option>'; 
         window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
         (est.items || []).forEach(item => {
@@ -265,6 +271,7 @@ window.dataManager = {
                     <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
                     <td class="p-1 border text-center">
                         <select class="w-full border rounded p-1 text-center item-unit">
+                            <option value="" disabled selected>Unit...</option>
                             <option value="ITEM">ITEM</option>
                             <option value="HRS">HRS</option>
                             <option value="NO">NO</option>
@@ -293,9 +300,9 @@ window.dataManager = {
                 
                 tr.querySelector('.item-code-select').value = item.code || '';
                 tr.querySelector('.item-desc').value = item.desc || '';
-                tr.querySelector('.item-unit').value = item.unit || 'ITEM';
-                tr.querySelector('.item-qty').value = item.qty || 0;
-                tr.querySelector('.item-cost').value = item.cost || 0;
+                tr.querySelector('.item-unit').value = item.unit || '';
+                tr.querySelector('.item-qty').value = item.qty || 1;
+                tr.querySelector('.item-cost').value = item.cost || '';
                 tr.querySelector('.item-oh').value = item.oh || 0;
                 tr.querySelector('.item-pr').value = item.pr || 0;
             }
