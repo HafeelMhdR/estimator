@@ -1,7 +1,4 @@
 window.dataManager = {
-    // ---------------------------------
-    // CSV EXPORT HELPER
-    // ---------------------------------
     exportToCSV: (filename, rows) => {
         let csvContent = "data:text/csv;charset=utf-8,";
         rows.forEach(rowArray => {
@@ -17,9 +14,7 @@ window.dataManager = {
         document.body.removeChild(link);
     },
 
-    // ---------------------------------
-    // ITEM CODES
-    // ---------------------------------
+    // --- ITEM CODES ---
     importCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -30,7 +25,7 @@ window.dataManager = {
             lines.forEach(line => {
                 const cols = line.split(',');
                 if(cols.length >= 2) {
-                    const code = cols[0].replace(/['"\r]/g,'').trim();
+                    const code = cols[0].replace(/['"\r]/g,'').trim().toUpperCase();
                     const desc = cols.slice(1).join(',').replace(/['"\r]/g,'').trim();
                     if(code && desc && !window.app.db.codes.find(c => c.code === code)) { window.app.db.codes.push({code, desc}); count++; }
                 }
@@ -51,14 +46,16 @@ window.dataManager = {
         window.app.db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-sky-800 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.codes.splice(${idx},1);window.app.saveData();window.dataManager.renderCodesTable()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
     saveCodeItem: () => { 
-        window.app.db.codes.push({code: document.getElementById('modalCode').value.toUpperCase(), desc: document.getElementById('modalDesc').value}); 
+        const code = document.getElementById('modalCode').value.toUpperCase();
+        if (!code) return alert("Code cannot be empty.");
+        if (window.app.db.codes.find(c => c.code === code)) return alert("This Item Code already exists!");
+        
+        window.app.db.codes.push({code, desc: document.getElementById('modalDesc').value}); 
         window.app.saveData(); window.dataManager.renderCodesTable(); 
         document.getElementById('codeModal').classList.add('hidden'); 
     },
 
-    // ---------------------------------
-    // PROJECT CODES (NEW)
-    // ---------------------------------
+    // --- PROJECT CODES ---
     importProjectCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -90,26 +87,67 @@ window.dataManager = {
         window.app.db.projectCodes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-emerald-700 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.projectCodes.splice(${idx},1);window.app.saveData();window.dataManager.renderProjectCodesTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
     saveProjectCodeItem: () => { 
-        window.app.db.projectCodes.push({code: document.getElementById('modalProjCode').value.toUpperCase(), desc: document.getElementById('modalProjDesc').value}); 
+        const code = document.getElementById('modalProjCode').value.toUpperCase();
+        if (!code) return alert("Code cannot be empty.");
+        if (window.app.db.projectCodes.find(c => c.code === code)) return alert("This Project Code already exists!");
+
+        window.app.db.projectCodes.push({code, desc: document.getElementById('modalProjDesc').value}); 
         window.app.saveData(); window.dataManager.renderProjectCodesTable(); window.dataManager.populateClientDropdowns();
         document.getElementById('projectCodeModal').classList.add('hidden'); 
     },
 
-    // ---------------------------------
-    // CLIENTS
-    // ---------------------------------
+    // --- CLIENTS ---
     renderClientTable: () => {
         const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
-        window.app.db.clients.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-bold text-sky-800">${c.abbr || '-'}</td><td class="p-3">${c.name}</td><td class="p-3">${c.attn}</td><td class="p-3 text-xs">${c.add}</td><td class="p-3 text-xs">${c.vat}</td><td class="p-3 text-right"><button onclick="window.app.db.clients.splice(${idx},1);window.app.saveData();window.dataManager.renderClientTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
+        window.app.db.clients.forEach((c, idx) => {
+            tbody.innerHTML += `
+            <tr class="border-b">
+                <td class="p-3 font-bold text-sky-800">${c.abbr || '-'}</td>
+                <td class="p-3">${c.name}</td>
+                <td class="p-3">${c.attn}</td>
+                <td class="p-3 text-xs">${c.add}</td>
+                <td class="p-3 text-xs">${c.vat}</td>
+                <td class="p-3 text-right space-x-2">
+                    <button onclick="window.dataManager.openEditClientModal(${idx})" class="text-sky-600 text-xs font-bold">Edit</button>
+                    <button onclick="window.app.db.clients.splice(${idx},1);window.app.saveData();window.dataManager.renderClientTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button>
+                </td>
+            </tr>`;
+        });
+    },
+    openEditClientModal: (idx) => {
+        const c = window.app.db.clients[idx];
+        document.getElementById('mClientIndex').value = idx;
+        document.getElementById('mClientAbbr').value = c.abbr || '';
+        document.getElementById('mClientName').value = c.name || '';
+        document.getElementById('mClientAttn').value = c.attn || '';
+        document.getElementById('mClientAdd').value = c.add || '';
+        document.getElementById('mClientVat').value = c.vat || '';
+        document.getElementById('clientModal').classList.remove('hidden');
     },
     saveClientItem: () => { 
-        window.app.db.clients.push({
-            abbr: document.getElementById('mClientAbbr').value.toUpperCase() || 'CLI',
+        const abbr = document.getElementById('mClientAbbr').value.toUpperCase();
+        const idx = document.getElementById('mClientIndex').value;
+
+        if (!abbr) return alert("Client abbreviation cannot be empty.");
+        
+        // Check Duplicates, ignoring the one we are actively editing
+        const isDupe = window.app.db.clients.find((c, i) => c.abbr === abbr && i.toString() !== idx);
+        if(isDupe) return alert("This Client Abbreviation already exists!");
+
+        const clientData = {
+            abbr,
             name: document.getElementById('mClientName').value, 
             attn: document.getElementById('mClientAttn').value, 
             add: document.getElementById('mClientAdd').value, 
             vat: document.getElementById('mClientVat').value
-        }); 
+        };
+
+        if (idx !== "") {
+            window.app.db.clients[parseInt(idx)] = clientData;
+        } else {
+            window.app.db.clients.push(clientData);
+        }
+        
         window.app.saveData(); window.dataManager.renderClientTable(); window.dataManager.populateClientDropdowns(); 
         document.getElementById('clientModal').classList.add('hidden'); 
     },
@@ -128,9 +166,7 @@ window.dataManager = {
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     },
 
-    // ---------------------------------
-    // HISTORY & LOAD ESTIMATIONS
-    // ---------------------------------
+    // --- HISTORY & LOAD ESTIMATIONS ---
     currentSortColumn: '',
     currentSortDir: 'asc',
     sortHistory: (column) => {
@@ -160,14 +196,20 @@ window.dataManager = {
         
         sortedEstimations.forEach((est) => {
             const originalIndex = window.app.db.estimations.indexOf(est);
-            if(`${est.id} ${est.clientName} ${est.projectName} ${est.date}`.toLowerCase().includes(filterText)) {
+            // Safe string generation to prevent crashes on legacy entries
+            const searchStr = `${est.id || ''} ${est.clientName || ''} ${est.projectName || ''} ${est.date || ''}`.toLowerCase();
+
+            if(searchStr.includes(filterText)) {
+                // Count only actual physical items, exclude category headers
+                const itemCount = (est.items || []).filter(i => i.type === 'item').length;
+                
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-slate-50 transition">
-                        <td class="p-3 font-mono font-bold text-blue-900">${est.id}</td>
-                        <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
-                        <td class="p-3 font-bold text-sky-800">${est.clientName}</td>
+                        <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600">${est.date || '-'} <span class="text-xs text-slate-400 block">${est.time || ''}</span></td>
+                        <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
-                        <td class="p-3 text-center">${est.items.length}</td>
+                        <td class="p-3 text-center font-bold">${itemCount}</td>
                         <td class="p-3 text-right space-x-3">
                             <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex})" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs">Load / Revise</button>
                             <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
@@ -195,7 +237,7 @@ window.dataManager = {
         
         const est = window.app.db.estimations[idx];
         
-        document.getElementById('currentEditingEstId').value = est.id;
+        document.getElementById('currentEditingEstId').value = est.id || '';
         document.getElementById('currentEditingEstRev').value = est.revision || 0;
         document.getElementById('estProjectName').value = est.projectName || '';
         document.getElementById('estLocation').value = est.location || '';
@@ -210,7 +252,7 @@ window.dataManager = {
         let opt = '<option value="">Select...</option>'; 
         window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
         
-        est.items.forEach(item => {
+        (est.items || []).forEach(item => {
             if (item.type === 'category') {
                 window.estimator.addEstimationCategory(item.title);
             } else {
@@ -274,7 +316,7 @@ window.dataManager = {
             rows.forEach(r => {
                 if(r[1] && r[10]) { 
                     const costTotal = r[10] || 0; 
-                    html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${window.app.formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=parseFloat(rem).toFixed(2) + ' ${window.app.db.company.currency}';c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${window.app.formatMoney(costTotal)}</td></tr>`;
+                    html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${window.app.formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=window.app.formatMoney(rem);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${window.app.formatMoney(costTotal)}</td></tr>`;
                 }
             });
             document.getElementById('operationsContent').innerHTML = html + `</table></div>`;
