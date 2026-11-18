@@ -27,6 +27,7 @@ window.ui = {
         document.getElementById('setCompCurrency').value = window.app.db.company.currency || "SAR";
         document.getElementById('setCompCR').value = window.app.db.company.cr || '';
         document.getElementById('setCompVAT').value = window.app.db.company.vat || '';
+        document.getElementById('setCompTimezone').value = window.app.db.company.timezone || 'local';
         document.getElementById('setCompEmail').value = window.app.db.company.email || '';
         document.getElementById('setCompAdd').value = window.app.db.company.address || '';
         
@@ -48,13 +49,13 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 300; 
+                const MAX_WIDTH = 400; // Optimal for sharp PDFs without bloating size
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.9);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 window.app.db.company.logo = dataUrl;
                 document.getElementById('logoPreviewModal').src = dataUrl;
                 document.getElementById('logoPreviewModal').classList.remove('hidden');
@@ -103,6 +104,7 @@ window.ui = {
             window.app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
             window.app.db.company.cr = document.getElementById('setCompCR').value;
             window.app.db.company.vat = document.getElementById('setCompVAT').value;
+            window.app.db.company.timezone = document.getElementById('setCompTimezone').value || "local";
             window.app.db.company.email = document.getElementById('setCompEmail').value;
             window.app.db.company.address = document.getElementById('setCompAdd').value;
             
