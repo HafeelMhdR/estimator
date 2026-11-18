@@ -1,0 +1,12 @@
+@media print { 
+    .no-print { display: none !important; } 
+}
+.logo-preview { 
+    max-height: 60px; 
+    max-width: 150px; 
+    object-fit: contain; 
+}
+.category-row { 
+    background-color: #f1f5f9; 
+    font-weight: bold; 
+}
