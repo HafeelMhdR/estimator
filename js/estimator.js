@@ -1,5 +1,46 @@
-// Estimation Builder Logic
 window.estimator = {
+    // NEW: Auto-generate the Estimation ID Preview
+    generateBaseId: () => {
+        const comp = window.app.db.company.abbr || 'COMP';
+        
+        const clientName = document.getElementById('estClientSelect').value;
+        const client = window.app.db.clients.find(c => c.name === clientName);
+        const cliAbbr = client && client.abbr ? client.abbr : 'CLI';
+        
+        const projAbbr = document.getElementById('estProjectCodeSelect').value || 'PRJ';
+        
+        const rawDate = document.getElementById('estDate').value;
+        let dateStr = "00000000";
+        if (rawDate) {
+            const parts = rawDate.split('-'); // YYYY-MM-DD
+            dateStr = `${parts[1]}${parts[2]}${parts[0]}`; // MMDDYYYY
+        }
+        
+        return `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
+    },
+
+    updateEstIdPreview: () => {
+        const currentId = document.getElementById('currentEditingEstId').value;
+        let displayId = currentId;
+        
+        if (!currentId) {
+            // New estimation being built
+            displayId = window.estimator.generateBaseId();
+        } 
+        // If there's a current ID, it's loaded from history. The user should see that ID until they revise.
+
+        const previewEl = document.getElementById('estIdPreview');
+        if(previewEl) previewEl.innerText = `Estimation: ${displayId}`;
+
+        // Also push the project description into the name box if empty
+        const projAbbr = document.getElementById('estProjectCodeSelect').value;
+        const projNameBox = document.getElementById('estProjectName');
+        if (projAbbr && !currentId) {
+            const p = window.app.db.projectCodes.find(x => x.code === projAbbr);
+            if (p) projNameBox.value = p.desc;
+        }
+    },
+
     moveRowUp: (btn) => {
         const row = btn.closest('tr');
         if (row.previousElementSibling) { row.parentNode.insertBefore(row, row.previousElementSibling); window.estimator.recalculateEstimation(); }
@@ -13,6 +54,7 @@ window.estimator = {
     createNewEstimation: () => {
         if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
         document.getElementById('currentEditingEstId').value = ''; 
+        document.getElementById('currentEditingEstRev').value = '0';
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
         document.getElementById('estTitle').value = 'BILLS OF QUANTITIES';
@@ -25,6 +67,7 @@ window.estimator = {
         
         document.getElementById('estimationRowsBody').innerHTML = '';
         window.estimator.addEstimationRow();
+        window.estimator.updateEstIdPreview();
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
@@ -217,32 +260,59 @@ window.estimator = {
             }
         });
         
+        // Advanced ID & Revision Logic
+        const baseId = window.estimator.generateBaseId();
         const currentId = document.getElementById('currentEditingEstId').value;
+        let rev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
+
+        let finalId = baseId + (rev > 0 ? `R${rev}` : '');
+
         const estimationData = { 
-            id: currentId || ('EST-' + Date.now()), 
             projectName: document.getElementById('estProjectName').value, 
             location: document.getElementById('estLocation').value, 
             title: document.getElementById('estTitle').value, 
             date: document.getElementById('estDate').value, 
-            clientName: document.getElementById('estClientSelect').value, 
+            clientName: document.getElementById('estClientSelect').value,
+            projectAbbr: document.getElementById('estProjectCodeSelect').value,
             items 
         };
-        
+
         if (currentId) {
-            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-            if (idx > -1) {
-                window.app.db.estimations[idx] = estimationData;
+            // We are editing an existing estimation
+            if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version`)) {
+                // User wants a new revision
+                rev++;
+                finalId = baseId + `R${rev}`;
+                document.getElementById('currentEditingEstId').value = finalId;
+                document.getElementById('currentEditingEstRev').value = rev;
+                window.app.db.estimations.push({ ...estimationData, id: finalId, baseId, revision: rev });
             } else {
-                window.app.db.estimations.push(estimationData);
+                // Overwrite current
+                const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
+                if(idx > -1) {
+                    finalId = baseId + (rev > 0 ? `R${rev}` : '');
+                    window.app.db.estimations[idx] = { ...estimationData, id: finalId, baseId, revision: rev };
+                    document.getElementById('currentEditingEstId').value = finalId;
+                }
             }
         } else {
-            document.getElementById('currentEditingEstId').value = estimationData.id;
-            window.app.db.estimations.push(estimationData);
+            // Brand new estimation, check if base exists to auto-bump
+            const existing = window.app.db.estimations.filter(e => e.baseId === baseId);
+            if (existing.length > 0) {
+                rev = Math.max(...existing.map(e => e.revision || 0)) + 1;
+                finalId = baseId + `R${rev}`;
+                alert(`An estimation for this client/project/date already exists.\nSaving as Revision ${rev}:\n${finalId}`);
+            }
+            document.getElementById('currentEditingEstId').value = finalId;
+            document.getElementById('currentEditingEstRev').value = rev;
+            window.app.db.estimations.push({ ...estimationData, id: finalId, baseId, revision: rev });
         }
         
         window.app.saveData(); 
-        alert("Estimation saved and synced successfully!"); 
-        window.dataManager.renderHistoryTable(); 
+        window.estimator.updateEstIdPreview(); // Lock in the UI text
+        alert(`Estimation [${finalId}] saved and synced successfully!`); 
+        
+        if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
     }
 };
