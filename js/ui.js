@@ -49,13 +49,15 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 400; // Optimal for sharp PDFs without bloating size
+                // Massive resolution allowance for maximum sharpness
+                const MAX_WIDTH = 1500; 
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                // Use Lossless PNG for crisp text and zero blur
+                const dataUrl = canvas.toDataURL('image/png');
                 window.app.db.company.logo = dataUrl;
                 document.getElementById('logoPreviewModal').src = dataUrl;
                 document.getElementById('logoPreviewModal').classList.remove('hidden');
