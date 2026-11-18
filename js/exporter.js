@@ -1,5 +1,5 @@
 // PDF and Excel Exporters
-const exporter = {
+window.exporter = {
     exportEstimationExcel: () => {
         const wb = XLSX.utils.book_new();
         const curr = app.db.company.currency;
@@ -124,19 +124,30 @@ const exporter = {
         `;
 
         const printWrapper = document.createElement('div');
+        // Render behind the interface so the browser draws it, but the user doesn't see a flash
         printWrapper.style.position = 'absolute';
-        printWrapper.style.top = '-9999px';
+        printWrapper.style.top = '0';
+        printWrapper.style.left = '0';
+        printWrapper.style.zIndex = '-1';
+        printWrapper.style.opacity = '0.01';
+        printWrapper.style.pointerEvents = 'none';
+        
         printWrapper.innerHTML = printHtml;
         document.body.appendChild(printWrapper);
         
-        html2pdf().set({
+        const worker = html2pdf().set({
             margin:       [10, 0, 10, 0],
             filename:     `${app.db.company.abbr}_Estimation.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-        }).from(printWrapper.firstElementChild).save().then(() => {
-            document.body.removeChild(printWrapper);
+        }).from(printWrapper.firstElementChild);
+
+        // Clean up the DOM after rendering is complete
+        worker.save().then(() => {
+            if(document.body.contains(printWrapper)) {
+                document.body.removeChild(printWrapper);
+            }
         });
     },
 
@@ -199,17 +210,28 @@ const exporter = {
         clone.style.width = printWidth;
         clone.style.margin = '0 auto';
         clone.style.position = 'absolute';
-        clone.style.top = '-9999px';
+        
+        // Hide behind main UI to force render without flashing
+        clone.style.top = '0';
+        clone.style.left = '0';
+        clone.style.zIndex = '-1';
+        clone.style.opacity = '0.01';
+        clone.style.pointerEvents = 'none';
+        
         document.body.appendChild(clone);
 
-        html2pdf().set({
+        const worker = html2pdf().set({
             margin:       [10, 0, 10, 0],
             filename:     `${document.getElementById('invNumber').value}.pdf`,
             image:        { type: 'jpeg', quality: 0.98 },
             html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
             jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-        }).from(clone).save().then(() => {
-            document.body.removeChild(clone);
+        }).from(clone);
+        
+        worker.save().then(() => {
+            if(document.body.contains(clone)) {
+                document.body.removeChild(clone);
+            }
         });
     }
 };
