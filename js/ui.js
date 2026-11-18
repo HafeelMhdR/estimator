@@ -27,7 +27,18 @@ window.ui = {
         document.getElementById('setCompCurrency').value = window.app.db.company.currency || "SAR";
         document.getElementById('setCompCR').value = window.app.db.company.cr || '';
         document.getElementById('setCompVAT').value = window.app.db.company.vat || '';
-        document.getElementById('setCompTimezone').value = window.app.db.company.timezone || 'local';
+        
+        // Safely set timezone dropdown even if standard option is missing
+        const tzEl = document.getElementById('setCompTimezone');
+        if (tzEl) {
+            const existingOption = Array.from(tzEl.options).find(o => o.value === window.app.db.company.timezone);
+            if (existingOption) {
+                tzEl.value = window.app.db.company.timezone;
+            } else {
+                tzEl.value = "local";
+            }
+        }
+
         document.getElementById('setCompEmail').value = window.app.db.company.email || '';
         document.getElementById('setCompAdd').value = window.app.db.company.address || '';
         
@@ -49,14 +60,12 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                // Massive resolution allowance for maximum sharpness
                 const MAX_WIDTH = 1500; 
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                // Use Lossless PNG for crisp text and zero blur
                 const dataUrl = canvas.toDataURL('image/png');
                 window.app.db.company.logo = dataUrl;
                 document.getElementById('logoPreviewModal').src = dataUrl;
