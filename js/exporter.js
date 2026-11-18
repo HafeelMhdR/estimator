@@ -98,7 +98,8 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('estPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4', true); // TRUE adds compression
+                // Removed 'true' to disable core compression
+                const doc = new jsPDF(orientation, 'pt', 'a4'); 
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateIdData().fullId;
@@ -120,7 +121,12 @@ window.exporter = {
                         const props = doc.getImageProperties(window.app.db.company.logo);
                         const ratio = props.height / props.width;
                         const targetWidth = 120;
-                        doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                        
+                        let imgFormat = 'PNG';
+                        if (window.app.db.company.logo.includes('image/jpeg')) imgFormat = 'JPEG';
+
+                        // High Quality Render - No FAST compression alias
+                        doc.addImage(window.app.db.company.logo, imgFormat, pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio);
                     } catch (imgErr) {
                         console.warn("Could not parse logo dimensions, falling back to text.", imgErr);
                         doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
@@ -302,7 +308,8 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('invPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4', true);
+                // Removed 'true' to disable core compression
+                const doc = new jsPDF(orientation, 'pt', 'a4');
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
@@ -312,7 +319,11 @@ window.exporter = {
                         const props = doc.getImageProperties(window.app.db.company.logo);
                         const ratio = props.height / props.width;
                         const targetWidth = 120;
-                        doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                        
+                        let imgFormat = 'PNG';
+                        if (window.app.db.company.logo.includes('image/jpeg')) imgFormat = 'JPEG';
+
+                        doc.addImage(window.app.db.company.logo, imgFormat, pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio);
                     } catch (imgErr) {
                         doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
                         doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
