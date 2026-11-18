@@ -65,7 +65,9 @@ window.invoicer = {
                     } else {
                         iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                         const total = item.qty * item.price; globalSubtotal += total;
-                        tbody.innerHTML += `<tr class="border-b"><td class="p-2 border border-slate-300 text-center">${dNum}</td><td class="p-2 border border-slate-300">${item.code}</td><td class="p-2 border border-slate-300">${item.desc}</td><td class="p-2 border border-slate-300 text-center">${item.unit}</td><td class="p-2 border border-slate-300 text-center">${item.qty}</td><td class="p-2 border border-slate-300 text-right font-mono">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border border-slate-300 text-right font-bold font-mono">${window.app.formatMoney(total)}</td></tr>`;
+                        const descHtml = item.comment ? `${item.desc}<br><span class="text-[10px] italic text-slate-500">(${item.comment})</span>` : item.desc;
+                        
+                        tbody.innerHTML += `<tr class="border-b"><td class="p-2 border border-slate-300 text-center">${dNum}</td><td class="p-2 border border-slate-300">${item.code}</td><td class="p-2 border border-slate-300 leading-tight">${descHtml}</td><td class="p-2 border border-slate-300 text-center">${item.unit}</td><td class="p-2 border border-slate-300 text-center">${item.qty}</td><td class="p-2 border border-slate-300 text-right font-mono">${parseFloat(item.price).toFixed(2)}</td><td class="p-2 border border-slate-300 text-right font-bold font-mono">${window.app.formatMoney(total)}</td></tr>`;
                     }
                 });
             }
