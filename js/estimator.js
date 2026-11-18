@@ -9,7 +9,6 @@ window.estimator = {
 
     generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
-        
         const clientSelect = document.getElementById('estClientSelect');
         const clientName = clientSelect ? clientSelect.value : '';
         const client = window.app.db.clients.find(c => c.name === clientName);
@@ -132,7 +131,7 @@ window.estimator = {
         });
         if (hasEmptyTermTitle) return "A Term & Condition row has a value but is missing a heading.";
 
-        return null;
+        return null; 
     },
 
     moveTermUp: (btn) => {
@@ -457,9 +456,10 @@ window.estimator = {
         
         window.app.saveData(); 
         window.estimator.updateEstIdPreview(); 
-        alert(`Estimation [${finalId}] saved and synced successfully!`); 
         
-        if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(); 
+        // Redirect to History and Highlight
+        window.ui.switchTab('history');
+        if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
     }
 };
