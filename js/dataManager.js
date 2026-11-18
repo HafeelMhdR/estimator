@@ -14,7 +14,6 @@ window.dataManager = {
         document.body.removeChild(link);
     },
 
-    // --- ITEM CODES ---
     importCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -55,7 +54,6 @@ window.dataManager = {
         document.getElementById('codeModal').classList.add('hidden'); 
     },
 
-    // --- PROJECT CODES ---
     importProjectCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -96,17 +94,16 @@ window.dataManager = {
         document.getElementById('projectCodeModal').classList.add('hidden'); 
     },
 
-    // --- CLIENTS ---
     renderClientTable: () => {
         const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
         window.app.db.clients.forEach((c, idx) => {
             tbody.innerHTML += `
-            <tr class="border-b hover:bg-slate-50">
+            <tr class="border-b">
                 <td class="p-3 font-bold text-sky-800">${c.abbr || '-'}</td>
-                <td class="p-3">${c.name || ''}</td>
-                <td class="p-3">${c.attn || ''}</td>
-                <td class="p-3 text-xs">${c.add || ''}</td>
-                <td class="p-3 text-xs">${c.vat || ''}</td>
+                <td class="p-3">${c.name}</td>
+                <td class="p-3">${c.attn}</td>
+                <td class="p-3 text-xs">${c.add}</td>
+                <td class="p-3 text-xs">${c.vat}</td>
                 <td class="p-3 text-right space-x-2">
                     <button onclick="window.dataManager.openEditClientModal(${idx})" class="text-sky-600 text-xs font-bold">Edit</button>
                     <button onclick="window.app.db.clients.splice(${idx},1);window.app.saveData();window.dataManager.renderClientTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button>
@@ -156,23 +153,18 @@ window.dataManager = {
         const inv = document.getElementById('invClientSelect');
         const proj = document.getElementById('estProjectCodeSelect');
 
+        // Strict Defaults (Empty Option)
         est.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
         inv.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
         proj.innerHTML = '<option value="" disabled selected>Select Project...</option>';
 
-        window.app.db.clients.forEach(c => { 
-            est.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
-            inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
-        });
-        window.app.db.projectCodes.forEach(p => { 
-            proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; 
-        });
+        window.app.db.clients.forEach(c => { est.innerHTML += `<option value="${c.name}">${c.name}</option>`; inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; });
+        window.app.db.projectCodes.forEach(p => { proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; });
 
         if(typeof window.invoicer !== 'undefined' && window.invoicer.populateInvoiceClient) window.invoicer.populateInvoiceClient();
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     },
 
-    // --- HISTORY & LOAD ESTIMATIONS ---
     currentSortColumn: '',
     currentSortDir: 'asc',
     sortHistory: (column) => {
@@ -202,7 +194,6 @@ window.dataManager = {
         
         sortedEstimations.forEach((est) => {
             const originalIndex = window.app.db.estimations.indexOf(est);
-            // Securely handle undefined properties to prevent crashes
             const searchStr = `${est.id || ''} ${est.clientName || ''} ${est.projectName || ''} ${est.date || ''}`.toLowerCase();
 
             if(searchStr.includes(filterText)) {
@@ -212,7 +203,7 @@ window.dataManager = {
                     <tr class="border-b hover:bg-slate-50 transition">
                         <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
                         <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
-                        <td class="p-3 font-mono text-slate-500">${est.time || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
                         <td class="p-3 text-center font-bold">${itemCount}</td>
@@ -247,7 +238,7 @@ window.dataManager = {
         document.getElementById('currentEditingEstRev').value = est.revision || 0;
         document.getElementById('estProjectName').value = est.projectName || '';
         document.getElementById('estLocation').value = est.location || '';
-        document.getElementById('estTitle').value = est.title || 'BILLS OF QUANTITIES';
+        document.getElementById('estTitle').value = est.title || '';
         document.getElementById('estDate').value = est.date || '';
         document.getElementById('estClientSelect').value = est.clientName || '';
         if (est.projectAbbr) document.getElementById('estProjectCodeSelect').value = est.projectAbbr;
@@ -268,10 +259,13 @@ window.dataManager = {
                     <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
                     <td class="p-1 border text-center font-bold item-num"></td>
                     <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
-                    <td class="p-1 border"><input type="text" class="w-full border rounded p-1 item-desc"></td>
+                    <td class="p-1 border">
+                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description">
+                        <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
+                    </td>
                     <td class="p-1 border text-center">
                         <select class="w-full border rounded p-1 text-center item-unit">
-                            <option value="" disabled selected>Unit...</option>
+                            <option value="" disabled selected>...</option>
                             <option value="ITEM">ITEM</option>
                             <option value="HRS">HRS</option>
                             <option value="NO">NO</option>
@@ -284,7 +278,7 @@ window.dataManager = {
                         </select>
                     </td>
                     <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" oninput="window.estimator.recalculateEstimation()"></td>
-                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" oninput="window.estimator.recalculateEstimation()"></td>
+                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
                     <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" oninput="window.estimator.recalculateEstimation()"></td>
                     <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" oninput="window.estimator.recalculateEstimation()"></td>
                     <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
@@ -300,14 +294,22 @@ window.dataManager = {
                 
                 tr.querySelector('.item-code-select').value = item.code || '';
                 tr.querySelector('.item-desc').value = item.desc || '';
+                tr.querySelector('.item-comment').value = item.comment || '';
                 tr.querySelector('.item-unit').value = item.unit || '';
-                tr.querySelector('.item-qty').value = item.qty || 1;
-                tr.querySelector('.item-cost').value = item.cost || '';
+                tr.querySelector('.item-qty').value = item.qty || '';
+                tr.querySelector('.item-cost').value = item.cost === 0 ? 0 : (item.cost || '');
                 tr.querySelector('.item-oh').value = item.oh || 0;
                 tr.querySelector('.item-pr').value = item.pr || 0;
             }
         });
         
+        document.getElementById('termsContainer').innerHTML = '';
+        if (est.terms && est.terms.length > 0) {
+            est.terms.forEach(t => window.estimator.addTermRow(t.title, t.value));
+        } else {
+            window.estimator.resetTerms();
+        }
+
         window.estimator.recalculateEstimation();
         window.estimator.updateEstIdPreview();
         window.ui.switchTab('estimation');
