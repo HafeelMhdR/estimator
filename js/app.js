@@ -50,11 +50,9 @@ window.app = {
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
             window.app.db = JSON.parse(saved); 
-            // Fallbacks for legacy databases
             if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
             if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
             if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
-            // Map legacy clients with no abbr
             window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
         } 
     },
