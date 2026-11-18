@@ -1,12 +1,12 @@
-// Core Database State & Networking
-const app = {
+// Core Database State & Networking - FORCED TO GLOBAL WINDOW
+window.app = {
     db: {
         company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" },
         codes: [], clients: [], estimations: []
     },
     currentDirectoryHandle: null,
 
-    formatMoney: (num) => parseFloat(num || 0).toFixed(2) + ' ' + (app.db.company.currency || 'SAR'),
+    formatMoney: (num) => parseFloat(num || 0).toFixed(2) + ' ' + (window.app.db.company.currency || 'SAR'),
 
     idb: {
         getDB: () => new Promise((resolve, reject) => {
@@ -16,7 +16,7 @@ const app = {
             req.onerror = e => reject(e.target.error);
         }),
         set: async val => {
-            const db = await app.idb.getDB();
+            const db = await window.app.idb.getDB();
             return new Promise(resolve => {
                 const tx = db.transaction('handles', 'readwrite');
                 tx.objectStore('handles').put(val, 'lan_folder');
@@ -24,7 +24,7 @@ const app = {
             });
         },
         get: async () => {
-            const db = await app.idb.getDB();
+            const db = await window.app.idb.getDB();
             return new Promise(resolve => {
                 const tx = db.transaction('handles', 'readonly');
                 const req = tx.objectStore('handles').get('lan_folder');
@@ -32,7 +32,7 @@ const app = {
             });
         },
         clear: async () => {
-            const db = await app.idb.getDB();
+            const db = await window.app.idb.getDB();
             return new Promise(resolve => {
                 const tx = db.transaction('handles', 'readwrite');
                 tx.objectStore('handles').delete('lan_folder');
@@ -42,29 +42,29 @@ const app = {
     },
 
     saveData: () => { 
-        localStorage.setItem('sys_db', JSON.stringify(app.db)); 
-        ui.updateDashboardStats(); 
-        app.syncToNetworkFolder(); 
+        localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
+        window.ui.updateDashboardStats(); 
+        window.app.syncToNetworkFolder(); 
     },
 
     loadData: () => { 
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
-            app.db = JSON.parse(saved); 
-            if(!app.db.company) app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
-            if(!app.db.company.currency) app.db.company.currency = "SAR";
+            window.app.db = JSON.parse(saved); 
+            if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "" };
+            if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
         } 
     },
 
     connectNetworkFolder: async () => {
         try {
-            if (!app.currentDirectoryHandle) {
-                app.currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                await app.idb.set(app.currentDirectoryHandle);
+            if (!window.app.currentDirectoryHandle) {
+                window.app.currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
+                await window.app.idb.set(window.app.currentDirectoryHandle);
             }
             const opts = { mode: 'readwrite' };
-            if ((await app.currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
-                if ((await app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
+            if ((await window.app.currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
+                if ((await window.app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
             }
 
             document.getElementById('networkBtnText').innerText = "Connected to LAN";
@@ -74,34 +74,34 @@ const app = {
             document.getElementById('btnDisconnect').classList.remove('hidden');
 
             try {
-                const fileHandle = await app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
+                const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
                 const file = await fileHandle.getFile();
                 const text = await file.text();
                 try {
-                    app.db = JSON.parse(text); 
-                    if(!app.db.company.currency) app.db.company.currency = "SAR";
-                    localStorage.setItem('sys_db', JSON.stringify(app.db));
-                    ui.applyCompanyDataToUI(); 
-                    dataManager.renderCodesTable(); 
-                    dataManager.renderClientTable(); 
-                    dataManager.populateClientDropdowns(); 
-                    ui.updateDashboardStats();
+                    window.app.db = JSON.parse(text); 
+                    if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
+                    localStorage.setItem('sys_db', JSON.stringify(window.app.db));
+                    window.ui.applyCompanyDataToUI(); 
+                    window.dataManager.renderCodesTable(); 
+                    window.dataManager.renderClientTable(); 
+                    window.dataManager.populateClientDropdowns(); 
+                    window.ui.updateDashboardStats();
                     alert("Successfully synced database from network folder.");
                 } catch(parseErr) {
                     alert("WARNING: Database on network is corrupted. It will not be loaded or overwritten.");
                 }
             } catch(e) { 
                 if (e.name === 'NotFoundError') {
-                    if(confirm("No database found in this folder. Create a new master database here?")) await app.syncToNetworkFolder();
-                    else app.disconnectFolder();
+                    if(confirm("No database found in this folder. Create a new master database here?")) await window.app.syncToNetworkFolder();
+                    else window.app.disconnectFolder();
                 }
             }
         } catch(err) { console.log(err); }
     },
 
     disconnectFolder: async () => {
-        app.currentDirectoryHandle = null;
-        await app.idb.clear();
+        window.app.currentDirectoryHandle = null;
+        await window.app.idb.clear();
         document.getElementById('networkBtnText').innerText = "Connect Shared LAN Folder";
         document.getElementById('networkBtn').className = "bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
         document.getElementById('folderStatus').innerText = "Local Storage";
@@ -110,31 +110,31 @@ const app = {
     },
 
     syncToNetworkFolder: async () => {
-        if(!app.currentDirectoryHandle) return;
+        if(!window.app.currentDirectoryHandle) return;
         try {
-            const fileHandle = await app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: true });
+            const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: true });
             const writable = await fileHandle.createWritable();
-            await writable.write(JSON.stringify(app.db));
+            await writable.write(JSON.stringify(window.app.db));
             await writable.close();
         } catch(err) {}
     }
 };
 
 window.onload = async function() {
-    app.loadData();
+    window.app.loadData();
     document.getElementById('estDate').valueAsDate = new Date();
     document.getElementById('invDate').valueAsDate = new Date();
-    ui.applyCompanyDataToUI();
-    dataManager.renderCodesTable();
-    dataManager.renderClientTable();
-    dataManager.populateClientDropdowns();
-    if(document.getElementById('estimationRowsBody').children.length === 0) estimator.addEstimationRow();
-    ui.updateDashboardStats();
+    window.ui.applyCompanyDataToUI();
+    window.dataManager.renderCodesTable();
+    window.dataManager.renderClientTable();
+    window.dataManager.populateClientDropdowns();
+    if(document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
+    window.ui.updateDashboardStats();
 
     try {
-        const savedHandle = await app.idb.get();
+        const savedHandle = await window.app.idb.get();
         if (savedHandle) {
-            app.currentDirectoryHandle = savedHandle;
+            window.app.currentDirectoryHandle = savedHandle;
             document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
             document.getElementById('networkBtn').className = "bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
             document.getElementById('btnDisconnect').classList.remove('hidden');
