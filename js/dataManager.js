@@ -131,12 +131,35 @@ window.dataManager = {
     // ---------------------------------
     // HISTORY & LOAD ESTIMATIONS
     // ---------------------------------
+    currentSortColumn: '',
+    currentSortDir: 'asc',
+    sortHistory: (column) => {
+        if (window.dataManager.currentSortColumn === column) {
+            window.dataManager.currentSortDir = window.dataManager.currentSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            window.dataManager.currentSortColumn = column;
+            window.dataManager.currentSortDir = 'asc';
+        }
+        window.dataManager.renderHistoryTable();
+    },
     renderHistoryTable: () => {
         const filterText = (document.getElementById('historySearch').value || '').toLowerCase();
         const tbody = document.getElementById('historyTableBody'); 
         tbody.innerHTML = '';
         
-        window.app.db.estimations.forEach((est, idx) => {
+        let sortedEstimations = [...window.app.db.estimations];
+        if (window.dataManager.currentSortColumn) {
+            sortedEstimations.sort((a, b) => {
+                let valA = a[window.dataManager.currentSortColumn] || '';
+                let valB = b[window.dataManager.currentSortColumn] || '';
+                if (valA < valB) return window.dataManager.currentSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return window.dataManager.currentSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        sortedEstimations.forEach((est) => {
+            const originalIndex = window.app.db.estimations.indexOf(est);
             if(`${est.id} ${est.clientName} ${est.projectName} ${est.date}`.toLowerCase().includes(filterText)) {
                 tbody.innerHTML += `
                     <tr class="border-b hover:bg-slate-50 transition">
@@ -144,16 +167,17 @@ window.dataManager = {
                         <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
+                        <td class="p-3 text-center">${est.items.length}</td>
                         <td class="p-3 text-right space-x-3">
-                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${idx})" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs">Load / Revise</button>
-                            <button onclick="window.dataManager.deleteEstimation(${idx})" class="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
+                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex})" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs">Load / Revise</button>
+                            <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-red-500 hover:text-red-700 font-bold text-xs">Delete</button>
                         </td>
                     </tr>
                 `;
             }
         });
         if(tbody.innerHTML === '') {
-            tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
         }
     },
     
