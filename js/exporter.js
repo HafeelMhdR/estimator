@@ -13,7 +13,7 @@ window.exporter = {
         }
     },
 
-    exportEstimationExcel: async (event) => {
+    exportEstimationExcel: (event) => {
         const error = window.estimator.validateForm();
         if(error) return alert(error);
 
@@ -46,7 +46,8 @@ window.exporter = {
                         let displayNum = cNum > 0 ? `${cNum}.${numStr}` : iNum;
                         
                         const desc = tr.querySelector('.item-desc').value.trim();
-                        const comment = tr.querySelector('.item-comment').value.trim();
+                        const commentEl = tr.querySelector('.item-comment');
+                        const comment = commentEl ? commentEl.value.trim() : '';
                         const descText = comment ? `${desc}\n(${comment})` : desc;
 
                         wsData.push([
@@ -64,7 +65,6 @@ window.exporter = {
                 wsData.push(["", "", "", "", "", "", "", "", "VAT 15%", {t:'n', f:`J${endRow+2}*0.15`}]); 
                 wsData.push(["", "", "", "", "", "", "", "", "Grand Total", {t:'n', f:`J${endRow+2}+J${endRow+3}`}]);
                 
-                // Attach Terms & Conditions to Excel
                 wsData.push([]);
                 wsData.push([]);
                 wsData.push(["TERMS & CONDITIONS"]);
@@ -98,7 +98,7 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('estPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4');
+                const doc = new jsPDF(orientation, 'pt', 'a4', true); // TRUE adds compression
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const estId = document.getElementById('currentEditingEstId').value || window.estimator.generateIdData().fullId;
@@ -116,11 +116,16 @@ window.exporter = {
                 doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 115);
                 
                 if (window.app.db.company.logo) {
-                    const img = new Image();
-                    img.src = window.app.db.company.logo;
-                    const ratio = (img.height || 1) / (img.width || 1);
-                    const targetWidth = 120;
-                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                    try {
+                        const props = doc.getImageProperties(window.app.db.company.logo);
+                        const ratio = props.height / props.width;
+                        const targetWidth = 120;
+                        doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                    } catch (imgErr) {
+                        console.warn("Could not parse logo dimensions, falling back to text.", imgErr);
+                        doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                        doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+                    }
                 } else {
                     doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
                     doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
@@ -143,7 +148,8 @@ window.exporter = {
                         iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
                         
                         const desc = tr.querySelector('.item-desc').value.trim();
-                        const comment = tr.querySelector('.item-comment').value.trim();
+                        const commentEl = tr.querySelector('.item-comment');
+                        const comment = commentEl ? commentEl.value.trim() : '';
                         const descText = comment ? `${desc}\n   (${comment})` : desc;
 
                         const code = tr.querySelector('.item-code-select').value;
@@ -198,7 +204,6 @@ window.exporter = {
                 doc.text("Grand Total:", summaryX, finalY + 35);
                 doc.text(formatPdfMoney(document.getElementById('summaryGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
 
-                // Render Terms & Conditions at the end of PDF
                 let termsBody = [];
                 document.querySelectorAll('.term-row').forEach(row => {
                     const tTitle = row.querySelector('.term-title').value.trim();
@@ -225,7 +230,7 @@ window.exporter = {
                 doc.save(`${estId}.pdf`);
             } catch (err) {
                 console.error("PDF Generation Error:", err);
-                alert("There was an error generating the PDF.");
+                alert("There was an error generating the PDF. Make sure your logo is a valid JPG/PNG.");
             } finally {
                 window.exporter.setLoadingState(btn, false);
             }
@@ -297,17 +302,21 @@ window.exporter = {
                 const { jsPDF } = window.jspdf;
                 const orientEl = document.getElementById('invPdfOrientation');
                 const orientation = orientEl ? orientEl.value : 'portrait';
-                const doc = new jsPDF(orientation, 'pt', 'a4');
+                const doc = new jsPDF(orientation, 'pt', 'a4', true);
                 const pageWidth = doc.internal.pageSize.getWidth();
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
                 if (window.app.db.company.logo) {
-                    const img = new Image();
-                    img.src = window.app.db.company.logo;
-                    const ratio = (img.height || 1) / (img.width || 1);
-                    const targetWidth = 120;
-                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                    try {
+                        const props = doc.getImageProperties(window.app.db.company.logo);
+                        const ratio = props.height / props.width;
+                        const targetWidth = 120;
+                        doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                    } catch (imgErr) {
+                        doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                        doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+                    }
                 } else {
                     doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
                     doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
