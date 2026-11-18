@@ -1,5 +1,20 @@
 // PDF and Excel Exporters
 window.exporter = {
+    // Helper function to manage button loading states
+    setLoadingState: (button, isLoading) => {
+        if (!button) return;
+        if (isLoading) {
+            button.dataset.originalText = button.innerText;
+            button.innerText = "Generating PDF...";
+            button.disabled = true;
+            button.classList.add('opacity-50', 'cursor-not-allowed');
+        } else {
+            button.innerText = button.dataset.originalText || "Export PDF";
+            button.disabled = false;
+            button.classList.remove('opacity-50', 'cursor-not-allowed');
+        }
+    },
+
     exportEstimationExcel: () => {
         const wb = XLSX.utils.book_new();
         const curr = window.app.db.company.currency;
@@ -40,104 +55,118 @@ window.exporter = {
     },
 
     // --- TRUE VECTOR ENGINE FOR ESTIMATION PDF ---
-    exportEstimationPDF: () => {
-        const { jsPDF } = window.jspdf;
-        const orientEl = document.getElementById('estPdfOrientation');
-        const orientation = orientEl ? orientEl.value : 'portrait';
-        const doc = new jsPDF(orientation, 'pt', 'a4');
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+    exportEstimationPDF: async () => {
+        const btn = event ? event.currentTarget : null;
+        window.exporter.setLoadingState(btn, true);
 
-        // Header Section
-        doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
-        doc.text("ESTIMATION BOQ", 40, 50);
-        
-        doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal');
-        doc.text(`Project: ${document.getElementById('estProjectName').value}`, 40, 70);
-        doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
-        doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
-        
-        if (window.app.db.company.logo) {
-            const img = new Image();
-            img.src = window.app.db.company.logo;
-            const ratio = (img.height || 1) / (img.width || 1);
-            const targetWidth = 120;
-            doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
-        } else {
-            doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-            doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
-        }
+        // Allow UI to update before heavy processing blocks the thread
+        setTimeout(() => {
+            try {
+                const { jsPDF } = window.jspdf;
+                const orientEl = document.getElementById('estPdfOrientation');
+                const orientation = orientEl ? orientEl.value : 'portrait';
+                const doc = new jsPDF(orientation, 'pt', 'a4');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
 
-        let bodyData = [];
-        let cNum = 0, iNum = 0, catTotal = 0;
-        let currentCatName = "";
-        const rows = Array.from(document.querySelectorAll('.estimation-row'));
-        
-        rows.forEach((tr, index) => {
-            if(tr.classList.contains('category-row')) {
-                if (cNum > 0) {
-                    bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
-                }
-                cNum++; iNum = 0; catTotal = 0;
-                currentCatName = tr.querySelector('.cat-title').value || "Category";
-                bodyData.push([{ content: cNum.toString(), styles: { halign: 'center', fontStyle: 'bold', fillColor: [226, 232, 240] } }, { content: currentCatName, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }]);
-            } else {
-                iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                const code = tr.querySelector('.item-code-select').value;
-                const desc = tr.querySelector('.item-desc').value;
-                const unit = tr.querySelector('.item-unit').value;
-                const q = parseFloat(tr.querySelector('.item-qty').value) || 0;
-                const p = parseFloat(tr.querySelector('.item-price').value) || 0;
-                const t = q * p;
-                catTotal += t;
+                // Header Section
+                doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
+                doc.text("ESTIMATION BOQ", 40, 50);
                 
-                bodyData.push([
-                    { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
-                    { content: unit, styles: { halign: 'center' } },
-                    { content: q.toString(), styles: { halign: 'center' } },
-                    { content: parseFloat(t).toFixed(2) + ' ' + curr, styles: { halign: 'right' } }
-                ]);
+                doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal');
+                doc.text(`Project: ${document.getElementById('estProjectName').value}`, 40, 70);
+                doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
+                doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
+                
+                // Render Logo cleanly without stretch
+                if (window.app.db.company.logo) {
+                    const img = new Image();
+                    img.src = window.app.db.company.logo;
+                    const ratio = (img.height || 1) / (img.width || 1);
+                    const targetWidth = 120;
+                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                } else {
+                    doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                    doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+                }
+
+                let bodyData = [];
+                let cNum = 0, iNum = 0, catTotal = 0;
+                let currentCatName = "";
+                const rows = Array.from(document.querySelectorAll('.estimation-row'));
+                
+                rows.forEach((tr, index) => {
+                    if(tr.classList.contains('category-row')) {
+                        if (cNum > 0) {
+                            bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                        }
+                        cNum++; iNum = 0; catTotal = 0;
+                        currentCatName = tr.querySelector('.cat-title').value || "Category";
+                        bodyData.push([{ content: cNum.toString(), styles: { halign: 'center', fontStyle: 'bold', fillColor: [226, 232, 240] } }, { content: currentCatName, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }]);
+                    } else {
+                        iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
+                        const code = tr.querySelector('.item-code-select').value;
+                        const desc = tr.querySelector('.item-desc').value;
+                        const unit = tr.querySelector('.item-unit').value;
+                        const q = parseFloat(tr.querySelector('.item-qty').value) || 0;
+                        const p = parseFloat(tr.querySelector('.item-price').value) || 0;
+                        const t = q * p;
+                        catTotal += t;
+                        
+                        bodyData.push([
+                            { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
+                            { content: unit, styles: { halign: 'center' } },
+                            { content: q.toString(), styles: { halign: 'center' } },
+                            { content: parseFloat(t).toFixed(2) + ' ' + curr, styles: { halign: 'right' } }
+                        ]);
+                    }
+                    if (index === rows.length - 1 && cNum > 0) {
+                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
+                    }
+                });
+
+                // Native Vector Grid Builder
+                doc.autoTable({
+                    startY: 120,
+                    head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Total Price']],
+                    body: bodyData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
+                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                    columnStyles: {
+                        0: { cellWidth: 30, halign: 'center' },
+                        1: { cellWidth: 60 },
+                        2: { cellWidth: 'auto' },
+                        3: { cellWidth: 40, halign: 'center' },
+                        4: { cellWidth: 40, halign: 'center' },
+                        5: { cellWidth: 80, halign: 'right' }
+                    }
+                });
+
+                let finalY = doc.lastAutoTable.finalY + 20;
+                if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+
+                const summaryX = pageWidth - 200;
+                doc.setFontSize(10); doc.setFont(undefined, 'normal');
+                doc.text("Subtotal:", summaryX, finalY);
+                doc.text(document.getElementById('summarySubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
+                
+                doc.setTextColor(185, 28, 28);
+                doc.text("VAT (15%):", summaryX, finalY + 15);
+                doc.text(document.getElementById('summaryVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
+                
+                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text("Grand Total:", summaryX, finalY + 35);
+                doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+
+                doc.save(`${window.app.db.company.abbr}_Estimation.pdf`);
+            } catch (err) {
+                console.error("PDF Generation Error:", err);
+                alert("There was an error generating the PDF.");
+            } finally {
+                window.exporter.setLoadingState(btn, false);
             }
-            if (index === rows.length - 1 && cNum > 0) {
-                bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: parseFloat(catTotal).toFixed(2) + ' ' + curr, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
-            }
-        });
-
-        // Native Vector Grid Builder
-        doc.autoTable({
-            startY: 120,
-            head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Total Price']],
-            body: bodyData,
-            theme: 'grid',
-            headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
-            styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-            columnStyles: {
-                0: { cellWidth: 30, halign: 'center' },
-                1: { cellWidth: 60 },
-                2: { cellWidth: 'auto' },
-                3: { cellWidth: 40, halign: 'center' },
-                4: { cellWidth: 40, halign: 'center' },
-                5: { cellWidth: 80, halign: 'right' }
-            }
-        });
-
-        let finalY = doc.lastAutoTable.finalY + 20;
-        if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
-
-        const summaryX = pageWidth - 200;
-        doc.setFontSize(10); doc.setFont(undefined, 'normal');
-        doc.text("Subtotal:", summaryX, finalY);
-        doc.text(document.getElementById('summarySubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
-        
-        doc.setTextColor(185, 28, 28);
-        doc.text("VAT (15%):", summaryX, finalY + 15);
-        doc.text(document.getElementById('summaryVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
-        
-        doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
-        doc.text("Grand Total:", summaryX, finalY + 35);
-        doc.text(document.getElementById('summaryGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
-
-        doc.save(`${window.app.db.company.abbr}_Estimation.pdf`);
+        }, 100);
     },
 
     generateProformaExcel: () => {
@@ -190,96 +219,113 @@ window.exporter = {
     },
 
     // --- TRUE VECTOR ENGINE FOR INVOICE PDF ---
-    exportInvoicePDF: () => {
-        const { jsPDF } = window.jspdf;
-        const orientEl = document.getElementById('invPdfOrientation');
-        const orientation = orientEl ? orientEl.value : 'portrait';
-        const doc = new jsPDF(orientation, 'pt', 'a4');
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
+    exportInvoicePDF: async () => {
+        const btn = event ? event.currentTarget : null;
+        window.exporter.setLoadingState(btn, true);
 
-        if (window.app.db.company.logo) {
-            const img = new Image();
-            img.src = window.app.db.company.logo;
-            const ratio = (img.height || 1) / (img.width || 1);
-            const targetWidth = 120;
-            doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
-        } else {
-            doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
-            doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
-        }
+        // Allow UI to update before processing blocks the thread
+        setTimeout(() => {
+            try {
+                const { jsPDF } = window.jspdf;
+                const orientEl = document.getElementById('invPdfOrientation');
+                const orientation = orientEl ? orientEl.value : 'portrait';
+                const doc = new jsPDF(orientation, 'pt', 'a4');
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
 
-        doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
-        doc.text("PROFORMA INVOICE", 40, 50);
-        
-        doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
-        doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
-        doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
-        doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100);
+                // Header Drawing
+                if (window.app.db.company.logo) {
+                    const img = new Image();
+                    img.src = window.app.db.company.logo;
+                    const ratio = (img.height || 1) / (img.width || 1);
+                    const targetWidth = 120;
+                    doc.addImage(window.app.db.company.logo, 'JPEG', pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio, '', 'FAST');
+                } else {
+                    doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                    doc.text(window.app.db.company.name, pageWidth - 40, 70, { align: 'right' });
+                }
 
-        doc.autoTable({
-            startY: 120,
-            theme: 'grid',
-            body: [
-                [{ content: 'TO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewTo').innerText, { content: 'INVOICE #', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewInvNo').innerText, styles: { fontStyle: 'bold', textColor: [30, 58, 138] } }],
-                [{ content: 'ATTN', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewAttn').innerText, { content: 'DATE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewDate').innerText],
-                [{ content: 'Client VAT', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewClientVat').innerText, { content: 'P.O. Ref', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewPoRef').innerText],
-                [{ content: 'SCOPE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
-            ],
-            styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-            columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
-        });
+                doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
+                doc.text("PROFORMA INVOICE", 40, 50);
+                
+                doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
+                doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
+                doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
+                doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100);
 
-        let bodyData = [];
-        const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
-        rows.forEach(tr => {
-            const cells = tr.querySelectorAll('td');
-            if (cells.length === 2) {
-                bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-            } else if (cells.length === 3) {
-                bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
-            } else if (cells.length === 7) {
-                bodyData.push([
-                    { content: cells[0].innerText, styles: { halign: 'center' } },
-                    cells[1].innerText, cells[2].innerText,
-                    { content: cells[3].innerText, styles: { halign: 'center' } },
-                    { content: cells[4].innerText, styles: { halign: 'center' } },
-                    { content: cells[5].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } },
-                    { content: cells[6].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } }
-                ]);
+                // Client Info Box AutoTable
+                doc.autoTable({
+                    startY: 120,
+                    theme: 'grid',
+                    body: [
+                        [{ content: 'TO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewTo').innerText, { content: 'INVOICE #', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewInvNo').innerText, styles: { fontStyle: 'bold', textColor: [30, 58, 138] } }],
+                        [{ content: 'ATTN', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewAttn').innerText, { content: 'DATE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewDate').innerText],
+                        [{ content: 'Client VAT', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewClientVat').innerText, { content: 'P.O. Ref', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewPoRef').innerText],
+                        [{ content: 'SCOPE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
+                    ],
+                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                    columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
+                });
+
+                // Extract Line Items
+                let bodyData = [];
+                const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
+                rows.forEach(tr => {
+                    const cells = tr.querySelectorAll('td');
+                    if (cells.length === 2) {
+                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                    } else if (cells.length === 3) {
+                        bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                    } else if (cells.length === 7) {
+                        bodyData.push([
+                            { content: cells[0].innerText, styles: { halign: 'center' } },
+                            cells[1].innerText, cells[2].innerText,
+                            { content: cells[3].innerText, styles: { halign: 'center' } },
+                            { content: cells[4].innerText, styles: { halign: 'center' } },
+                            { content: cells[5].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } },
+                            { content: cells[6].innerText.replace(/[^\d.-]/g, '') + ' ' + curr, styles: { halign: 'right' } }
+                        ]);
+                    }
+                });
+
+                // Invoice Grid
+                doc.autoTable({
+                    startY: doc.lastAutoTable.finalY + 10,
+                    head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
+                    body: bodyData,
+                    theme: 'grid',
+                    headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
+                    styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                    columnStyles: {
+                        0: { cellWidth: 30, halign: 'center' }, 1: { cellWidth: 60 }, 2: { cellWidth: 'auto' }, 
+                        3: { cellWidth: 40, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' }, 
+                        5: { cellWidth: 60, halign: 'right' }, 6: { cellWidth: 80, halign: 'right' }
+                    }
+                });
+
+                let finalY = doc.lastAutoTable.finalY + 20;
+                if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+
+                const summaryX = pageWidth - 200;
+                doc.setFontSize(10); doc.setFont(undefined, 'normal');
+                doc.text("Subtotal:", summaryX, finalY);
+                doc.text(document.getElementById('invSubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
+                
+                doc.setTextColor(185, 28, 28);
+                doc.text("VAT (15%):", summaryX, finalY + 15);
+                doc.text(document.getElementById('invVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
+                
+                doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
+                doc.text("Grand Total:", summaryX, finalY + 35);
+                doc.text(document.getElementById('invGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
+
+                doc.save(`${document.getElementById('invNumber').value}.pdf`);
+            } catch (err) {
+                console.error("PDF Generation Error:", err);
+                alert("There was an error generating the PDF.");
+            } finally {
+                window.exporter.setLoadingState(btn, false);
             }
-        });
-
-        doc.autoTable({
-            startY: doc.lastAutoTable.finalY + 10,
-            head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
-            body: bodyData,
-            theme: 'grid',
-            headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
-            styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
-            columnStyles: {
-                0: { cellWidth: 30, halign: 'center' }, 1: { cellWidth: 60 }, 2: { cellWidth: 'auto' }, 
-                3: { cellWidth: 40, halign: 'center' }, 4: { cellWidth: 30, halign: 'center' }, 
-                5: { cellWidth: 60, halign: 'right' }, 6: { cellWidth: 80, halign: 'right' }
-            }
-        });
-
-        let finalY = doc.lastAutoTable.finalY + 20;
-        if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
-
-        const summaryX = pageWidth - 200;
-        doc.setFontSize(10); doc.setFont(undefined, 'normal');
-        doc.text("Subtotal:", summaryX, finalY);
-        doc.text(document.getElementById('invSubtotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY, { align: 'right' });
-        
-        doc.setTextColor(185, 28, 28);
-        doc.text("VAT (15%):", summaryX, finalY + 15);
-        doc.text(document.getElementById('invVat').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 15, { align: 'right' });
-        
-        doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
-        doc.text("Grand Total:", summaryX, finalY + 35);
-        doc.text(document.getElementById('invGrandTotal').innerText.replace('﷼', 'SAR'), pageWidth - 40, finalY + 35, { align: 'right' });
-
-        doc.save(`${document.getElementById('invNumber').value}.pdf`);
+        }, 100);
     }
 };
