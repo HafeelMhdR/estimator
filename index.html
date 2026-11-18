@@ -6,7 +6,9 @@
     <title>Estimation & Invoicing System</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Upgraded to True Vector PDF Engines for perfect zoom quality -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
     <style>
         @media print { .no-print { display: none !important; } }
         .logo-preview { max-height: 60px; max-width: 150px; object-fit: contain; }
@@ -496,6 +498,12 @@
 
         function formatMoney(num) {
             return parseFloat(num || 0).toFixed(2) + ' ' + (db.company.currency || 'SAR');
+        }
+
+        // Dedicated PDF formatter to clean Unicode symbols preventing JS crashes
+        function formatPdfMoney(num) {
+            const curr = (db.company.currency || 'SAR').replace('﷼', 'SAR');
+            return parseFloat(num || 0).toFixed(2) + ' ' + curr;
         }
 
         const idb = {
@@ -1028,13 +1036,34 @@
             XLSX.utils.book_append_sheet(wb, ws, "Estimation"); XLSX.writeFile(wb, `${db.company.abbr}_Estimation.xlsx`);
         }
 
-        // UPGRADED PDF EXPORT: Safe Hidden Wrapper logic integrated
+        // UPGRADED PDF ENGINE: jsPDF-AutoTable (Native Vector Text - No Cropping, Perfect Zoom)
         function exportEstimationPDF() {
+            const { jsPDF } = window.jspdf;
             const orientEl = document.getElementById('estPdfOrientation');
             const orientation = orientEl ? orientEl.value : 'portrait';
-            const printWidth = orientation === 'portrait' ? '794px' : '1122px';
+            const doc = new jsPDF(orientation, 'pt', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
+
+            // Header Section
+            doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
+            doc.text("ESTIMATION BOQ", 40, 50);
             
-            let h = '';
+            doc.setFontSize(10); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'normal');
+            doc.text(`Project: ${document.getElementById('estProjectName').value}`, 40, 70);
+            doc.text(`Location: ${document.getElementById('estLocation').value}`, 40, 85);
+            doc.text(`Date: ${document.getElementById('estDate').value}`, 40, 100);
+            
+            if (db.company.logo) {
+                try {
+                    doc.addImage(db.company.logo, 'JPEG', pageWidth - 160, 40, 120, 50, '', 'FAST');
+                } catch(e) { console.error(e); }
+            } else {
+                doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                doc.text(db.company.name, pageWidth - 40, 70, { align: 'right' });
+            }
+
+            // Extract Data from Visual Table
+            let bodyData = [];
             let cNum = 0, iNum = 0, catTotal = 0;
             let currentCatName = "";
             const rows = Array.from(document.querySelectorAll('.estimation-row'));
@@ -1042,102 +1071,69 @@
             rows.forEach((tr, index) => {
                 if(tr.classList.contains('category-row')) {
                     if (cNum > 0) {
-                        h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">${currentCatName} Subtotal</td><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
+                        bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                     }
                     cNum++; iNum = 0; catTotal = 0;
                     currentCatName = tr.querySelector('.cat-title').value || "Category";
-                    h += `<tr style="background-color: #e2e8f0; font-weight: bold;"><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center;">${cNum}</td><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1;">${currentCatName}</td></tr>`;
+                    bodyData.push([{ content: cNum.toString(), styles: { halign: 'center', fontStyle: 'bold', fillColor: [226, 232, 240] } }, { content: currentCatName, colSpan: 5, styles: { fontStyle: 'bold', fillColor: [226, 232, 240] } }]);
                 } else {
                     iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
+                    const code = tr.querySelector('.item-code-select').value;
+                    const desc = tr.querySelector('.item-desc').value;
+                    const unit = tr.querySelector('.item-unit').value;
                     const q = parseFloat(tr.querySelector('.item-qty').value);
                     const p = parseFloat(tr.querySelector('.item-price').value);
                     const t = q * p;
                     catTotal += t;
                     
-                    h += `<tr>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 6%;">${dNum}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; width: 14%;">${tr.querySelector('.item-code-select').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; width: 42%;">${tr.querySelector('.item-desc').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">${tr.querySelector('.item-unit').value}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: center; width: 8%;">${q}</td>
-                        <td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap; width: 20%;">${formatMoney(t)}</td>
-                    </tr>`;
+                    bodyData.push([
+                        { content: dNum.toString(), styles: { halign: 'center' } }, code, desc,
+                        { content: unit, styles: { halign: 'center' } },
+                        { content: q.toString(), styles: { halign: 'center' } },
+                        { content: formatPdfMoney(t), styles: { halign: 'right' } }
+                    ]);
                 }
                 if (index === rows.length - 1 && cNum > 0) {
-                    h += `<tr style="background-color: #f8fafc; font-weight: bold;"><td colspan="5" style="padding: 6px; border: 1px solid #cbd5e1; text-align: right;">${currentCatName} Subtotal</td><td style="padding: 6px; border: 1px solid #cbd5e1; text-align: right; white-space: nowrap;">${formatMoney(catTotal)}</td></tr>`;
+                    bodyData.push([{ content: `${currentCatName} Subtotal`, colSpan: 5, styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: formatPdfMoney(catTotal), styles: { halign: 'right', fontStyle: 'bold', fillColor: [248, 250, 252] } }]);
                 }
             });
 
-            const logoStr = db.company.logo ? `<img src="${db.company.logo}" style="max-height: 80px; max-width: 200px; object-fit: contain;">` : `<div style="font-size: 24px; font-weight: 900; color: #047857;">${db.company.name}</div>`;
-            
-            const printHtml = `
-                <div style="padding: 30px 40px; background: white; color: black; font-family: sans-serif; width: ${printWidth}; box-sizing: border-box; margin: 0 auto;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid #e2e8f0; padding-bottom: 15px; margin-bottom: 20px;">
-                        <div style="width: 50%;">
-                            <h1 style="font-size: 22px; font-weight: bold; color: #1e3a8a; margin: 0 0 10px 0;">ESTIMATION BOQ</h1>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Project:</b> ${document.getElementById('estProjectName').value}</p>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Location:</b> ${document.getElementById('estLocation').value}</p>
-                            <p style="font-size: 12px; margin: 3px 0;"><b>Date:</b> ${document.getElementById('estDate').value}</p>
-                        </div>
-                        <div style="width: 50%; text-align: right; display: flex; justify-content: flex-end;">
-                            ${logoStr}
-                        </div>
-                    </div>
-                    <table style="width: 100%; font-size: 11px; border-collapse: collapse; text-align: left; table-layout: fixed;">
-                        <thead>
-                            <tr style="background-color: #1e3a8a; color: white;">
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 6%;">#</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 14%;">Code</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; width: 42%;">Description</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 10%;">Unit</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: center; width: 8%;">Qty</th>
-                                <th style="padding: 8px; border: 1px solid #cbd5e1; text-align: right; width: 20%;">Total Price</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${h}
-                        </tbody>
-                    </table>
-                    <div style="margin-top: 30px; display: flex; justify-content: flex-end; page-break-inside: avoid;">
-                        <div style="width: 300px; font-size: 13px;">
-                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0;">
-                                <span>Subtotal:</span> <strong>${document.getElementById('summarySubtotal').innerText}</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px solid #e2e8f0; color: #b91c1c;">
-                                <span>VAT (15%):</span> <strong>${document.getElementById('summaryVat').innerText}</strong>
-                            </div>
-                            <div style="display: flex; justify-content: space-between; padding: 10px 0; font-size: 16px; font-weight: bold; color: #1e3a8a;">
-                                <span>Grand Total:</span> <span>${document.getElementById('summaryGrandTotal').innerText}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-
-            const printWrapper = document.createElement('div');
-            printWrapper.style.position = 'absolute';
-            printWrapper.style.top = '0';
-            printWrapper.style.left = '0';
-            printWrapper.style.zIndex = '-1';
-            printWrapper.style.opacity = '0.01';
-            printWrapper.style.pointerEvents = 'none';
-            
-            printWrapper.innerHTML = printHtml;
-            document.body.appendChild(printWrapper);
-            
-            const worker = html2pdf().set({
-                margin:       [10, 0, 10, 0],
-                filename:     `${db.company.abbr}_Estimation.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-            }).from(printWrapper.firstElementChild);
-
-            worker.save().then(() => {
-                if(document.body.contains(printWrapper)) {
-                    document.body.removeChild(printWrapper);
+            // Render Table via AutoTable
+            doc.autoTable({
+                startY: 120,
+                head: [['#', 'Code', 'Description', 'Unit', 'Qty', 'Total Price']],
+                body: bodyData,
+                theme: 'grid',
+                headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                columnStyles: {
+                    0: { cellWidth: 30, halign: 'center' },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 'auto' }, // Auto resizes based on page orientation
+                    3: { cellWidth: 40, halign: 'center' },
+                    4: { cellWidth: 40, halign: 'center' },
+                    5: { cellWidth: 80, halign: 'right' }
                 }
             });
+
+            // Summary Totals Bottom Right
+            let finalY = doc.lastAutoTable.finalY + 20;
+            if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+
+            const summaryX = pageWidth - 200;
+            doc.setFontSize(10); doc.setFont(undefined, 'normal');
+            doc.text("Subtotal:", summaryX, finalY);
+            doc.text(formatPdfMoney(document.getElementById('summarySubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
+            
+            doc.setTextColor(185, 28, 28);
+            doc.text("VAT (15%):", summaryX, finalY + 15);
+            doc.text(formatPdfMoney(document.getElementById('summaryVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
+            
+            doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
+            doc.text("Grand Total:", summaryX, finalY + 35);
+            doc.text(formatPdfMoney(document.getElementById('summaryGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
+
+            doc.save(`${db.company.abbr}_Estimation.pdf`);
         }
 
         // Operations 
@@ -1244,39 +1240,102 @@
             document.getElementById('invGrandTotal').innerText = formatMoney(globalSubtotal * 1.15);
         }
 
-        // UPGRADED PDF EXPORT: Invoice fix with hidden element forcing
+        // UPGRADED PDF ENGINE: jsPDF-AutoTable (Vector based Invoice)
         function exportInvoicePDF() {
+            const { jsPDF } = window.jspdf;
             const orientEl = document.getElementById('invPdfOrientation');
             const orientation = orientEl ? orientEl.value : 'portrait';
-            const printWidth = orientation === 'portrait' ? '794px' : '1122px';
-            
-            const previewOriginal = document.getElementById('invoicePreviewArea');
-            const clone = previewOriginal.cloneNode(true);
-            
-            clone.style.width = printWidth;
-            clone.style.margin = '0 auto';
-            clone.style.position = 'absolute';
-            clone.style.top = '0';
-            clone.style.left = '0';
-            clone.style.zIndex = '-1';
-            clone.style.opacity = '0.01';
-            clone.style.pointerEvents = 'none';
-            
-            document.body.appendChild(clone);
+            const doc = new jsPDF(orientation, 'pt', 'a4');
+            const pageWidth = doc.internal.pageSize.getWidth();
 
-            const worker = html2pdf().set({
-                margin:       [10, 0, 10, 0],
-                filename:     `${document.getElementById('invNumber').value}.pdf`,
-                image:        { type: 'jpeg', quality: 0.98 },
-                html2canvas:  { scale: 2, useCORS: true, windowWidth: parseInt(printWidth) },
-                jsPDF:        { unit: 'mm', format: 'a4', orientation: orientation }
-            }).from(clone);
+            // Header Section
+            doc.setFontSize(16); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
+            doc.text("PROFORMA INVOICE", 40, 50);
             
-            worker.save().then(() => {
-                if(document.body.contains(clone)) {
-                    document.body.removeChild(clone);
+            doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
+            doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(db.company.cr || '-', 70, 70);
+            doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(db.company.vat || '-', 70, 85);
+            doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(db.company.address || '-', 90, 100);
+            
+            if (db.company.logo) {
+                try { doc.addImage(db.company.logo, 'JPEG', pageWidth - 160, 40, 120, 50, '', 'FAST'); } catch(e) {}
+            } else {
+                doc.setFontSize(16); doc.setTextColor(4, 120, 87); doc.setFont(undefined, 'bold');
+                doc.text(db.company.name, pageWidth - 40, 70, { align: 'right' });
+            }
+
+            // Top Details Box
+            doc.autoTable({
+                startY: 120,
+                theme: 'grid',
+                body: [
+                    [{ content: 'TO', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewTo').innerText, { content: 'INVOICE #', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewInvNo').innerText, styles: { fontStyle: 'bold', textColor: [30, 58, 138] } }],
+                    [{ content: 'ATTN', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewAttn').innerText, { content: 'DATE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewDate').innerText],
+                    [{ content: 'Client VAT', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewClientVat').innerText, { content: 'P.O. Ref', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, document.getElementById('previewPoRef').innerText],
+                    [{ content: 'SCOPE', styles: { fontStyle: 'bold', fillColor: [248, 250, 252] } }, { content: document.getElementById('previewScope').innerText, colSpan: 3 }]
+                ],
+                styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                columnStyles: { 0: { cellWidth: 70 }, 2: { cellWidth: 70 } }
+            });
+
+            // Extract Line Items
+            let bodyData = [];
+            const rows = Array.from(document.getElementById('invoiceItemsBody').querySelectorAll('tr'));
+            rows.forEach(tr => {
+                const cells = tr.querySelectorAll('td');
+                if (cells.length === 2) {
+                    bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 6, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                } else if (cells.length === 3) {
+                    bodyData.push([{ content: cells[0].innerText, styles: { halign: 'center', fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[1].innerText, colSpan: 4, styles: { fontStyle: 'bold', fillColor: [241, 245, 249] } }, { content: cells[2].innerText.replace('﷼', 'SAR'), colSpan: 2, styles: { halign: 'right', fontStyle: 'bold', fillColor: [241, 245, 249] } }]);
+                } else if (cells.length === 7) {
+                    bodyData.push([
+                        { content: cells[0].innerText, styles: { halign: 'center' } },
+                        cells[1].innerText, cells[2].innerText,
+                        { content: cells[3].innerText, styles: { halign: 'center' } },
+                        { content: cells[4].innerText, styles: { halign: 'center' } },
+                        { content: cells[5].innerText.replace('﷼', 'SAR'), styles: { halign: 'right' } },
+                        { content: cells[6].innerText.replace('﷼', 'SAR'), styles: { halign: 'right' } }
+                    ]);
                 }
             });
+
+            // Invoice Grid
+            doc.autoTable({
+                startY: doc.lastAutoTable.finalY + 10,
+                head: [['SL', 'Code', 'Description', 'Unit', 'Qty', 'Price', 'Total']],
+                body: bodyData,
+                theme: 'grid',
+                headStyles: { fillColor: [30, 58, 138], textColor: 255, halign: 'center' },
+                styles: { fontSize: 9, cellPadding: 4, font: 'helvetica' },
+                columnStyles: {
+                    0: { cellWidth: 30, halign: 'center' },
+                    1: { cellWidth: 60 },
+                    2: { cellWidth: 'auto' }, // Adapts automatically to Landscape vs Portrait
+                    3: { cellWidth: 40, halign: 'center' },
+                    4: { cellWidth: 30, halign: 'center' },
+                    5: { cellWidth: 60, halign: 'right' },
+                    6: { cellWidth: 80, halign: 'right' }
+                }
+            });
+
+            // Summary Totals
+            let finalY = doc.lastAutoTable.finalY + 20;
+            if (finalY > doc.internal.pageSize.getHeight() - 100) { doc.addPage(); finalY = 40; }
+
+            const summaryX = pageWidth - 200;
+            doc.setFontSize(10); doc.setFont(undefined, 'normal');
+            doc.text("Subtotal:", summaryX, finalY);
+            doc.text(formatPdfMoney(document.getElementById('invSubtotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY, { align: 'right' });
+            
+            doc.setTextColor(185, 28, 28);
+            doc.text("VAT (15%):", summaryX, finalY + 15);
+            doc.text(formatPdfMoney(document.getElementById('invVat').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 15, { align: 'right' });
+            
+            doc.setFontSize(12); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 138);
+            doc.text("Grand Total:", summaryX, finalY + 35);
+            doc.text(formatPdfMoney(document.getElementById('invGrandTotal').innerText.replace(/[^\d.-]/g, '')), pageWidth - 40, finalY + 35, { align: 'right' });
+
+            doc.save(`${document.getElementById('invNumber').value}.pdf`);
         }
 
         function generateProformaExcel() {
