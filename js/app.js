@@ -10,19 +10,17 @@ window.app = {
         return val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + (window.app.db.company.currency || 'SAR');
     },
 
-    // NEW: Timezone Engine
     getCurrentDateTime: () => {
         const tz = window.app.db.company.timezone;
         const now = new Date();
         
         if (!tz || tz === 'local') {
             return {
-                date: now.toLocaleDateString('en-CA'), // YYYY-MM-DD
+                date: now.toLocaleDateString('en-CA'),
                 time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
         }
         
-        // Calculate fixed UTC offset based on Dropdown
         const offsetHours = parseFloat(tz);
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const fixedDate = new Date(utc + (3600000 * offsetHours));
@@ -82,9 +80,10 @@ window.app = {
             if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
             window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
             
-            // Repair older corrupted estimations that were missing time/baseId
-            window.app.db.estimations.forEach(e => {
+            // CRITICAL REPAIR: Ensures missing fields in old estimations don't crash the system
+            window.app.db.estimations.forEach((e, idx) => {
                 if (!e.time) e.time = "12:00 AM";
+                if (!e.id) e.id = `EST-LEGACY-${idx}`;
                 if (!e.baseId) e.baseId = e.id;
                 if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
             });
@@ -119,6 +118,13 @@ window.app = {
                     if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
                     window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
                     
+                    window.app.db.estimations.forEach((e, idx) => {
+                        if (!e.time) e.time = "12:00 AM";
+                        if (!e.id) e.id = `EST-LEGACY-${idx}`;
+                        if (!e.baseId) e.baseId = e.id;
+                        if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
+                    });
+
                     localStorage.setItem('sys_db', JSON.stringify(window.app.db));
                     window.ui.applyCompanyDataToUI(); 
                     window.dataManager.renderCodesTable(); 
