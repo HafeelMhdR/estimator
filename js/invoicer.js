@@ -1,8 +1,12 @@
 // Invoicing Engine
 window.invoicer = {
     renderEstimationChecklist: () => {
-        const filterText = document.getElementById('estFilter').value.toLowerCase();
-        const container = document.getElementById('estimationChecklistContainer'); container.innerHTML = ''; let found = 0;
+        const filterEl = document.getElementById('estFilter');
+        const filterText = filterEl ? filterEl.value.toLowerCase() : '';
+        const container = document.getElementById('estimationChecklistContainer'); 
+        if (container) container.innerHTML = ''; 
+        let found = 0;
+        
         window.app.db.estimations.forEach((est, idx) => {
             if(`${est.clientName} ${est.projectName} ${est.date}`.toLowerCase().includes(filterText)) {
                 container.innerHTML += `<label class="flex items-center space-x-2 border px-3 py-1.5 rounded cursor-pointer shadow-sm bg-white"><input type="checkbox" value="${idx}" onchange="window.invoicer.renderInvoiceTable()" class="est-checkbox" checked><span class="font-bold text-sky-700">${est.clientName}</span><span class="text-slate-600">| ${est.projectName} (${est.date})</span></label>`;
