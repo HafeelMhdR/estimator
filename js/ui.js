@@ -81,16 +81,22 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
+                // Bounded width ensures the base64 string never hits the 5MB local storage crash limit
                 const MAX_WIDTH = 450; 
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/png');
+                // Compressed JPEG (0.8 quality) ensures massive size reduction without visual loss on headers
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 window.app.db.company.logo = dataUrl;
-                document.getElementById('logoPreviewModal').src = dataUrl;
-                document.getElementById('logoPreviewModal').classList.remove('hidden');
+                
+                const preview = document.getElementById('logoPreviewModal');
+                if(preview) {
+                    preview.src = dataUrl;
+                    preview.classList.remove('hidden');
+                }
             };
             img.src = e.target.result;
         };
@@ -161,25 +167,42 @@ window.ui = {
     },
 
     applyCompanyDataToUI: () => {
-        document.getElementById('headerCompanyName').innerText = window.app.db.company.name;
-        document.getElementById('dashCompanyName').innerText = window.app.db.company.name;
-        document.getElementById('headerLogoText').innerText = window.app.db.company.abbr;
-        document.getElementById('dashCompanyDetails').innerText = `CR: ${window.app.db.company.cr || '-'} | VAT: ${window.app.db.company.vat || '-'}`;
+        const comp = window.app.db.company || {};
         
-        document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = window.app.db.company.name);
-        document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = window.app.db.company.cr);
-        document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = window.app.db.company.vat);
-        document.querySelectorAll('.dyn-address').forEach(el => el.innerText = window.app.db.company.address);
-        document.querySelectorAll('.dyn-email').forEach(el => el.innerText = window.app.db.company.email);
+        const headerComp = document.getElementById('headerCompanyName');
+        if(headerComp) headerComp.innerText = comp.name || "Company Name";
+        
+        const dashComp = document.getElementById('dashCompanyName');
+        if(dashComp) dashComp.innerText = comp.name || "Company Name";
+        
+        const headerLogoText = document.getElementById('headerLogoText');
+        if(headerLogoText) headerLogoText.innerText = comp.abbr || "COMP";
+        
+        const dashDetails = document.getElementById('dashCompanyDetails');
+        if(dashDetails) dashDetails.innerText = `CR: ${comp.cr || '-'} | VAT: ${comp.vat || '-'}`;
+        
+        document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = comp.name || "COMPANY");
+        document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = comp.cr || "");
+        document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = comp.vat || "");
+        document.querySelectorAll('.dyn-address').forEach(el => el.innerText = comp.address || "");
+        document.querySelectorAll('.dyn-email').forEach(el => el.innerText = comp.email || "");
         
         const mainLogo = document.getElementById('headerLogo');
         const printLogo = document.getElementById('printLogo');
-        if(window.app.db.company.logo) {
-            mainLogo.src = window.app.db.company.logo; mainLogo.classList.remove('hidden');
-            document.getElementById('headerLogoText').classList.add('hidden');
-            if(printLogo) { printLogo.src = window.app.db.company.logo; printLogo.classList.remove('hidden'); }
+        
+        if(comp.logo) {
+            if(mainLogo) {
+                mainLogo.src = comp.logo; 
+                mainLogo.classList.remove('hidden');
+            }
+            if(headerLogoText) headerLogoText.classList.add('hidden');
+            if(printLogo) { 
+                printLogo.src = comp.logo; 
+                printLogo.classList.remove('hidden'); 
+            }
         } else {
-            mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
+            if(mainLogo) mainLogo.classList.add('hidden'); 
+            if(headerLogoText) headerLogoText.classList.remove('hidden');
             if(printLogo) printLogo.classList.add('hidden');
         }
     },
