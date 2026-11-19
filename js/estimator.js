@@ -9,6 +9,7 @@ window.estimator = {
 
     generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
+        
         const clientSelect = document.getElementById('estClientSelect');
         const clientName = clientSelect ? clientSelect.value : '';
         const client = window.app.db.clients.find(c => c.name === clientName);
@@ -27,42 +28,40 @@ window.estimator = {
         
         const basePrefix = `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
         
-        const editingIdEl = document.getElementById('currentEditingEstId');
-        const currentId = editingIdEl ? editingIdEl.value : '';
+        const modeEl = document.getElementById('currentEditingMode');
+        const mode = modeEl ? modeEl.value : 'new';
         
-        const revEl = document.getElementById('currentEditingEstRev');
-        let rev = revEl ? parseInt(revEl.value || 0) : 0;
+        const currentId = document.getElementById('currentEditingEstId').value;
+        let currentRev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
 
-        if (currentId && !currentId.startsWith('EST-')) {
+        if (mode === 'edit') {
             const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst && existingEst.baseId && String(existingEst.baseId).startsWith(basePrefix)) {
-                return { baseId: existingEst.baseId, fullId: existingEst.baseId + (rev > 0 ? `R${rev}` : ''), quoteOfDay: existingEst.quoteOfDay || 1 };
+            if (existingEst) {
+                const q = existingEst.quoteOfDay || 1;
+                const baseId = `${basePrefix}${q}`;
+                return { baseId, fullId: baseId + (currentRev > 0 ? `R${currentRev}` : ''), quoteOfDay: q, revision: currentRev };
+            }
+        }
+        
+        if (mode === 'revise') {
+            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
+            if (existingEst) {
+                const q = existingEst.quoteOfDay || 1;
+                const baseId = existingEst.baseId || `${basePrefix}${q}`;
+                const newRev = currentRev + 1;
+                return { baseId, fullId: baseId + `R${newRev}`, quoteOfDay: q, revision: newRev };
             }
         }
 
+        // New
         const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && String(e.baseId).startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
-            let q = e.quoteOfDay;
-            if (!q && e.baseId) {
-                const numStr = String(e.baseId).substring(basePrefix.length);
-                q = parseInt(numStr) || 0;
-            }
-            if (q > maxX) maxX = q;
+            if (e.quoteOfDay > maxX) maxX = e.quoteOfDay;
         });
-        
         const x = maxX + 1;
         const baseId = `${basePrefix}${x}`;
-        
-        if (currentId && !currentId.startsWith('EST-')) {
-            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst && existingEst.baseId && !String(existingEst.baseId).startsWith(basePrefix)) {
-                rev = 0;
-                if (revEl) revEl.value = 0;
-            }
-        }
-        
-        return { baseId, fullId: baseId + (rev > 0 ? `R${rev}` : ''), quoteOfDay: x };
+        return { baseId, fullId: baseId, quoteOfDay: x, revision: 0 };
     },
 
     updateEstIdPreview: () => {
@@ -89,17 +88,17 @@ window.estimator = {
     },
 
     validateForm: () => {
-        if (!document.getElementById('estClientSelect')?.value) return "Please select a Client.";
-        if (!document.getElementById('estProjectCodeSelect')?.value) return "Please select a Project Code.";
-        if (!document.getElementById('estDate')?.value) return "Please select a Date.";
-        if (!document.getElementById('estTitle')?.value.trim()) return "Please enter a Document Title.";
-        if (!document.getElementById('estLocation')?.value.trim()) return "Please enter a Project Location.";
-        if (document.getElementById('globalOverhead')?.value === '') return "Please enter Global Overhead %.";
-        if (document.getElementById('globalProfit')?.value === '') return "Please enter Global Profit %.";
-        if (document.getElementById('globalVat')?.value === '') return "Please enter VAT %.";
+        if (!document.getElementById('estClientSelect')?.value) return "Validation Error: Please select a Client.";
+        if (!document.getElementById('estProjectCodeSelect')?.value) return "Validation Error: Please select a Project Code.";
+        if (!document.getElementById('estDate')?.value) return "Validation Error: Please select a Date.";
+        if (!document.getElementById('estTitle')?.value.trim()) return "Validation Error: Please enter a Document Title.";
+        if (!document.getElementById('estLocation')?.value.trim()) return "Validation Error: Please enter a Project Location.";
+        if (document.getElementById('globalOverhead')?.value === '') return "Validation Error: Please enter Global Overhead %.";
+        if (document.getElementById('globalProfit')?.value === '') return "Validation Error: Please enter Global Profit %.";
+        if (document.getElementById('globalVat')?.value === '') return "Validation Error: Please enter VAT %.";
 
         const rows = document.querySelectorAll('.estimation-row');
-        if (rows.length === 0) return "Please add at least one category or item.";
+        if (rows.length === 0) return "Validation Error: Please add at least one category or item.";
 
         for (let i = 0; i < rows.length; i++) {
             const tr = rows[i];
@@ -172,12 +171,12 @@ window.estimator = {
     },
 
     createNewEstimation: () => {
-        if(!confirm("Are you sure you want to clear the current estimation and start a new one? Unsaved changes will be lost.")) return;
-        if(document.getElementById('currentEditingEstId')) document.getElementById('currentEditingEstId').value = ''; 
-        if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = '0';
-        if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = '';
-        if(document.getElementById('estLocation')) document.getElementById('estLocation').value = '';
-        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = '';
+        document.getElementById('currentEditingMode').value = 'new';
+        document.getElementById('currentEditingEstId').value = ''; 
+        document.getElementById('currentEditingEstRev').value = '0';
+        document.getElementById('estProjectName').value = '';
+        document.getElementById('estLocation').value = '';
+        document.getElementById('estTitle').value = 'ESTIMATION BOQ';
         
         const dt = window.app.getCurrentDateTime();
         if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
@@ -414,15 +413,16 @@ window.estimator = {
             });
         });
         
+        const mode = document.getElementById('currentEditingMode').value;
         const idData = window.estimator.generateIdData();
-        const currentIdEl = document.getElementById('currentEditingEstId');
-        const revEl = document.getElementById('currentEditingEstRev');
-        
-        const currentId = currentIdEl ? currentIdEl.value : '';
-        let rev = revEl ? parseInt(revEl.value || 0) : 0;
         let finalId = idData.fullId;
 
         const estimationData = { 
+            id: finalId,
+            baseId: idData.baseId,
+            quoteOfDay: idData.quoteOfDay,
+            revision: idData.revision,
+            time: window.app.getCurrentDateTime().time,
             projectName: document.getElementById('estProjectName')?.value.trim() || '', 
             location: document.getElementById('estLocation')?.value.trim() || '', 
             title: document.getElementById('estTitle')?.value.trim() || 'ESTIMATION BOQ', 
@@ -433,31 +433,24 @@ window.estimator = {
             terms
         };
 
-        if (currentId) {
-            if (confirm(`Save as a NEW REVISION (R${rev + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version`)) {
-                rev++;
-                finalId = idData.baseId + `R${rev}`;
-                if(currentIdEl) currentIdEl.value = finalId;
-                if(revEl) revEl.value = rev;
-                window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+        if (mode === 'edit') {
+            const currentId = document.getElementById('currentEditingEstId').value;
+            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
+            if(idx > -1) {
+                estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
+                window.app.db.estimations[idx] = estimationData;
             } else {
-                const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-                if(idx > -1) {
-                    const originalTime = window.app.db.estimations[idx].time || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                    window.app.db.estimations[idx] = { ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: originalTime };
-                    if(currentIdEl) currentIdEl.value = finalId;
-                }
+                window.app.db.estimations.push(estimationData);
             }
+        } else if (mode === 'revise') {
+            window.app.db.estimations.push(estimationData);
         } else {
-            if(currentIdEl) currentIdEl.value = finalId;
-            if(revEl) revEl.value = rev;
-            window.app.db.estimations.push({ ...estimationData, id: finalId, baseId: idData.baseId, quoteOfDay: idData.quoteOfDay, revision: rev, time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
+            window.app.db.estimations.push(estimationData);
         }
         
         window.app.saveData(); 
-        window.estimator.updateEstIdPreview(); 
         
-        // Redirect to History and Highlight
+        // Redirect to History Tab and Highlight the Saved Entry
         window.ui.switchTab('history');
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
