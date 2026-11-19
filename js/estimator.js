@@ -215,7 +215,7 @@ window.estimator = {
         document.getElementById('currentEditingEstRev').value = '0';
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
-        document.getElementById('estTitle').value = '';
+        document.getElementById('estTitle').value = 'ESTIMATION BOQ';
         
         const dt = window.app.getCurrentDateTime();
         if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
@@ -231,7 +231,10 @@ window.estimator = {
         if(tbody) tbody.innerHTML = '';
         window.estimator.addEstimationRow();
         window.estimator.updateEstIdPreview();
-        window.estimator.resetTerms();
+        
+        setTimeout(() => {
+            window.estimator.resetTerms();
+        }, 50);
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
