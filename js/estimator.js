@@ -7,6 +7,34 @@ window.estimator = {
         window.estimator.addTermRow('Delivery or Execution Period', '');
     },
 
+    onItemDescInput: (inputEl) => {
+        if(!inputEl) return;
+        if(inputEl.value.trim() === '') {
+            inputEl.dataset.userEdited = "false";
+        } else {
+            inputEl.dataset.userEdited = "true";
+        }
+    },
+
+    onItemCodeChange: (selectEl) => {
+        if(!selectEl) return;
+        const tr = selectEl.closest('tr');
+        if(!tr) return;
+        const descEl = tr.querySelector('.item-desc');
+        if(!descEl) return;
+
+        const isUserEdited = descEl.dataset.userEdited === "true";
+        const isCurrentBlank = descEl.value.trim() === "";
+
+        if (!isUserEdited || isCurrentBlank) {
+            const found = window.app.db.codes.find(c => c.code === selectEl.value);
+            if(found) {
+                descEl.value = found.desc;
+                descEl.dataset.userEdited = "false";
+            }
+        }
+    },
+
     generateIdData: () => {
         const comp = window.app.db.company.abbr || 'COMP';
         
@@ -178,7 +206,7 @@ window.estimator = {
     
     moveRowDown: (btn) => {
         const row = btn.closest('tr');
-        if (row.nextElementSibling) { row.parentNode.insertBefore(row.nextElementSibling, row); window.estimator.recalculateEstimation(); }
+        if (row.nextElementSibling) { row.parentNode.insertBefore(row, row.nextElementSibling); window.estimator.recalculateEstimation(); }
     },
 
     createNewEstimation: () => {
@@ -285,9 +313,9 @@ window.estimator = {
         tr.innerHTML = `
             <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
             <td class="p-1 border text-center font-bold item-num"></td>
-            <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
+            <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="window.estimator.onItemCodeChange(this)">${opt}</select></td>
             <td class="p-1 border">
-                <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description">
+                <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" data-user-edited="false" placeholder="Description" oninput="window.estimator.onItemDescInput(this)">
                 <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
             </td>
             <td class="p-1 border text-center">
@@ -305,7 +333,7 @@ window.estimator = {
                 </select>
             </td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="window.estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
@@ -427,7 +455,10 @@ window.estimator = {
                         const prEl = lastTr.querySelector('.item-pr');
                         
                         if(codeEl) codeEl.value = r[0] || '';
-                        if(descEl) descEl.value = r[1] || '';
+                        if(descEl) {
+                            descEl.value = r[1] || '';
+                            descEl.dataset.userEdited = r[1] ? "true" : "false";
+                        }
                         if(commentEl) commentEl.value = r[2] || '';
                         if(unitEl) unitEl.value = r[3] || 'ITEM';
                         if(qtyEl) qtyEl.value = r[4] !== undefined ? r[4] : 1;
