@@ -319,7 +319,7 @@ window.dataManager = {
                     <td class="p-1 border text-center font-bold item-num"></td>
                     <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="window.estimator.onItemCodeChange(this)">${opt}</select></td>
                     <td class="p-1 border">
-                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description" oninput="window.estimator.onItemDescInput(this)">
+                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" data-user-edited="false" placeholder="Description" oninput="window.estimator.onItemDescInput(this)">
                         <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
                     </td>
                     <td class="p-1 border text-center">
