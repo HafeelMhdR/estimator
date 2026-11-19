@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=19">
+    <link rel="stylesheet" href="css/styles.css?v=20">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -67,7 +67,6 @@
                     <button onclick="window.ui.openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">⚙️ Company Settings</button>
                 </div>
                 
-                <!-- NEW DASHBOARD METRICS -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
                         <p class="text-xs text-slate-500 font-semibold uppercase">Total Quotes Created</p>
@@ -328,10 +327,11 @@
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('id')">Estimation ID ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('date')">Date ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('time')">Time ↕</th>
-                                <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('status')">Status ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('projectName')">Project Name ↕</th>
-                                <th class="p-3 text-right">Actions & Exports</th>
+                                <th class="p-3 text-center whitespace-nowrap">Items</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('status')">Status ↕</th>
+                                <th class="p-3 text-right whitespace-nowrap">Actions & Exports</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100"></tbody>
@@ -630,201 +630,388 @@
     </html>
     ```
 
-### 2. `js/ui.js`
-*Updated to accurately calculate Dashboard Approvals.*
+### 2. `js/dataManager.js`
+*This fixes the table layout bug from the screenshot where the columns were slightly off, lines them up precisely with the headers, and sets up the "Items" tracking and non-wrapping style.*
 
 ```javascript
-window.ui = {
-    switchTab: (tabId) => {
-        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-        document.getElementById('tab-' + tabId).classList.remove('hidden');
-        document.querySelectorAll('.tab-btn').forEach(el => {
-            el.classList.remove('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
-            el.classList.add('text-slate-300');
+window.dataManager = {
+    exportToCSV: (filename, rows) => {
+        let csvContent = "data:text/csv;charset=utf-8,";
+        rows.forEach(rowArray => {
+            let row = rowArray.map(item => `"${(item || '').toString().replace(/"/g, '""')}"`).join(",");
+            csvContent += row + "\r\n";
         });
-        event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
-        event.currentTarget.classList.remove('text-slate-300');
-        
-        if(tabId === 'invoicing' && window.invoicer) { window.invoicer.renderEstimationChecklist(); window.invoicer.renderInvoiceTable(); }
-        if(tabId === 'history' && window.dataManager) { window.dataManager.renderHistoryTable(); } 
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", filename);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
     },
 
-    updateDashboardStats: () => {
-        if(document.getElementById('statTotal')) {
-            const ests = window.app.db.estimations || [];
-            const approved = ests.filter(e => e.status === 'Approved').length;
-            const pending = ests.length - approved;
-            
-            document.getElementById('statTotal').innerText = ests.length;
-            document.getElementById('statApproved').innerText = approved;
-            document.getElementById('statPending').innerText = pending;
-            
-            if(document.getElementById('statClientsCount')) {
-                document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
-                document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
-            }
-        }
-    },
-
-    openCompanyModal: () => {
-        document.getElementById('setCompName').value = window.app.db.company.name || '';
-        document.getElementById('setCompAbbr').value = window.app.db.company.abbr || '';
-        document.getElementById('setCompCurrency').value = window.app.db.company.currency || "SAR";
-        document.getElementById('setCompCR').value = window.app.db.company.cr || '';
-        document.getElementById('setCompVAT').value = window.app.db.company.vat || '';
-        
-        const tzEl = document.getElementById('setCompTimezone');
-        if (tzEl) {
-            const existingOption = Array.from(tzEl.options).find(o => o.value === window.app.db.company.timezone);
-            if (existingOption) {
-                tzEl.value = window.app.db.company.timezone;
-            } else {
-                tzEl.value = "local";
-            }
-        }
-
-        document.getElementById('setCompEmail').value = window.app.db.company.email || '';
-        document.getElementById('setCompAdd').value = window.app.db.company.address || '';
-        
-        const preview = document.getElementById('logoPreviewModal');
-        if(window.app.db.company.logo) { 
-            preview.src = window.app.db.company.logo; 
-            preview.classList.remove('hidden'); 
-        } else {
-            preview.classList.add('hidden');
-        }
-        document.getElementById('companyModal').classList.remove('hidden');
-    },
-
-    convertLogoToBase64: (event) => {
+    importCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
         const reader = new FileReader();
         reader.onload = function(e) {
-            const img = new Image();
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1500; 
-                let width = img.width, height = img.height;
-                if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
-                canvas.width = width; canvas.height = height;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, width, height);
-                const dataUrl = canvas.toDataURL('image/png');
-                window.app.db.company.logo = dataUrl;
-                document.getElementById('logoPreviewModal').src = dataUrl;
-                document.getElementById('logoPreviewModal').classList.remove('hidden');
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    },
-
-    exportCompanyProfile: () => {
-        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.app.db.company));
-        const dlAnchorElem = document.createElement('a');
-        dlAnchorElem.setAttribute("href", dataStr);
-        dlAnchorElem.setAttribute("download", `${window.app.db.company.abbr || 'Company'}_Profile.json`);
-        document.body.appendChild(dlAnchorElem);
-        dlAnchorElem.click();
-        document.body.removeChild(dlAnchorElem);
-    },
-
-    importCompanyProfile: (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            try {
-                const importedData = JSON.parse(e.target.result);
-                if (importedData && importedData.name) {
-                    window.app.db.company = importedData;
-                    window.ui.openCompanyModal(); 
-                    alert("Company profile loaded successfully! Click 'Save Profile' to lock it in.");
-                } else {
-                    alert("Invalid profile file format.");
+            const lines = e.target.result.split('\n');
+            let count = 0;
+            lines.forEach(line => {
+                const cols = line.split(',');
+                if(cols.length >= 2) {
+                    const code = cols[0].replace(/['"\r]/g,'').trim().toUpperCase();
+                    const desc = cols.slice(1).join(',').replace(/['"\r]/g,'').trim();
+                    if(code && desc && !window.app.db.codes.find(c => c.code === code)) { window.app.db.codes.push({code, desc}); count++; }
                 }
-            } catch (err) {
-                alert("Error reading profile file.");
-            }
+            });
+            window.app.saveData(); window.dataManager.renderCodesTable(); 
+            alert(`Imported ${count} new codes successfully.`);
         };
         reader.readAsText(file);
         event.target.value = '';
     },
-
-    saveCompanySettings: () => {
-        try {
-            window.app.db.company.name = document.getElementById('setCompName').value || "Company";
-            window.app.db.company.abbr = document.getElementById('setCompAbbr').value || "COMP";
-            window.app.db.company.currency = document.getElementById('setCompCurrency').value || "SAR";
-            window.app.db.company.cr = document.getElementById('setCompCR').value;
-            window.app.db.company.vat = document.getElementById('setCompVAT').value;
-            window.app.db.company.timezone = document.getElementById('setCompTimezone').value || "local";
-            window.app.db.company.email = document.getElementById('setCompEmail').value;
-            window.app.db.company.address = document.getElementById('setCompAdd').value;
-            
-            window.app.saveData(); 
-            window.ui.applyCompanyDataToUI(); 
-            
-            if(window.estimator && window.estimator.recalculateEstimation) {
-                window.estimator.recalculateEstimation();
-                window.estimator.updateEstIdPreview();
-            }
-            
-            const invTab = document.getElementById('tab-invoicing');
-            if(invTab && !invTab.classList.contains('hidden') && window.invoicer) {
-                window.invoicer.renderInvoiceTable();
-            }
-        } catch(error) {
-            console.warn("Minor background error during save, but company data was recorded.", error);
-        } finally {
-            document.getElementById('companyModal').classList.add('hidden');
-        }
+    exportCodesCSV: () => {
+        const rows = [["Item Code", "Description"]];
+        window.app.db.codes.forEach(c => rows.push([c.code, c.desc]));
+        window.dataManager.exportToCSV("ItemCodes.csv", rows);
     },
-
-    applyCompanyDataToUI: () => {
-        document.getElementById('headerCompanyName').innerText = window.app.db.company.name;
-        document.getElementById('dashCompanyName').innerText = window.app.db.company.name;
-        document.getElementById('headerLogoText').innerText = window.app.db.company.abbr;
-        document.getElementById('dashCompanyDetails').innerText = `CR: ${window.app.db.company.cr \vert{}\vert{} '-'} \vert{} VAT:${window.app.db.company.vat || '-'}`;
+    renderCodesTable: () => {
+        const tbody = document.getElementById('codesTableBody'); tbody.innerHTML = '';
+        window.app.db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-sky-800 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.codes.splice(${idx},1);window.app.saveData();window.dataManager.renderCodesTable()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
+    },
+    saveCodeItem: () => { 
+        const code = document.getElementById('modalCode').value.toUpperCase();
+        if (!code) return alert("Code cannot be empty.");
+        if (window.app.db.codes.find(c => c.code === code)) return alert("This Item Code already exists!");
         
-        document.querySelectorAll('.dyn-company-name').forEach(el => el.innerText = window.app.db.company.name);
-        document.querySelectorAll('.dyn-cr').forEach(el => el.innerText = window.app.db.company.cr);
-        document.querySelectorAll('.dyn-vat').forEach(el => el.innerText = window.app.db.company.vat);
-        document.querySelectorAll('.dyn-address').forEach(el => el.innerText = window.app.db.company.address);
-        document.querySelectorAll('.dyn-email').forEach(el => el.innerText = window.app.db.company.email);
-        
-        const mainLogo = document.getElementById('headerLogo');
-        const printLogo = document.getElementById('printLogo');
-        if(window.app.db.company.logo) {
-            mainLogo.src = window.app.db.company.logo; mainLogo.classList.remove('hidden');
-            document.getElementById('headerLogoText').classList.add('hidden');
-            if(printLogo) { printLogo.src = window.app.db.company.logo; printLogo.classList.remove('hidden'); }
-        } else {
-            mainLogo.classList.add('hidden'); document.getElementById('headerLogoText').classList.remove('hidden');
-            if(printLogo) printLogo.classList.add('hidden');
-        }
+        window.app.db.codes.push({code, desc: document.getElementById('modalDesc').value}); 
+        window.app.saveData(); window.dataManager.renderCodesTable(); 
+        document.getElementById('codeModal').classList.add('hidden'); 
     },
 
-    openAddCodeModal: () => {
-        document.getElementById('modalCode').value = ''; 
-        document.getElementById('modalDesc').value = ''; 
-        document.getElementById('codeModal').classList.remove('hidden');
+    importProjectCodesCSV: (event) => {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const lines = e.target.result.split('\n');
+            let count = 0;
+            lines.forEach(line => {
+                const cols = line.split(',');
+                if(cols.length >= 2) {
+                    const code = cols[0].replace(/['"\r]/g,'').trim().toUpperCase();
+                    const desc = cols.slice(1).join(',').replace(/['"\r]/g,'').trim();
+                    if(code && desc && !window.app.db.projectCodes.find(c => c.code === code)) { window.app.db.projectCodes.push({code, desc}); count++; }
+                }
+            });
+            window.app.saveData(); window.dataManager.renderProjectCodesTable(); window.dataManager.populateClientDropdowns();
+            alert(`Imported ${count} new project codes.`);
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    },
+    exportProjectCodesCSV: () => {
+        const rows = [["Project Code", "Description"]];
+        window.app.db.projectCodes.forEach(c => rows.push([c.code, c.desc]));
+        window.dataManager.exportToCSV("ProjectCodes.csv", rows);
+    },
+    renderProjectCodesTable: () => {
+        const tbody = document.getElementById('projectCodesTableBody'); tbody.innerHTML = '';
+        window.app.db.projectCodes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-emerald-700 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.projectCodes.splice(${idx},1);window.app.saveData();window.dataManager.renderProjectCodesTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
+    },
+    saveProjectCodeItem: () => { 
+        const code = document.getElementById('modalProjCode').value.toUpperCase();
+        if (!code) return alert("Code cannot be empty.");
+        if (window.app.db.projectCodes.find(c => c.code === code)) return alert("This Project Code already exists!");
+
+        window.app.db.projectCodes.push({code, desc: document.getElementById('modalProjDesc').value}); 
+        window.app.saveData(); window.dataManager.renderProjectCodesTable(); window.dataManager.populateClientDropdowns();
+        document.getElementById('projectCodeModal').classList.add('hidden'); 
     },
 
-    openAddProjectCodeModal: () => {
-        document.getElementById('modalProjCode').value = ''; 
-        document.getElementById('modalProjDesc').value = ''; 
-        document.getElementById('projectCodeModal').classList.remove('hidden');
+    renderClientTable: () => {
+        const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
+        window.app.db.clients.forEach((c, idx) => {
+            tbody.innerHTML += `
+            <tr class="border-b">
+                <td class="p-3 font-bold text-sky-800">${c.abbr || '-'}</td>
+                <td class="p-3">${c.name}</td>
+                <td class="p-3">${c.attn}</td>
+                <td class="p-3 text-xs">${c.add}</td>
+                <td class="p-3 text-xs">${c.vat}</td>
+                <td class="p-3 text-right space-x-2">
+                    <button onclick="window.dataManager.openEditClientModal(${idx})" class="text-sky-600 text-xs font-bold">Edit</button>
+                    <button onclick="window.app.db.clients.splice(${idx},1);window.app.saveData();window.dataManager.renderClientTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button>
+                </td>
+            </tr>`;
+        });
     },
-
-    openClientModal: () => {
-        document.getElementById('mClientIndex').value = '';
-        document.getElementById('mClientAbbr').value = '';
-        document.getElementById('mClientName').value = ''; 
-        document.getElementById('mClientAttn').value = ''; 
-        document.getElementById('mClientAdd').value = ''; 
-        document.getElementById('mClientVat').value = ''; 
+    openEditClientModal: (idx) => {
+        const c = window.app.db.clients[idx];
+        document.getElementById('mClientIndex').value = idx;
+        document.getElementById('mClientAbbr').value = c.abbr || '';
+        document.getElementById('mClientName').value = c.name || '';
+        document.getElementById('mClientAttn').value = c.attn || '';
+        document.getElementById('mClientAdd').value = c.add || '';
+        document.getElementById('mClientVat').value = c.vat || '';
         document.getElementById('clientModal').classList.remove('hidden');
+    },
+    saveClientItem: () => { 
+        const abbr = document.getElementById('mClientAbbr').value.toUpperCase();
+        const idx = document.getElementById('mClientIndex').value;
+
+        if (!abbr) return alert("Client abbreviation cannot be empty.");
+        
+        const isDupe = window.app.db.clients.find((c, i) => c.abbr === abbr && i.toString() !== idx);
+        if(isDupe) return alert("This Client Abbreviation already exists!");
+
+        const clientData = {
+            abbr,
+            name: document.getElementById('mClientName').value, 
+            attn: document.getElementById('mClientAttn').value, 
+            add: document.getElementById('mClientAdd').value, 
+            vat: document.getElementById('mClientVat').value
+        };
+
+        if (idx !== "") {
+            window.app.db.clients[parseInt(idx)] = clientData;
+        } else {
+            window.app.db.clients.push(clientData);
+        }
+        
+        window.app.saveData(); window.dataManager.renderClientTable(); window.dataManager.populateClientDropdowns(); 
+        document.getElementById('clientModal').classList.add('hidden'); 
+    },
+    
+    populateClientDropdowns: () => {
+        const est = document.getElementById('estClientSelect');
+        const inv = document.getElementById('invClientSelect');
+        const proj = document.getElementById('estProjectCodeSelect');
+
+        if(est) est.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        if(inv) inv.innerHTML = '<option value="" disabled selected>Select Client...</option>'; 
+        if(proj) proj.innerHTML = '<option value="" disabled selected>Select Project...</option>';
+
+        window.app.db.clients.forEach(c => { 
+            if(est) est.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+            if(inv) inv.innerHTML += `<option value="${c.name}">${c.name}</option>`; 
+        });
+        window.app.db.projectCodes.forEach(p => { 
+            if(proj) proj.innerHTML += `<option value="${p.code}">${p.code} - ${p.desc}</option>`; 
+        });
+
+        if(typeof window.invoicer !== 'undefined' && window.invoicer.populateInvoiceClient) window.invoicer.populateInvoiceClient();
+        if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
+    },
+
+    currentSortColumn: '',
+    currentSortDir: 'asc',
+    
+    sortHistory: (column) => {
+        if (window.dataManager.currentSortColumn === column) {
+            window.dataManager.currentSortDir = window.dataManager.currentSortDir === 'asc' ? 'desc' : 'asc';
+        } else {
+            window.dataManager.currentSortColumn = column;
+            window.dataManager.currentSortDir = 'asc';
+        }
+        window.dataManager.renderHistoryTable();
+    },
+    
+    toggleApproval: (idx) => {
+        const est = window.app.db.estimations[idx];
+        est.status = est.status === 'Approved' ? 'Pending' : 'Approved';
+        window.app.saveData();
+        window.dataManager.renderHistoryTable();
+        window.ui.updateDashboardStats();
+    },
+
+    renderHistoryTable: (highlightId = null) => {
+        const searchEl = document.getElementById('historySearch');
+        const filterText = (searchEl ? searchEl.value : '').toLowerCase();
+        const tbody = document.getElementById('historyTableBody'); 
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
+        let sortedEstimations = [...window.app.db.estimations];
+        if (window.dataManager.currentSortColumn) {
+            sortedEstimations.sort((a, b) => {
+                let valA = a[window.dataManager.currentSortColumn] || '';
+                let valB = b[window.dataManager.currentSortColumn] || '';
+                if (valA < valB) return window.dataManager.currentSortDir === 'asc' ? -1 : 1;
+                if (valA > valB) return window.dataManager.currentSortDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+        }
+        
+        sortedEstimations.forEach((est) => {
+            const originalIndex = window.app.db.estimations.indexOf(est);
+            const searchStr = `${est.id || ''} ${est.clientName || ''} ${est.projectName || ''} ${est.date || ''}`.toLowerCase();
+
+            if(searchStr.includes(filterText)) {
+                const itemCount = (est.items || []).filter(i => i.type === 'item').length;
+                
+                let rowClass = 'hover:bg-slate-50 transition border-b';
+                if (highlightId && est.id === highlightId) rowClass = 'bg-emerald-100 transition border-b';
+
+                const status = est.status || 'Pending';
+                const statusBadge = status === 'Approved' 
+                    ? `<span onclick="window.dataManager.toggleApproval(${originalIndex})" class="cursor-pointer bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded shadow-sm text-[10px] uppercase tracking-wide">Approved</span>`
+                    : `<span onclick="window.dataManager.toggleApproval(${originalIndex})" class="cursor-pointer bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded shadow-sm text-[10px] uppercase tracking-wide">Pending</span>`;
+
+                // Exactly 8 columns matching the headers perfectly
+                tbody.innerHTML += `
+                    <tr class="${rowClass}">
+                        <td class="p-3 font-mono font-bold text-blue-900 whitespace-nowrap">${est.id || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.date || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.time || '-'}</td>
+                        <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
+                        <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
+                        <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
+                        <td class="p-3 text-center font-bold whitespace-nowrap">${itemCount}</td>
+                        <td class="p-3 text-right space-x-2 whitespace-nowrap">
+                            <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
+                            <button onclick="window.exporter.exportEstimationExcel(${originalIndex}, event)" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">Excel</button>
+                            <div class="inline-block border-l border-slate-300 mx-1 h-4 align-middle"></div>
+                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex}, 'edit')" class="text-blue-600 hover:text-blue-800 font-bold text-xs ml-1">Edit</button>
+                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex}, 'revise')" class="text-amber-600 hover:text-amber-800 font-bold text-xs ml-1">Revise</button>
+                            <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-slate-500 hover:text-red-700 font-bold text-xs ml-2">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            }
+        });
+        if(tbody.innerHTML === '') {
+            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
+        }
+    },
+    
+    deleteEstimation: (idx) => {
+        if(confirm(`Are you sure you want to permanently delete this estimation (${window.app.db.estimations[idx].id})? This will remove it from all future invoicing screens.`)) {
+            window.app.db.estimations.splice(idx, 1);
+            window.app.saveData();
+            window.dataManager.renderHistoryTable();
+            window.ui.updateDashboardStats();
+            if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist();
+        }
+    },
+    
+    loadEstimationIntoBuilder: (idx, mode) => {
+        const est = window.app.db.estimations[idx];
+        const baseId = est.baseId;
+        
+        const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+        const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+        
+        if (mode === 'edit' && est.revision < maxRev) {
+            alert(`SECURITY LOCK:\nYou cannot directly edit an older version (${est.id}) because a newer revision (R${maxRev}) already exists.\n\nOpening this file as a New Revision (R${maxRev + 1}) to protect document history.`);
+            mode = 'revise';
+        } else if (mode === 'revise') {
+            if(!confirm(`You are creating a new revision based on ${est.id}.\nThe new saved document will be assigned R${maxRev + 1}.\n\nProceed?`)) return;
+        } else {
+            if(!confirm(`Loading ${est.id} for direct editing. (This will overwrite any unsaved work in the Builder).\n\nProceed?`)) return;
+        }
+        
+        document.getElementById('currentEditingMode').value = mode;
+        
+        if(document.getElementById('currentEditingEstId')) document.getElementById('currentEditingEstId').value = est.id || '';
+        if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = est.revision || 0;
+        if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = est.projectName || '';
+        if(document.getElementById('estLocation')) document.getElementById('estLocation').value = est.location || '';
+        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || '';
+        if(document.getElementById('estDate')) document.getElementById('estDate').value = est.date || '';
+        if(document.getElementById('estClientSelect')) document.getElementById('estClientSelect').value = est.clientName || '';
+        if(document.getElementById('estProjectCodeSelect')) document.getElementById('estProjectCodeSelect').value = est.projectAbbr || '';
+        
+        const tbody = document.getElementById('estimationRowsBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
+        
+        let opt = '<option value="" disabled selected>Select...</option>'; 
+        window.app.db.codes.forEach(c => opt += `<option value="${c.code}">${c.code} - ${c.desc}</option>`);
+        
+        (est.items || []).forEach(item => {
+            if (item.type === 'category') {
+                window.estimator.addEstimationCategory(item.title);
+            } else {
+                const tr = document.createElement('tr'); 
+                tr.className = 'estimation-row item-row border-b text-xs';
+                tr.innerHTML = `
+                    <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
+                    <td class="p-1 border text-center font-bold item-num"></td>
+                    <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
+                    <td class="p-1 border">
+                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description">
+                        <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
+                    </td>
+                    <td class="p-1 border text-center">
+                        <select class="w-full border rounded p-1 text-center item-unit">
+                            <option value="" disabled selected>...</option>
+                            <option value="ITEM">ITEM</option>
+                            <option value="HRS">HRS</option>
+                            <option value="NO">NO</option>
+                            <option value="SQM">SQM</option>
+                            <option value="Cu.M">Cu.M</option>
+                            <option value="LM">LM</option>
+                            <option value="LS">LS</option>
+                            <option value="SET">SET</option>
+                            <option value="DAYS">DAYS</option>
+                        </select>
+                    </td>
+                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" oninput="window.estimator.recalculateEstimation()"></td>
+                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
+                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" oninput="window.estimator.recalculateEstimation()"></td>
+                    <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" oninput="window.estimator.recalculateEstimation()"></td>
+                    <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
+                    <td class="p-1 border bg-amber-50 text-right font-bold item-total font-mono">0.00</td>
+                    <td class="p-1 border bg-emerald-50 text-right font-bold text-emerald-700 item-profit font-mono">0.00</td>
+                    <td class="p-1 border text-center flex justify-center space-x-1">
+                        <button onclick="window.estimator.moveRowUp(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↑</button>
+                        <button onclick="window.estimator.moveRowDown(this)" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-1.5 rounded">↓</button>
+                        <button onclick="this.closest('tr').remove();window.estimator.recalculateEstimation()" class="bg-red-100 hover:bg-red-200 text-red-700 px-1.5 rounded">✕</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+                
+                const codeEl = tr.querySelector('.item-code-select'); if(codeEl) codeEl.value = item.code || '';
+                const descEl = tr.querySelector('.item-desc'); if(descEl) descEl.value = item.desc || '';
+                const commentEl = tr.querySelector('.item-comment'); if(commentEl) commentEl.value = item.comment || '';
+                const unitEl = tr.querySelector('.item-unit'); if(unitEl) unitEl.value = item.unit || '';
+                const qtyEl = tr.querySelector('.item-qty'); if(qtyEl) qtyEl.value = item.qty || '';
+                const costEl = tr.querySelector('.item-cost'); if(costEl) costEl.value = item.cost === 0 ? 0 : (item.cost || '');
+                const ohEl = tr.querySelector('.item-oh'); if(ohEl) ohEl.value = item.oh || 0;
+                const prEl = tr.querySelector('.item-pr'); if(prEl) prEl.value = item.pr || 0;
+            }
+        });
+        
+        if(document.getElementById('termsContainer')) {
+            document.getElementById('termsContainer').innerHTML = '';
+            if (est.terms && est.terms.length > 0) {
+                est.terms.forEach(t => window.estimator.addTermRow(t.title, t.value));
+            } else {
+                window.estimator.resetTerms();
+            }
+        }
+
+        window.estimator.recalculateEstimation();
+        window.estimator.updateEstIdPreview();
+        window.ui.switchTab('estimation');
+    },
+
+    importEstimationForBudget: (event) => {
+        const file = event.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+            let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
+            rows.forEach(r => {
+                if(r[1] && r[10]) { 
+                    const costTotal = r[10] || 0; 
+                    html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${window.app.formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=window.app.formatMoney(rem);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${window.app.formatMoney(costTotal)}</td></tr>`;
+                }
+            });
+            document.getElementById('operationsContent').innerHTML = html + `</table></div>`;
+        }; reader.readAsArrayBuffer(file);
     }
 };
