@@ -7,7 +7,6 @@ window.estimator = {
         window.estimator.addTermRow('Delivery or Execution Period', '');
     },
 
-    // Strict Mode-Based ID Generator
     generateIdData: () => {
         const mode = document.getElementById('currentEditingMode')?.value || 'new';
         const currentId = document.getElementById('currentEditingEstId')?.value;
@@ -425,7 +424,8 @@ window.estimator = {
         };
 
         if (mode === 'edit') {
-            const idx = window.app.db.estimations.findIndex(e => e.id === finalId);
+            const currentId = document.getElementById('currentEditingEstId').value;
+            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
             if(idx > -1) {
                 estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
                 estimationData.status = window.app.db.estimations[idx].status || 'Pending';
@@ -435,7 +435,7 @@ window.estimator = {
                 window.app.db.estimations.push(estimationData);
             }
         } else {
-            // New & Revise
+            // New & Revise both push to the end of the array
             estimationData.status = 'Pending';
             window.app.db.estimations.push(estimationData);
         }
