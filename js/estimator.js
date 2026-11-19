@@ -7,19 +7,35 @@ window.estimator = {
         window.estimator.addTermRow('Delivery or Execution Period', '');
     },
 
+    // Strict Mode-Based ID Generator
     generateIdData: () => {
+        const mode = document.getElementById('currentEditingMode')?.value || 'new';
+        const currentId = document.getElementById('currentEditingEstId')?.value;
+
+        // 1. Direct Edit (Preserve Exact Identity)
+        if (mode === 'edit' && currentId) {
+            const existing = window.app.db.estimations.find(e => e.id === currentId);
+            if(existing) return { baseId: existing.baseId, fullId: currentId, quoteOfDay: existing.quoteOfDay, revision: existing.revision };
+        }
+
+        // 2. Revise (Find the absolute maximum revision for this tree and bump it by 1)
+        if (mode === 'revise' && currentId) {
+            const existing = window.app.db.estimations.find(e => e.id === currentId);
+            if(existing) {
+                const baseId = existing.baseId || currentId.split('R')[0];
+                const related = window.app.db.estimations.filter(e => e.baseId === baseId);
+                const maxRev = Math.max(0, ...related.map(e => e.revision || 0));
+                return { baseId: baseId, fullId: `${baseId}R${maxRev + 1}`, quoteOfDay: existing.quoteOfDay, revision: maxRev + 1 };
+            }
+        }
+
+        // 3. New Mode (Calculate a brand new Base ID for the selected date)
         const comp = window.app.db.company.abbr || 'COMP';
-        
         const clientSelect = document.getElementById('estClientSelect');
-        const clientName = clientSelect ? clientSelect.value : '';
-        const client = window.app.db.clients.find(c => c.name === clientName);
-        const cliAbbr = client && client.abbr ? client.abbr : 'CLI';
+        const cliAbbr = window.app.db.clients.find(c => c.name === clientSelect?.value)?.abbr || 'CLI';
+        const projAbbr = document.getElementById('estProjectCodeSelect')?.value || 'PRJ';
         
-        const projSelect = document.getElementById('estProjectCodeSelect');
-        const projAbbr = projSelect && projSelect.value ? projSelect.value : 'PRJ';
-        
-        const dateInput = document.getElementById('estDate');
-        const rawDate = dateInput ? dateInput.value : '';
+        const rawDate = document.getElementById('estDate')?.value || '';
         let dateStr = "00000000";
         if (rawDate) {
             const parts = rawDate.split('-'); 
@@ -27,51 +43,15 @@ window.estimator = {
         }
         
         const basePrefix = `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
-        
-        const modeEl = document.getElementById('currentEditingMode');
-        const mode = modeEl ? modeEl.value : 'new';
-        
-        const currentId = document.getElementById('currentEditingEstId').value;
-        let currentRev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
-
-        if (mode === 'edit') {
-            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst) {
-                const q = existingEst.quoteOfDay || 1;
-                const baseId = `${basePrefix}${q}`;
-                
-                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
-                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
-                
-                if (currentRev < maxRev) {
-                    return { baseId, fullId: baseId + `R${maxRev + 1}`, quoteOfDay: q, revision: maxRev + 1 };
-                }
-                
-                return { baseId, fullId: baseId + (currentRev > 0 ? `R${currentRev}` : ''), quoteOfDay: q, revision: currentRev };
-            }
-        }
-        
-        if (mode === 'revise') {
-            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
-            if (existingEst) {
-                const q = existingEst.quoteOfDay || 1;
-                const baseId = existingEst.baseId || `${basePrefix}${q}`;
-                
-                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
-                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
-                
-                const newRev = maxRev + 1;
-                return { baseId, fullId: baseId + `R${newRev}`, quoteOfDay: q, revision: newRev };
-            }
-        }
-
         const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && String(e.baseId).startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
             if (e.quoteOfDay > maxX) maxX = e.quoteOfDay;
         });
+        
         const x = maxX + 1;
         const baseId = `${basePrefix}${x}`;
+        
         return { baseId, fullId: baseId, quoteOfDay: x, revision: 0 };
     },
 
@@ -445,39 +425,24 @@ window.estimator = {
         };
 
         if (mode === 'edit') {
-            const currentId = document.getElementById('currentEditingEstId').value;
-            if (finalId !== currentId) {
-                window.app.db.estimations.push(estimationData);
+            const idx = window.app.db.estimations.findIndex(e => e.id === finalId);
+            if(idx > -1) {
+                estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
+                estimationData.status = window.app.db.estimations[idx].status || 'Pending';
+                window.app.db.estimations[idx] = estimationData;
             } else {
-                if (confirm(`Save as a NEW REVISION (R${idData.revision + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version (${currentId})`)) {
-                    estimationData.revision += 1;
-                    estimationData.id = `${idData.baseId}R${estimationData.revision}`;
-                    finalId = estimationData.id;
-                    window.app.db.estimations.push(estimationData);
-                } else {
-                    const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-                    if(idx > -1) {
-                        estimationData.time = window.app.db.estimations[idx].time || estimationData.time; 
-                        window.app.db.estimations[idx] = estimationData;
-                    } else {
-                        window.app.db.estimations.push(estimationData);
-                    }
-                }
+                estimationData.status = 'Pending';
+                window.app.db.estimations.push(estimationData);
             }
-        } else if (mode === 'revise') {
-            window.app.db.estimations.push(estimationData);
         } else {
+            // New & Revise
+            estimationData.status = 'Pending';
             window.app.db.estimations.push(estimationData);
         }
         
         window.app.saveData(); 
         
-        document.getElementById('currentEditingEstId').value = finalId;
-        document.getElementById('currentEditingEstRev').value = estimationData.revision;
-        document.getElementById('currentEditingMode').value = 'edit';
-
-        window.estimator.updateEstIdPreview(); 
-        
+        // Return to History UI
         window.ui.switchTab('history');
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
