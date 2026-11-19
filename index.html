@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=22">
+    <link rel="stylesheet" href="css/styles.css?v=23">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -189,9 +189,14 @@
                         <input type="hidden" id="currentEditingMode" value="new">
                     </div>
                     <div class="flex space-x-2 items-center">
+                        <button onclick="window.exporter.downloadEstimationTemplate()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded border border-indigo-200 shadow-sm transition">⬇️ Download Template</button>
+                        <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow-sm transition cursor-pointer">
+                            <span>⬆️ Upload Template</span>
+                            <input type="file" accept=".xlsx,.csv" class="hidden" onchange="window.estimator.importEstimationTemplate(event)">
+                        </label>
+                        <div class="border-l border-slate-300 h-6 mx-2"></div>
                         <button onclick="window.ui.switchTab('history')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2 rounded shadow-sm border border-slate-300">✕ Close / Cancel</button>
-                        <div class="border-l border-slate-300 h-6 mx-1"></div>
-                        <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded">+ Add Category</button>
+                        <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded ml-2">+ Add Category</button>
                         <button onclick="window.estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">+ Add Item</button>
                         <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2 rounded shadow-lg transform transition hover:scale-105">💾 Save & Close</button>
                     </div>
@@ -328,7 +333,7 @@
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('date')">Date ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('time')">Time ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('status')">Status ↕</th>
-                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('projectName')">Project Name ↕</th>
                                 <th class="p-3 text-center whitespace-nowrap">Items</th>
                                 <th class="p-3 text-right whitespace-nowrap">Actions & Exports</th>
@@ -344,13 +349,22 @@
         <section id="tab-operations" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div><h2 class="text-lg font-bold text-slate-900">Operations & Budget Tracker</h2></div>
-                    <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                        <span>Upload Approved Estimation (.xlsx)</span>
-                        <input type="file" accept=".xlsx" class="hidden" onchange="window.dataManager.importEstimationForBudget(event)">
-                    </label>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-900">Operations & Budget Tracker</h2>
+                        <p class="text-xs text-slate-500">Track actual spending against an approved estimation budget.</p>
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <select id="opsEstimationSelect" class="border rounded px-3 py-1.5 text-xs bg-slate-50 w-64" onchange="window.dataManager.loadBudgetFromSaved()">
+                            <option value="">-- Load from Saved Estimation --</option>
+                        </select>
+                        <span class="text-xs font-bold text-slate-400">OR</span>
+                        <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer shadow-sm">
+                            <span>Upload Excel File</span>
+                            <input type="file" accept=".xlsx" class="hidden" onchange="window.dataManager.importEstimationForBudget(event)">
+                        </label>
+                    </div>
                 </div>
-                <div id="operationsContent" class="text-center py-12 text-slate-400 text-sm">No estimation loaded.</div>
+                <div id="operationsContent" class="text-center py-12 text-slate-400 text-sm">No estimation loaded. Select one from the dropdown or upload an Excel file.</div>
             </div>
         </section>
 
@@ -620,11 +634,11 @@
         </div>
 
         <!-- Script Links -->
-        <script src="js/app.js?v=22"></script>
-        <script src="js/ui.js?v=22"></script>
-        <script src="js/dataManager.js?v=22"></script>
-        <script src="js/estimator.js?v=22"></script>
-        <script src="js/invoicer.js?v=22"></script>
-        <script src="js/exporter.js?v=22"></script>
+        <script src="js/app.js?v=23"></script>
+        <script src="js/ui.js?v=23"></script>
+        <script src="js/dataManager.js?v=23"></script>
+        <script src="js/estimator.js?v=23"></script>
+        <script src="js/invoicer.js?v=23"></script>
+        <script src="js/exporter.js?v=23"></script>
     </body>
     </html>
