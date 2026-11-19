@@ -106,7 +106,6 @@ window.exporter = {
 
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
-                // Title Top Alignment y=50
                 doc.setFontSize(18); doc.setTextColor(30, 58, 138); doc.setFont(undefined, 'bold');
                 doc.text(docTitle, 40, 50);
                 
@@ -116,7 +115,6 @@ window.exporter = {
                 doc.text(`Location: ${est.location || ''}`, 40, 100, { maxWidth: pageWidth - 200 });
                 doc.text(`Date: ${est.date || ''}`, 40, 115);
                 
-                // Align Logo precisely with 18pt title (y=36 accounts for JS font ascenders)
                 const logoY = 36; 
                 
                 let logoRendered = false;
@@ -206,7 +204,6 @@ window.exporter = {
                 doc.text("Grand Total:", summaryX, finalY + 35);
                 doc.text(formatPdfMoney(subtotal * 1.15), pageWidth - 40, finalY + 35, { align: 'right' });
 
-                // Draw Line Separator
                 doc.setDrawColor(200, 200, 200);
                 doc.line(40, finalY + 55, pageWidth - 40, finalY + 55); 
 
@@ -227,7 +224,6 @@ window.exporter = {
                         body: termsBody,
                         theme: 'plain',
                         styles: { fontSize: 9, cellPadding: 2, font: 'helvetica' },
-                        // Wider column prevents "Delivery or Execution Period" from breaking lines
                         columnStyles: { 0: { cellWidth: 160, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } }
                     });
                 }
@@ -366,8 +362,6 @@ window.exporter = {
                 doc.setFontSize(9); doc.setTextColor(0, 0, 0); doc.setFont(undefined, 'bold');
                 doc.text(`CR:`, 40, 70); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.cr || '-', 70, 70);
                 doc.setFont(undefined, 'bold'); doc.text(`VAT:`, 40, 85); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.vat || '-', 70, 85);
-                
-                // Allow long addresses to safely wrap without ever touching the logo space (maxWidth limits it to left side)
                 doc.setFont(undefined, 'bold'); doc.text(`Address:`, 40, 100); doc.setFont(undefined, 'normal'); doc.text(window.app.db.company.address || '-', 90, 100, { maxWidth: pageWidth - 200 });
 
                 const toEl = document.getElementById('previewTo');
