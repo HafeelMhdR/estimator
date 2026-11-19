@@ -81,7 +81,7 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 1500; 
+                const MAX_WIDTH = 450; 
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
@@ -152,10 +152,11 @@ window.ui = {
             if(invTab && !invTab.classList.contains('hidden') && window.invoicer) {
                 window.invoicer.renderInvoiceTable();
             }
+            
+            document.getElementById('companyModal').classList.add('hidden');
+            alert("Company Profile saved successfully.");
         } catch(error) {
             console.warn("Minor background error during save, but company data was recorded.", error);
-        } finally {
-            document.getElementById('companyModal').classList.add('hidden');
         }
     },
 
