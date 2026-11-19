@@ -230,6 +230,7 @@ window.dataManager = {
                         <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
+                        <td class="p-3 text-center whitespace-nowrap">${itemCount}</td>
                         <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
                         <td class="p-3 text-right space-x-2 whitespace-nowrap">
                             <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
@@ -244,7 +245,7 @@ window.dataManager = {
             }
         });
         if(tbody.innerHTML === '') {
-            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
         }
     },
     
@@ -253,6 +254,7 @@ window.dataManager = {
             window.app.db.estimations.splice(idx, 1);
             window.app.saveData();
             window.dataManager.renderHistoryTable();
+            window.ui.updateDashboardStats();
             if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist();
         }
     },
@@ -261,7 +263,6 @@ window.dataManager = {
         const est = window.app.db.estimations[idx];
         const baseId = est.baseId;
         
-        // Strict Revision & Edit Protection Engine
         const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
         const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
         
@@ -271,7 +272,6 @@ window.dataManager = {
         } else if (mode === 'revise') {
             if(!confirm(`You are creating a new revision based on ${est.id}.\nThe new saved document will be assigned R${maxRev + 1}.\n\nProceed?`)) return;
         } else {
-            // Editing the absolute latest version directly
             if(!confirm(`Loading ${est.id} for direct editing. (This will overwrite any unsaved work in the Builder).\n\nProceed?`)) return;
         }
         
