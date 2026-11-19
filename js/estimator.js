@@ -390,6 +390,59 @@ window.estimator = {
         if(document.getElementById('summaryGrandTotal')) document.getElementById('summaryGrandTotal').innerText = window.app.formatMoney(subtotal + (subtotal * globalVat));
     },
 
+    importEstimationTemplate: (event) => {
+        const file = event.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+            
+            if(rows.length < 2) return alert("Template is empty.");
+            
+            const tbody = document.getElementById('estimationRowsBody');
+            tbody.innerHTML = '';
+            
+            const defOh = document.getElementById('globalOverhead')?.value || 15;
+            const defPr = document.getElementById('globalProfit')?.value || 35;
+            
+            for(let i=1; i<rows.length; i++) {
+                const r = rows[i];
+                if(r.length === 0 || (!r[0] && !r[1])) continue;
+                
+                if(r[0] && r[0].toString().toUpperCase() === 'CATEGORY') {
+                    window.estimator.addEstimationCategory(r[1] || "Unnamed Category");
+                } else {
+                    window.estimator.addEstimationRow();
+                    const trs = tbody.querySelectorAll('.item-row');
+                    const lastTr = trs[trs.length - 1];
+                    
+                    if(lastTr) {
+                        const codeEl = lastTr.querySelector('.item-code-select');
+                        const descEl = lastTr.querySelector('.item-desc');
+                        const commentEl = lastTr.querySelector('.item-comment');
+                        const unitEl = lastTr.querySelector('.item-unit');
+                        const qtyEl = lastTr.querySelector('.item-qty');
+                        const costEl = lastTr.querySelector('.item-cost');
+                        const ohEl = lastTr.querySelector('.item-oh');
+                        const prEl = lastTr.querySelector('.item-pr');
+                        
+                        if(codeEl) codeEl.value = r[0] || '';
+                        if(descEl) descEl.value = r[1] || '';
+                        if(commentEl) commentEl.value = r[2] || '';
+                        if(unitEl) unitEl.value = r[3] || 'ITEM';
+                        if(qtyEl) qtyEl.value = r[4] !== undefined ? r[4] : 1;
+                        if(costEl) costEl.value = r[5] !== undefined ? r[5] : 0;
+                        if(ohEl) ohEl.value = r[6] !== undefined ? r[6] : defOh;
+                        if(prEl) prEl.value = r[7] !== undefined ? r[7] : defPr;
+                    }
+                }
+            }
+            window.estimator.recalculateEstimation();
+        }; 
+        reader.readAsArrayBuffer(file);
+        event.target.value = '';
+    },
+
     saveEstimation: () => {
         const error = window.estimator.validateForm();
         if(error) return alert(error);
@@ -471,6 +524,7 @@ window.estimator = {
         document.getElementById('currentEditingMode').value = 'edit';
 
         window.estimator.updateEstIdPreview(); 
+        window.dataManager.populateOperationsDropdown();
         
         window.ui.switchTab('history');
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
