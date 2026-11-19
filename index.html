@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=25">
+    <link rel="stylesheet" href="css/styles.css?v=26">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -64,7 +64,10 @@
                         <h2 class="text-xl font-bold text-slate-900 mb-1">System Dashboard</h2>
                         <p class="text-sm text-slate-600">Track quotes, approvals, and system libraries.</p>
                     </div>
-                    <button onclick="window.ui.openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">⚙️ Company Settings</button>
+                    <div class="flex space-x-2">
+                        <button onclick="window.ui.openDatabaseModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition">💾 Database Manager</button>
+                        <button onclick="window.ui.openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition">⚙️ Company Settings</button>
+                    </div>
                 </div>
                 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -508,6 +511,31 @@
             </section>
         </main>
 
+        <!-- DATABASE MANAGEMENT MODAL -->
+        <div id="databaseModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
+                <h3 class="text-base font-bold text-slate-900 border-b pb-2">Database Management</h3>
+                <p class="text-xs text-slate-600">The Bulk Database contains all company settings, clients, codes, and estimations in one master file.</p>
+                
+                <div class="space-y-3 pt-2">
+                    <button onclick="window.app.exportFullDatabase()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded text-sm shadow-sm transition">⬇️ Export Full Database Backup</button>
+                    
+                    <label class="block w-full bg-sky-600 hover:bg-sky-700 text-white text-center font-bold py-2 rounded text-sm shadow-sm cursor-pointer transition">
+                        <span>⬆️ Import Full Database (Restore)</span>
+                        <input type="file" accept=".json" class="hidden" onchange="window.app.importFullDatabase(event)">
+                    </label>
+
+                    <div class="border-t pt-3 mt-3">
+                        <button onclick="window.app.factoryReset()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded text-sm shadow-sm transition">⚠️ Create New / Reset Database</button>
+                    </div>
+                </div>
+                
+                <div class="flex justify-end pt-2">
+                    <button onclick="document.getElementById('databaseModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Close</button>
+                </div>
+            </div>
+        </div>
+
         <!-- COMPANY SETTINGS MODAL -->
         <div id="companyModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
@@ -588,7 +616,7 @@
                 <div class="flex justify-between items-center pt-2">
                     <div class="flex space-x-2">
                         <label class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm cursor-pointer transition">
-                            <span>⬆️ Import Profile</span>
+                            <span>⬆️ Import Profile Overwrite</span>
                             <input type="file" accept=".json" class="hidden" onchange="window.ui.importCompanyProfile(event)">
                         </label>
                         <button onclick="window.ui.exportCompanyProfile()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm transition">⬇️ Export</button>
@@ -634,11 +662,11 @@
         </div>
 
         <!-- Script Links -->
-        <script src="js/app.js?v=25"></script>
-        <script src="js/ui.js?v=25"></script>
-        <script src="js/dataManager.js?v=25"></script>
-        <script src="js/estimator.js?v=25"></script>
-        <script src="js/invoicer.js?v=25"></script>
-        <script src="js/exporter.js?v=25"></script>
+        <script src="js/app.js?v=26"></script>
+        <script src="js/ui.js?v=26"></script>
+        <script src="js/dataManager.js?v=26"></script>
+        <script src="js/estimator.js?v=26"></script>
+        <script src="js/invoicer.js?v=26"></script>
+        <script src="js/exporter.js?v=26"></script>
     </body>
     </html>
