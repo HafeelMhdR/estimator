@@ -14,6 +14,7 @@ window.dataManager = {
         document.body.removeChild(link);
     },
 
+    // --- ITEM CODES ---
     importCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -54,6 +55,7 @@ window.dataManager = {
         document.getElementById('codeModal').classList.add('hidden'); 
     },
 
+    // --- PROJECT CODES ---
     importProjectCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -94,6 +96,7 @@ window.dataManager = {
         document.getElementById('projectCodeModal').classList.add('hidden'); 
     },
 
+    // --- CLIENTS ---
     renderClientTable: () => {
         const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
         window.app.db.clients.forEach((c, idx) => {
@@ -169,6 +172,7 @@ window.dataManager = {
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     },
 
+    // --- HISTORY & LOAD ESTIMATIONS ---
     currentSortColumn: '',
     currentSortDir: 'asc',
     sortHistory: (column) => {
@@ -204,8 +208,6 @@ window.dataManager = {
 
             if(searchStr.includes(filterText)) {
                 const itemCount = (est.items || []).filter(i => i.type === 'item').length;
-                
-                // Highlight logic
                 let rowClass = 'hover:bg-slate-50 transition border-b';
                 if (highlightId && est.id === highlightId) rowClass = 'bg-emerald-100 transition border-b';
 
@@ -220,7 +222,8 @@ window.dataManager = {
                         <td class="p-3 text-right space-x-2">
                             <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
                             <button onclick="window.exporter.exportEstimationExcel(${originalIndex}, event)" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">Excel</button>
-                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex})" class="text-blue-600 hover:text-blue-800 font-bold text-xs ml-2">Load / Revise</button>
+                            <button onclick="window.dataManager.editEstimation(${originalIndex})" class="text-blue-600 hover:text-blue-800 font-bold text-xs ml-2">Edit</button>
+                            <button onclick="window.dataManager.reviseEstimation(${originalIndex})" class="text-emerald-600 hover:text-emerald-800 font-bold text-xs ml-2">Revise</button>
                             <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-slate-500 hover:text-red-700 font-bold text-xs ml-2">Delete</button>
                         </td>
                     </tr>
@@ -241,19 +244,19 @@ window.dataManager = {
         }
     },
     
-    loadEstimationIntoBuilder: (idx) => {
-        if(!confirm("Loading this estimation will overwrite the current contents of the Estimation Builder. Continue?")) return;
-        
+    _loadIntoBuilder: (idx, isRevision) => {
         const est = window.app.db.estimations[idx];
         
-        if(document.getElementById('currentEditingEstId')) document.getElementById('currentEditingEstId').value = est.id || '';
-        if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = est.revision || 0;
-        if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = est.projectName || '';
-        if(document.getElementById('estLocation')) document.getElementById('estLocation').value = est.location || '';
-        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || '';
-        if(document.getElementById('estDate')) document.getElementById('estDate').value = est.date || '';
-        if(document.getElementById('estClientSelect')) document.getElementById('estClientSelect').value = est.clientName || '';
-        if(document.getElementById('estProjectCodeSelect')) document.getElementById('estProjectCodeSelect').value = est.projectAbbr || '';
+        document.getElementById('currentEditingEstId').value = est.id || '';
+        document.getElementById('currentEditingEstRev').value = est.revision || 0;
+        document.getElementById('isRevisingFlag').value = isRevision ? 'true' : 'false';
+        
+        document.getElementById('estProjectName').value = est.projectName || '';
+        document.getElementById('estLocation').value = est.location || '';
+        document.getElementById('estTitle').value = est.title || '';
+        document.getElementById('estDate').value = est.date || '';
+        document.getElementById('estClientSelect').value = est.clientName || '';
+        if (est.projectAbbr) document.getElementById('estProjectCodeSelect').value = est.projectAbbr;
         
         const tbody = document.getElementById('estimationRowsBody');
         if(!tbody) return;
@@ -328,6 +331,14 @@ window.dataManager = {
         window.estimator.recalculateEstimation();
         window.estimator.updateEstIdPreview();
         window.ui.switchTab('estimation');
+    },
+
+    editEstimation: (idx) => {
+        window.dataManager._loadIntoBuilder(idx, false);
+    },
+    
+    reviseEstimation: (idx) => {
+        window.dataManager._loadIntoBuilder(idx, true);
     },
 
     importEstimationForBudget: (event) => {
