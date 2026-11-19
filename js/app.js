@@ -2,13 +2,13 @@
 const SUPABASE_URL = 'https://evyotykwkewuxjtntvch.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_Vhrxg-yTAcVtJmYbVe6YrA_bm0iaBxr';
 
-// Initialize the Supabase Client
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// FIX: Renamed to supabaseClient to avoid collision
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 window.app = {
     db: { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] },
     currentDirectoryHandle: null,
-    activePassword: null, // Holds Vault Key in volatile RAM only
+    activePassword: null, 
 
     // --- AUTHENTICATION & VAULT KEY RETRIEVAL ---
     loginAndUnlock: async () => {
@@ -24,7 +24,7 @@ window.app = {
         statusEl.classList.add('hidden');
         
         // 1. Authenticate with Supabase
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+        const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({ email, password });
         
         if (authError) {
             statusEl.innerText = authError.message;
@@ -33,7 +33,7 @@ window.app = {
         }
 
         // 2. Fetch the Secure Vault Key
-        const { data: vaultData, error: vaultError } = await supabase
+        const { data: vaultData, error: vaultError } = await supabaseClient
             .from('workspace_keys')
             .select('key_value')
             .limit(1)
@@ -60,7 +60,7 @@ window.app = {
             return;
         }
 
-        const { error } = await supabase.auth.resetPasswordForEmail(email);
+        const { error } = await supabaseClient.auth.resetPasswordForEmail(email);
         
         statusEl.classList.remove('hidden', 'bg-red-900/50', 'border-red-700', 'text-red-200');
         statusEl.classList.add('bg-emerald-900/50', 'border-emerald-700', 'text-emerald-200');
@@ -149,15 +149,12 @@ window.app = {
         if (!Array.isArray(window.app.db.estimations)) window.app.db.estimations = [];
     },
 
-    // MERGE-BEFORE-SAVE PROTOCOL
     saveData: async () => { 
         if(!window.app.activePassword || !window.app.currentDirectoryHandle) return alert("System not connected to a secured workspace.");
         window.app.ensureDataIntegrity();
         
-        // 1. Silently pull latest data from LAN to prevent overwriting someone else's work
         await window.app.loadFromNetworkFolderSilently(window.app.activePassword, true);
         
-        // 2. Push the new securely merged data back to the LAN
         await window.app.syncToNetworkFolder(); 
         if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); 
     },
@@ -216,16 +213,15 @@ window.app = {
                     successfulLoads++;
                 }
             } catch (e) {
-                // File missing or decryption failed. Ignore silently to allow new creation.
             }
         }
 
         if(!isMerge && successfulLoads === 0) {
             try {
                 await window.app.currentDirectoryHandle.getFileHandle(`company.enc`, { create: false });
-                return false; // File exists but didn't load (Wrong password/key)
+                return false;
             } catch(e) {
-                return true; // File doesn't exist. Clean slate.
+                return true; 
             }
         }
 
@@ -263,9 +259,9 @@ window.app = {
     },
 
     disconnectFolder: async () => {
-        await supabase.auth.signOut(); // Wipe cloud session
+        await supabaseClient.auth.signOut(); 
         window.app.currentDirectoryHandle = null;
-        window.app.activePassword = null; // Wipe RAM key
+        window.app.activePassword = null; 
         window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
         location.reload();
     },
@@ -275,7 +271,6 @@ window.app = {
 
         const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
         
-        // SNAPSHOT VAULT CREATION
         try {
             const snapDir = await window.app.currentDirectoryHandle.getDirectoryHandle('Snapshots', { create: true });
             const ts = new Date().toISOString().replace(/[:.]/g, '-');
@@ -286,7 +281,6 @@ window.app = {
             await snapWrite.close();
         } catch(err) { console.warn("Snapshot backup failed, continuing with main save."); }
 
-        // MAIN FILE ENCRYPTION AND SAVE
         for (const key of DB_FILES) {
             try {
                 const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.enc`, { create: true });
@@ -307,10 +301,10 @@ window.onload = async function() {
     window.app.loadData();
     
     // Auto-check for existing valid session on refresh
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
         try {
-            const { data: vaultData } = await supabase.from('workspace_keys').select('key_value').limit(1).single();
+            const { data: vaultData } = await supabaseClient.from('workspace_keys').select('key_value').limit(1).single();
             if (vaultData) {
                 window.app.activePassword = vaultData.key_value;
                 const savedHandle = await window.app.idb.get();
