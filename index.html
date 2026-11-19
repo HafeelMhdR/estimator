@@ -56,6 +56,7 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-6 flex-grow w-full">
+        <!-- DASHBOARD -->
         <section id="tab-dashboard" class="tab-content space-y-6">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-start mb-6">
@@ -87,6 +88,7 @@
             </div>
         </section>
 
+        <!-- DATA LIBRARIES -->
         <section id="tab-libraries" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
@@ -147,6 +149,7 @@
             </div>
         </section>
 
+        <!-- CLIENTS -->
         <section id="tab-clients" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
@@ -171,17 +174,19 @@
             </div>
         </section>
 
+        <!-- ESTIMATION BUILDER -->
         <section id="tab-estimation" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 
                 <div class="flex justify-between items-center mb-4 border-b pb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Estimation Builder</h2>
-                        <div id="estIdPreview" class="text-2xl font-black text-blue-900 mt-1 tracking-tight">Estimation: [Fill details to generate ID]</div>
+                        <div id="estIdPreview" class="text-2xl font-black text-blue-900 mt-1 tracking-tight">Estimation ID</div>
+                        
+                        <!-- Tracking Workflow Engine -->
                         <input type="hidden" id="currentEditingEstId" value="">
                         <input type="hidden" id="currentEditingEstRev" value="0">
-                        <!-- NEW: Track if we are actively making a revision to bypass the Save prompt -->
-                        <input type="hidden" id="isRevisingFlag" value="false">
+                        <input type="hidden" id="currentEditingMode" value="new">
                     </div>
                     <div class="flex space-x-2">
                         <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded">+ Add Category</button>
@@ -206,6 +211,10 @@
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Document Title <span class="text-red-500">*</span></label>
                         <input type="text" id="estTitle" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="e.g. ESTIMATION BOQ">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name <span class="text-red-500">*</span></label>
+                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Full Project Title">
                     </div>
                     <div>
                         <label class="block text-xs font-semibold text-slate-600 mb-1">Project Location <span class="text-red-500">*</span></label>
@@ -272,6 +281,7 @@
                     <button onclick="window.estimator.addEstimationRow()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded border border-slate-300 shadow-sm">+ Add Row</button>
                 </div>
 
+                <!-- TERMS AND CONDITIONS SECTION -->
                 <div class="mt-6 bg-white p-4 rounded-lg border border-slate-200">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-slate-800">Terms & Conditions</h3>
@@ -295,6 +305,7 @@
             </div>
         </section>
 
+        <!-- ESTIMATION HISTORY & RECALL -->
         <section id="tab-history" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
@@ -312,12 +323,11 @@
                         <thead>
                             <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('id')">Estimation ID ↕</th>
-                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('date')">Date ↕</th>
-                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('time')">Time ↕</th>
+                                <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('date')">Date & Time ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('projectName')">Project Name ↕</th>
                                 <th class="p-3 text-center">Items</th>
-                                <th class="p-3 text-right">Actions</th>
+                                <th class="p-3 text-right">Actions & Exports</th>
                             </tr>
                         </thead>
                         <tbody id="historyTableBody" class="text-sm divide-y divide-slate-100"></tbody>
@@ -326,6 +336,7 @@
             </div>
         </section>
 
+        <!-- OPERATIONS TRACKER -->
         <section id="tab-operations" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
@@ -339,7 +350,9 @@
             </div>
         </section>
 
+        <!-- PROFORMA INVOICE -->
         <section id="tab-invoicing" class="tab-content space-y-6 hidden">
+            <!-- Internal UI unchanged -->
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <div>
@@ -505,19 +518,40 @@
                     <input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm">
                 </div>
                 <div class="col-span-2">
-                    <label class="block text-xs font-semibold text-slate-600 mb-1">Timezone Offset</label>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1">Timezone Override (For Shared LAN)</label>
                     <select id="setCompTimezone" class="w-full border rounded px-3 py-1.5 text-sm">
                         <option value="local">Auto (Use Local Device Time)</option>
-                        <option value="-12">UTC -12:00</option>
-                        <option value="-8">UTC -08:00 (Pacific)</option>
-                        <option value="-5">UTC -05:00 (Eastern)</option>
-                        <option value="0">UTC +00:00 (GMT/London)</option>
+                        <option value="-12">UTC -12:00 (Baker Island)</option>
+                        <option value="-11">UTC -11:00 (Samoa)</option>
+                        <option value="-10">UTC -10:00 (Hawaii)</option>
+                        <option value="-9">UTC -09:00 (Alaska)</option>
+                        <option value="-8">UTC -08:00 (Pacific Time)</option>
+                        <option value="-7">UTC -07:00 (Mountain Time)</option>
+                        <option value="-6">UTC -06:00 (Central Time)</option>
+                        <option value="-5">UTC -05:00 (Eastern Time)</option>
+                        <option value="-4">UTC -04:00 (Atlantic Time)</option>
+                        <option value="-3">UTC -03:00 (Argentina)</option>
+                        <option value="-2">UTC -02:00 (Mid-Atlantic)</option>
+                        <option value="-1">UTC -01:00 (Azores)</option>
+                        <option value="0">UTC +00:00 (London, GMT)</option>
                         <option value="1">UTC +01:00 (Central Europe)</option>
-                        <option value="3">UTC +03:00 (Saudi Arabia)</option>
-                        <option value="4">UTC +04:00 (UAE)</option>
+                        <option value="2">UTC +02:00 (Eastern Europe)</option>
+                        <option value="3">UTC +03:00 (Saudi Arabia, Moscow)</option>
+                        <option value="3.5">UTC +03:30 (Iran)</option>
+                        <option value="4">UTC +04:00 (UAE, Baku)</option>
+                        <option value="4.5">UTC +04:30 (Afghanistan)</option>
+                        <option value="5">UTC +05:00 (Pakistan)</option>
                         <option value="5.5">UTC +05:30 (India)</option>
-                        <option value="8">UTC +08:00 (Asia)</option>
-                        <option value="10">UTC +10:00 (Australia)</option>
+                        <option value="5.75">UTC +05:45 (Nepal)</option>
+                        <option value="6">UTC +06:00 (Bangladesh)</option>
+                        <option value="6.5">UTC +06:30 (Myanmar)</option>
+                        <option value="7">UTC +07:00 (Thailand, Vietnam)</option>
+                        <option value="8">UTC +08:00 (China, Singapore)</option>
+                        <option value="9">UTC +09:00 (Japan, Korea)</option>
+                        <option value="9.5">UTC +09:30 (Central Australia)</option>
+                        <option value="10">UTC +10:00 (Eastern Australia)</option>
+                        <option value="11">UTC +11:00 (Solomon Islands)</option>
+                        <option value="12">UTC +12:00 (New Zealand)</option>
                     </select>
                 </div>
                 <div class="col-span-2">
