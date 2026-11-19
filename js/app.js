@@ -95,24 +95,10 @@ window.app = {
         try {
             localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
         } catch(e) {
-            console.warn("Local storage limit reached. System is operating fully on LAN sync.");
+            console.warn("Local storage capacity limit reached. System is safely operating entirely on LAN sync.");
         }
-        if(window.ui) window.ui.updateDashboardStats(); 
+        if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); 
         window.app.syncToNetworkFolder(); 
-    },
-
-    loadData: () => { 
-        const saved = localStorage.getItem('sys_db'); 
-        if(saved) { 
-            try {
-                const parsed = JSON.parse(saved);
-                if (parsed && !Array.isArray(parsed)) window.app.db = parsed;
-            } catch(e) {
-                console.warn("LocalStorage corruption detected. Resetting to empty state.");
-                window.app.db = {};
-            }
-        } 
-        window.app.ensureDataIntegrity();
     },
 
     exportFullDatabase: () => {
@@ -130,15 +116,17 @@ window.app = {
         const file = event.target.files[0];
         if (!file) return;
         const reader = new FileReader();
-        reader.onload = function(e) {
+        reader.onload = async function(e) {
             try {
                 const importedData = JSON.parse(e.target.result);
                 if (importedData && importedData.company) {
-                    window.app.db = importedData;
-                    window.app.ensureDataIntegrity();
-                    window.app.saveData();
-                    alert("Full Database restored successfully! Reloading application...");
-                    location.reload();
+                    if (confirm("Are you sure you want to completely overwrite the current database? This will sync to your connected LAN folder immediately.")) {
+                        window.app.db = importedData;
+                        window.app.ensureDataIntegrity();
+                        await window.app.syncToNetworkFolder();
+                        alert("Full Database restored and synced to LAN successfully! Reloading application...");
+                        location.reload();
+                    }
                 } else {
                     alert("Invalid database file format.");
                 }
@@ -152,7 +140,7 @@ window.app = {
 
     factoryReset: async () => {
         const code = Math.floor(1000 + Math.random() * 9000);
-        const input = prompt(`WARNING: This will permanently delete all data, estimations, and clients, creating a completely blank database.\n\nType ${code} to confirm reset:`);
+        const input = prompt(`WARNING: This will permanently wipe all local data and securely overwrite the connected LAN folder with a blank database.\n\nType ${code} to confirm wipe:`);
         if (input === code.toString()) {
             window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
             window.app.ensureDataIntegrity();
@@ -162,7 +150,7 @@ window.app = {
                 await window.app.syncToNetworkFolder();
             }
             
-            alert("Database has been reset. Reloading application...");
+            alert("Database and LAN files have been securely reset. Reloading application...");
             location.reload();
         } else if (input !== null) {
             alert("Incorrect code. Reset cancelled.");
@@ -170,22 +158,25 @@ window.app = {
     },
 
     triggerFullRender: () => {
-        try { if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); } catch(e) { console.error("Render Error (Company):", e); }
+        try { if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); } catch(e){}
         if(window.dataManager) {
-            try { window.dataManager.renderCodesTable(); } catch(e) { console.error("Render Error (Codes):", e); }
-            try { window.dataManager.renderProjectCodesTable(); } catch(e) { console.error("Render Error (Project Codes):", e); }
-            try { window.dataManager.renderClientTable(); } catch(e) { console.error("Render Error (Clients):", e); }
-            try { window.dataManager.populateClientDropdowns(); } catch(e) { console.error("Render Error (Dropdowns):", e); }
-            try { window.dataManager.populateOperationsDropdown(); } catch(e) { console.error("Render Error (Operations):", e); }
-            try { window.dataManager.renderHistoryTable(); } catch(e) { console.error("Render Error (History):", e); }
+            try { window.dataManager.renderCodesTable(); } catch(e){}
+            try { window.dataManager.renderProjectCodesTable(); } catch(e){}
+            try { window.dataManager.renderClientTable(); } catch(e){}
+            try { window.dataManager.populateClientDropdowns(); } catch(e){}
+            try { window.dataManager.populateOperationsDropdown(); } catch(e){}
+            try { window.dataManager.renderHistoryTable(); } catch(e){}
         }
-        try { if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); } catch(e) { console.error("Render Error (Dashboard):", e); }
+        try { if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); } catch(e){}
     },
 
     loadFromNetworkFolderSilently: async () => {
         if(!window.app.currentDirectoryHandle) return;
         
         const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
+        
+        // Wipe local memory completely so we adopt the new folder purely
+        window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
 
         try {
             const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
@@ -214,6 +205,9 @@ window.app = {
         
         window.app.triggerFullRender();
         
+        const gate = document.getElementById('lanGate');
+        if(gate) gate.classList.add('hidden');
+        
         const btnText = document.getElementById('networkBtnText');
         if(btnText) btnText.innerText = "Connected to LAN";
         
@@ -230,12 +224,28 @@ window.app = {
         if(btnDisconnect) btnDisconnect.classList.remove('hidden');
     },
 
+    reconnectPreviousFolder: async () => {
+        try {
+            const savedHandle = await window.app.idb.get();
+            if (savedHandle) {
+                const opts = { mode: 'readwrite' };
+                if ((await savedHandle.requestPermission(opts)) === 'granted') {
+                    window.app.currentDirectoryHandle = savedHandle;
+                    await window.app.loadFromNetworkFolderSilently();
+                    await window.app.syncToNetworkFolder();
+                }
+            }
+        } catch(e) {
+            console.error(e);
+        }
+    },
+
     connectNetworkFolder: async () => {
         try {
-            if (!window.app.currentDirectoryHandle) {
-                window.app.currentDirectoryHandle = await window.showDirectoryPicker({ mode: 'readwrite' });
-                await window.app.idb.set(window.app.currentDirectoryHandle);
-            }
+            const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+            window.app.currentDirectoryHandle = handle;
+            await window.app.idb.set(handle);
+            
             const opts = { mode: 'readwrite' };
             if ((await window.app.currentDirectoryHandle.queryPermission(opts)) !== 'granted') {
                 if ((await window.app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
@@ -243,7 +253,6 @@ window.app = {
 
             await window.app.loadFromNetworkFolderSilently();
             await window.app.syncToNetworkFolder();
-            alert("Successfully connected and synced database from network folder.");
         } catch(err) { 
             console.log("Connection aborted or failed:", err); 
         }
@@ -252,6 +261,19 @@ window.app = {
     disconnectFolder: async () => {
         window.app.currentDirectoryHandle = null;
         await window.app.idb.clear();
+        
+        window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
+        try { localStorage.removeItem('sys_db'); } catch(e){}
+        window.app.triggerFullRender();
+        
+        const gate = document.getElementById('lanGate');
+        if(gate) {
+            gate.classList.remove('hidden');
+            const rBtn = document.getElementById('lanGateReconnectBtn');
+            const rDiv = document.getElementById('lanGateDivider');
+            if(rBtn) rBtn.classList.add('hidden');
+            if(rDiv) rDiv.classList.add('hidden');
+        }
         
         const btnText = document.getElementById('networkBtnText');
         if(btnText) btnText.innerText = "Connect Shared LAN Folder";
@@ -297,17 +319,8 @@ window.app = {
 };
 
 window.onload = async function() {
-    window.app.loadData();
-    window.app.triggerFullRender();
-    
-    const dt = window.app.getCurrentDateTime();
-    if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
-    if(document.getElementById('invDate')) document.getElementById('invDate').value = dt.date;
-    
-    const tbody = document.getElementById('estimationRowsBody');
-    if(tbody && tbody.children.length === 0 && window.estimator) window.estimator.addEstimationRow();
-    
-    if(window.estimator) window.estimator.updateEstIdPreview();
+    // Reveal Gate Immediately
+    document.getElementById('lanGate').classList.remove('hidden');
 
     try {
         const savedHandle = await window.app.idb.get();
@@ -317,25 +330,37 @@ window.onload = async function() {
                 window.app.currentDirectoryHandle = savedHandle;
                 await window.app.loadFromNetworkFolderSilently();
             } else {
-                const btnText = document.getElementById('networkBtnText');
-                if(btnText) btnText.innerText = "Reconnect to LAN Folder";
-                
-                const btnDisconnect = document.getElementById('btnDisconnect');
-                if(btnDisconnect) btnDisconnect.classList.remove('hidden');
-                
-                const folderStatus = document.getElementById('folderStatus');
-                if(folderStatus) folderStatus.innerText = "Folder remembered. Click to reconnect.";
+                // Show reconnect options in gate
+                const rBtn = document.getElementById('lanGateReconnectBtn');
+                const rDiv = document.getElementById('lanGateDivider');
+                if(rBtn) {
+                    rBtn.classList.remove('hidden');
+                    rBtn.classList.add('flex');
+                }
+                if(rDiv) {
+                    rDiv.classList.remove('hidden');
+                    rDiv.classList.add('block');
+                }
             }
         }
     } catch(e) {
         console.error("IDB load error:", e);
     }
     
-    // Safely fire terms initializaton at the very end of boot sequence
+    // Safely inject terms container 500ms after the gate allows loading
     setTimeout(() => {
+        const dt = window.app.getCurrentDateTime();
+        if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
+        if(document.getElementById('invDate')) document.getElementById('invDate').value = dt.date;
+        
+        const tbody = document.getElementById('estimationRowsBody');
+        if(tbody && tbody.children.length === 0 && window.estimator) window.estimator.addEstimationRow();
+        
         const termsContainer = document.getElementById('termsContainer');
         if(termsContainer && termsContainer.children.length === 0 && window.estimator) {
             window.estimator.resetTerms();
         }
+        
+        if(window.estimator && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     }, 500);
 };
