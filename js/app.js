@@ -62,7 +62,9 @@ window.app = {
     },
 
     ensureDataIntegrity: () => {
-        if (!window.app.db) window.app.db = {};
+        if (!window.app.db || typeof window.app.db !== 'object' || Array.isArray(window.app.db)) {
+            window.app.db = {};
+        }
         if (!window.app.db.company) window.app.db.company = {};
         if (!Array.isArray(window.app.db.codes)) window.app.db.codes = [];
         if (!Array.isArray(window.app.db.projectCodes)) window.app.db.projectCodes = [];
@@ -93,7 +95,7 @@ window.app = {
         try {
             localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
         } catch(e) {
-            console.warn("Local storage capacity limit reached. Bypassing browser cache and relying securely on LAN sync.");
+            console.warn("Local storage limit reached. System is operating fully on LAN sync.");
         }
         if(window.ui) window.ui.updateDashboardStats(); 
         window.app.syncToNetworkFolder(); 
@@ -102,8 +104,13 @@ window.app = {
     loadData: () => { 
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
-            try { window.app.db = JSON.parse(saved); } 
-            catch(e) { window.app.db = {}; }
+            try {
+                const parsed = JSON.parse(saved);
+                if (parsed && !Array.isArray(parsed)) window.app.db = parsed;
+            } catch(e) {
+                console.warn("LocalStorage corruption detected. Resetting to empty state.");
+                window.app.db = {};
+            }
         } 
         window.app.ensureDataIntegrity();
     },
@@ -163,27 +170,31 @@ window.app = {
     },
 
     triggerFullRender: () => {
-        if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); 
+        try { if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); } catch(e) { console.error("Render Error (Company):", e); }
         if(window.dataManager) {
-            window.dataManager.renderCodesTable(); 
-            window.dataManager.renderProjectCodesTable();
-            window.dataManager.renderClientTable(); 
-            window.dataManager.populateClientDropdowns();
-            window.dataManager.populateOperationsDropdown(); 
-            window.dataManager.renderHistoryTable();
+            try { window.dataManager.renderCodesTable(); } catch(e) { console.error("Render Error (Codes):", e); }
+            try { window.dataManager.renderProjectCodesTable(); } catch(e) { console.error("Render Error (Project Codes):", e); }
+            try { window.dataManager.renderClientTable(); } catch(e) { console.error("Render Error (Clients):", e); }
+            try { window.dataManager.populateClientDropdowns(); } catch(e) { console.error("Render Error (Dropdowns):", e); }
+            try { window.dataManager.populateOperationsDropdown(); } catch(e) { console.error("Render Error (Operations):", e); }
+            try { window.dataManager.renderHistoryTable(); } catch(e) { console.error("Render Error (History):", e); }
         }
-        if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats();
+        try { if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); } catch(e) { console.error("Render Error (Dashboard):", e); }
     },
 
     loadFromNetworkFolderSilently: async () => {
         if(!window.app.currentDirectoryHandle) return;
         
         const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
-        
+
         try {
             const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
             const masterFile = await masterHandle.getFile();
-            window.app.db = JSON.parse(await masterFile.text());
+            const text = await masterFile.text();
+            if(text) {
+                const parsed = JSON.parse(text);
+                if(parsed && !Array.isArray(parsed)) window.app.db = parsed;
+            }
         } catch(e) {}
 
         for (const key of DB_FILES) {
@@ -191,7 +202,10 @@ window.app = {
                 const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
                 const file = await fileHandle.getFile();
                 const text = await file.text();
-                if (text) { window.app.db[key] = JSON.parse(text); }
+                if (text) {
+                    const parsed = JSON.parse(text);
+                    if(parsed) window.app.db[key] = parsed;
+                }
             } catch (e) {}
         }
 
@@ -200,11 +214,20 @@ window.app = {
         
         window.app.triggerFullRender();
         
-        document.getElementById('networkBtnText').innerText = "Connected to LAN";
-        document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-        document.getElementById('folderStatus').innerText = "Live Sync Active (Multi-File)";
-        document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
-        document.getElementById('btnDisconnect').classList.remove('hidden');
+        const btnText = document.getElementById('networkBtnText');
+        if(btnText) btnText.innerText = "Connected to LAN";
+        
+        const btn = document.getElementById('networkBtn');
+        if(btn) btn.className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+        
+        const folderStatus = document.getElementById('folderStatus');
+        if(folderStatus) {
+            folderStatus.innerText = "Live Sync Active (Multi-File)";
+            folderStatus.className = "text-xs text-emerald-400 font-medium";
+        }
+        
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        if(btnDisconnect) btnDisconnect.classList.remove('hidden');
     },
 
     connectNetworkFolder: async () => {
@@ -229,11 +252,21 @@ window.app = {
     disconnectFolder: async () => {
         window.app.currentDirectoryHandle = null;
         await window.app.idb.clear();
-        document.getElementById('networkBtnText').innerText = "Connect Shared LAN Folder";
-        document.getElementById('networkBtn').className = "bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-        document.getElementById('folderStatus').innerText = "Local Storage";
-        document.getElementById('folderStatus').className = "text-xs text-amber-400 font-medium";
-        document.getElementById('btnDisconnect').classList.add('hidden');
+        
+        const btnText = document.getElementById('networkBtnText');
+        if(btnText) btnText.innerText = "Connect Shared LAN Folder";
+        
+        const btn = document.getElementById('networkBtn');
+        if(btn) btn.className = "bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+        
+        const folderStatus = document.getElementById('folderStatus');
+        if(folderStatus) {
+            folderStatus.innerText = "Local Storage";
+            folderStatus.className = "text-xs text-amber-400 font-medium";
+        }
+        
+        const btnDisconnect = document.getElementById('btnDisconnect');
+        if(btnDisconnect) btnDisconnect.classList.add('hidden');
     },
 
     syncToNetworkFolder: async () => {
@@ -271,15 +304,10 @@ window.onload = async function() {
     if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
     if(document.getElementById('invDate')) document.getElementById('invDate').value = dt.date;
     
-    setTimeout(() => {
-        const tbody = document.getElementById('estimationRowsBody');
-        if(tbody && tbody.children.length === 0 && window.estimator) window.estimator.addEstimationRow();
-        
-        const terms = document.getElementById('termsContainer');
-        if(terms && terms.children.length === 0 && window.estimator) window.estimator.resetTerms();
-        
-        if(window.estimator) window.estimator.updateEstIdPreview();
-    }, 500);
+    const tbody = document.getElementById('estimationRowsBody');
+    if(tbody && tbody.children.length === 0 && window.estimator) window.estimator.addEstimationRow();
+    
+    if(window.estimator) window.estimator.updateEstIdPreview();
 
     try {
         const savedHandle = await window.app.idb.get();
@@ -289,10 +317,25 @@ window.onload = async function() {
                 window.app.currentDirectoryHandle = savedHandle;
                 await window.app.loadFromNetworkFolderSilently();
             } else {
-                document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
-                document.getElementById('btnDisconnect').classList.remove('hidden');
-                document.getElementById('folderStatus').innerText = "Folder remembered. Click to reconnect.";
+                const btnText = document.getElementById('networkBtnText');
+                if(btnText) btnText.innerText = "Reconnect to LAN Folder";
+                
+                const btnDisconnect = document.getElementById('btnDisconnect');
+                if(btnDisconnect) btnDisconnect.classList.remove('hidden');
+                
+                const folderStatus = document.getElementById('folderStatus');
+                if(folderStatus) folderStatus.innerText = "Folder remembered. Click to reconnect.";
             }
         }
-    } catch(e) {}
+    } catch(e) {
+        console.error("IDB load error:", e);
+    }
+    
+    // Safely fire terms initializaton at the very end of boot sequence
+    setTimeout(() => {
+        const termsContainer = document.getElementById('termsContainer');
+        if(termsContainer && termsContainer.children.length === 0 && window.estimator) {
+            window.estimator.resetTerms();
+        }
+    }, 500);
 };
