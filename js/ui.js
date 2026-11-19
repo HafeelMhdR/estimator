@@ -81,14 +81,15 @@ window.ui = {
             const img = new Image();
             img.onload = function() {
                 const canvas = document.createElement('canvas');
-                // Bounded width ensures the base64 string never hits the 5MB local storage crash limit
+                // Bounded width of 450 prevents 5MB limit memory crash
                 const MAX_WIDTH = 450; 
                 let width = img.width, height = img.height;
                 if (width > MAX_WIDTH) { height = Math.round((height * MAX_WIDTH) / width); width = MAX_WIDTH; }
                 canvas.width = width; canvas.height = height;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, width, height);
-                // Compressed JPEG (0.8 quality) ensures massive size reduction without visual loss on headers
+                
+                // Force lossy compression to guarantee sub-5MB storage string
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
                 window.app.db.company.logo = dataUrl;
                 
