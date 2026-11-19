@@ -14,7 +14,6 @@ window.dataManager = {
         document.body.removeChild(link);
     },
 
-    // --- ITEM CODES ---
     importCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -55,7 +54,6 @@ window.dataManager = {
         document.getElementById('codeModal').classList.add('hidden'); 
     },
 
-    // --- PROJECT CODES ---
     importProjectCodesCSV: (event) => {
         const file = event.target.files[0];
         if(!file) return;
@@ -96,7 +94,6 @@ window.dataManager = {
         document.getElementById('projectCodeModal').classList.add('hidden'); 
     },
 
-    // --- CLIENTS ---
     renderClientTable: () => {
         const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
         window.app.db.clients.forEach((c, idx) => {
@@ -172,7 +169,6 @@ window.dataManager = {
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     },
 
-    // --- HISTORY & LOAD ESTIMATIONS ---
     currentSortColumn: '',
     currentSortDir: 'asc',
     sortHistory: (column) => {
@@ -215,7 +211,8 @@ window.dataManager = {
                 tbody.innerHTML += `
                     <tr class="${rowClass}">
                         <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
-                        <td class="p-3 font-mono text-slate-600">${est.date || '-'} <span class="text-[10px] text-slate-400 block">${est.time || ''}</span></td>
+                        <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
                         <td class="p-3 text-center font-bold">${itemCount}</td>
@@ -232,7 +229,7 @@ window.dataManager = {
             }
         });
         if(tbody.innerHTML === '') {
-            tbody.innerHTML = '<tr><td colspan="6" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="p-6 text-center text-slate-400">No estimations found.</td></tr>';
         }
     },
     
@@ -246,10 +243,28 @@ window.dataManager = {
     },
     
     loadEstimationIntoBuilder: (idx, mode) => {
-        // mode = 'edit' or 'revise'
-        if(!confirm("Loading this estimation will overwrite the current contents of the Estimation Builder. Continue?")) return;
-        
         const est = window.app.db.estimations[idx];
+        const baseId = est.baseId;
+        
+        // Edit/Revise Protection Engine
+        const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+        const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+        
+        if (est.revision < maxRev) {
+            const latestEst = relatedEsts.find(e => e.revision === maxRev);
+            if (mode === 'edit') {
+                if(!confirm(`WARNING: A newer revision (${latestEst.id}) exists.\n\nIf you edit this older version (${est.id}), it will be saved as the newest revision (R${maxRev + 1}).\n\nProceed?`)) {
+                    return;
+                }
+                mode = 'revise';
+            } else if (mode === 'revise') {
+                if(!confirm(`Note: You are branching from an older version (${est.id}).\nThis will be saved as the latest revision: R${maxRev + 1}\n\nProceed?`)) {
+                    return;
+                }
+            }
+        } else {
+            if(!confirm(`Loading ${est.id} will overwrite the current contents of the Estimation Builder. Continue?`)) return;
+        }
         
         document.getElementById('currentEditingMode').value = mode;
         
