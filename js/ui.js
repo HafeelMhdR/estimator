@@ -14,10 +14,19 @@ window.ui = {
     },
 
     updateDashboardStats: () => {
-        if(document.getElementById('statCodesCount')) {
-            document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
-            document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
-            document.getElementById('statEstimationsCount').innerText = window.app.db.estimations.length;
+        if(document.getElementById('statTotal')) {
+            const ests = window.app.db.estimations || [];
+            const approved = ests.filter(e => e.status === 'Approved').length;
+            const pending = ests.length - approved;
+            
+            document.getElementById('statTotal').innerText = ests.length;
+            document.getElementById('statApproved').innerText = approved;
+            document.getElementById('statPending').innerText = pending;
+            
+            if(document.getElementById('statClientsCount')) {
+                document.getElementById('statClientsCount').innerText = window.app.db.clients.length;
+                document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
+            }
         }
     },
 
@@ -28,7 +37,6 @@ window.ui = {
         document.getElementById('setCompCR').value = window.app.db.company.cr || '';
         document.getElementById('setCompVAT').value = window.app.db.company.vat || '';
         
-        // Safely set timezone dropdown even if standard option is missing
         const tzEl = document.getElementById('setCompTimezone');
         if (tzEl) {
             const existingOption = Array.from(tzEl.options).find(o => o.value === window.app.db.company.timezone);
