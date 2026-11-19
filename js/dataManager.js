@@ -73,7 +73,7 @@ window.dataManager = {
         window.app.db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-sky-800 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.codes.splice(${idx},1);window.app.saveData();window.dataManager.renderCodesTable()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
 
-    saveCodeItem: () => { 
+    saveItemCode: () => { 
         const codeEl = document.getElementById('modalCode');
         const code = codeEl ? codeEl.value.trim().toUpperCase() : '';
         if (!code) return alert("Code cannot be empty.");
@@ -146,7 +146,7 @@ window.dataManager = {
         window.app.db.projectCodes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-emerald-700 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.projectCodes.splice(${idx},1);window.app.saveData();window.dataManager.renderProjectCodesTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
 
-    saveProjectCodeItem: () => { 
+    saveProjectCode: () => { 
         const codeEl = document.getElementById('modalProjCode');
         const code = codeEl ? codeEl.value.trim().toUpperCase() : '';
         if (!code) return alert("Code cannot be empty.");
@@ -215,7 +215,7 @@ window.dataManager = {
         document.getElementById('clientModal').classList.remove('hidden');
     },
 
-    saveClientItem: () => { 
+    saveClient: () => { 
         const abbrEl = document.getElementById('mClientAbbr');
         const idxEl = document.getElementById('mClientIndex');
         const abbr = abbrEl ? abbrEl.value.trim().toUpperCase() : '';
