@@ -85,6 +85,7 @@ window.app = {
                 if (!e.id) e.id = `EST-LEGACY-${idx}`;
                 if (!e.baseId) e.baseId = e.id;
                 if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
+                if (!e.status) e.status = "Pending";
             });
         } 
     },
@@ -122,6 +123,7 @@ window.app = {
                         if (!e.id) e.id = `EST-LEGACY-${idx}`;
                         if (!e.baseId) e.baseId = e.id;
                         if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
+                        if (!e.status) e.status = "Pending";
                     });
 
                     localStorage.setItem('sys_db', JSON.stringify(window.app.db));
@@ -129,7 +131,8 @@ window.app = {
                     window.dataManager.renderCodesTable(); 
                     window.dataManager.renderProjectCodesTable();
                     window.dataManager.renderClientTable(); 
-                    window.dataManager.populateClientDropdowns(); 
+                    window.dataManager.populateClientDropdowns();
+                    window.dataManager.populateOperationsDropdown(); 
                     window.ui.updateDashboardStats();
                     alert("Successfully synced database from network folder.");
                 } catch(parseErr) {
@@ -169,16 +172,17 @@ window.onload = async function() {
     window.app.loadData();
     
     const dt = window.app.getCurrentDateTime();
-    document.getElementById('estDate').value = dt.date;
-    document.getElementById('invDate').value = dt.date;
+    if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
+    if(document.getElementById('invDate')) document.getElementById('invDate').value = dt.date;
     
     window.ui.applyCompanyDataToUI();
     window.dataManager.renderCodesTable();
     window.dataManager.renderProjectCodesTable();
     window.dataManager.renderClientTable();
     window.dataManager.populateClientDropdowns();
+    window.dataManager.populateOperationsDropdown();
     
-    if(document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
+    if(document.getElementById('estimationRowsBody') && document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
     if(document.getElementById('termsContainer') && document.getElementById('termsContainer').children.length === 0) window.estimator.resetTerms();
     
     window.ui.updateDashboardStats();
