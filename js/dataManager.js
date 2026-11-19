@@ -169,6 +169,17 @@ window.dataManager = {
         if(typeof window.estimator !== 'undefined' && window.estimator.updateEstIdPreview) window.estimator.updateEstIdPreview();
     },
 
+    populateOperationsDropdown: () => {
+        const ops = document.getElementById('opsEstimationSelect');
+        if(!ops) return;
+        ops.innerHTML = '<option value="">-- Load from Saved Estimation --</option>';
+        window.app.db.estimations.forEach(e => {
+            if (e.status === 'Approved') {
+                ops.innerHTML += `<option value="${e.id}">${e.id} - ${e.projectName || e.clientName}</option>`;
+            }
+        });
+    },
+
     currentSortColumn: '',
     currentSortDir: 'asc',
     
@@ -188,6 +199,7 @@ window.dataManager = {
         window.app.saveData();
         window.dataManager.renderHistoryTable();
         window.ui.updateDashboardStats();
+        window.dataManager.populateOperationsDropdown();
     },
 
     renderHistoryTable: (highlightId = null) => {
@@ -229,7 +241,7 @@ window.dataManager = {
                         <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.date || '-'}</td>
                         <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.time || '-'}</td>
                         <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
-                        <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
+                        <td class="p-3 font-bold text-sky-800 whitespace-nowrap">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
                         <td class="p-3 text-center font-bold whitespace-nowrap">${itemCount}</td>
                         <td class="p-3 text-right space-x-2 whitespace-nowrap">
@@ -255,6 +267,7 @@ window.dataManager = {
             window.app.saveData();
             window.dataManager.renderHistoryTable();
             window.ui.updateDashboardStats();
+            window.dataManager.populateOperationsDropdown();
             if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist();
         }
     },
@@ -359,6 +372,32 @@ window.dataManager = {
         window.estimator.recalculateEstimation();
         window.estimator.updateEstIdPreview();
         window.ui.switchTab('estimation');
+    },
+
+    loadBudgetFromSaved: () => {
+        const estId = document.getElementById('opsEstimationSelect').value;
+        if(!estId) return;
+        const est = window.app.db.estimations.find(e => e.id === estId);
+        if(!est) return;
+        
+        let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Code</th><th class="p-2">Description</th><th class="p-2 text-center">Qty</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
+        
+        est.items.forEach(item => {
+            if(item.type === 'item') {
+                const costTotal = (item.qty || 0) * (item.cost || 0);
+                html += `<tr class="border-b">
+                    <td class="p-2 font-mono text-slate-500">${item.code || '-'}</td>
+                    <td class="p-2 font-bold">${item.desc}</td>
+                    <td class="p-2 text-center">${item.qty} ${item.unit}</td>
+                    <td class="p-2 text-right font-bold text-emerald-700">${window.app.formatMoney(costTotal)}</td>
+                    <td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right bg-slate-50" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=window.app.formatMoney(rem);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td>
+                    <td class="p-2 text-right font-bold text-emerald-700 font-mono">${window.app.formatMoney(costTotal)}</td>
+                </tr>`;
+            }
+        });
+        
+        html += `</table></div>`;
+        document.getElementById('operationsContent').innerHTML = html;
     },
 
     importEstimationForBudget: (event) => {
