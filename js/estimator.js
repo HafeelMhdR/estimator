@@ -1,7 +1,8 @@
 window.estimator = {
     resetTerms: () => {
         const container = document.getElementById('termsContainer');
-        if (container) container.innerHTML = '';
+        if (!container) return;
+        container.innerHTML = '';
         window.estimator.addTermRow('Offer Validity', '1 month');
         window.estimator.addTermRow('Payment Terms', '100% advance payment');
         window.estimator.addTermRow('Delivery or Execution Period', '');
@@ -231,10 +232,7 @@ window.estimator = {
         if(tbody) tbody.innerHTML = '';
         window.estimator.addEstimationRow();
         window.estimator.updateEstIdPreview();
-        
-        setTimeout(() => {
-            window.estimator.resetTerms();
-        }, 50);
+        window.estimator.resetTerms();
     },
 
     toggleAllRows: (cb) => { document.querySelectorAll('.row-chk').forEach(chk => chk.checked = cb.checked); },
@@ -336,7 +334,7 @@ window.estimator = {
                 </select>
             </td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="window.estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
