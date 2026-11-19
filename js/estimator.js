@@ -39,6 +39,14 @@ window.estimator = {
             if (existingEst) {
                 const q = existingEst.quoteOfDay || 1;
                 const baseId = `${basePrefix}${q}`;
+                
+                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+                
+                if (currentRev < maxRev) {
+                    return { baseId, fullId: baseId + `R${maxRev + 1}`, quoteOfDay: q, revision: maxRev + 1 };
+                }
+                
                 return { baseId, fullId: baseId + (currentRev > 0 ? `R${currentRev}` : ''), quoteOfDay: q, revision: currentRev };
             }
         }
@@ -48,12 +56,15 @@ window.estimator = {
             if (existingEst) {
                 const q = existingEst.quoteOfDay || 1;
                 const baseId = existingEst.baseId || `${basePrefix}${q}`;
-                const newRev = currentRev + 1;
+                
+                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+                
+                const newRev = maxRev + 1;
                 return { baseId, fullId: baseId + `R${newRev}`, quoteOfDay: q, revision: newRev };
             }
         }
 
-        // New
         const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && String(e.baseId).startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
@@ -435,12 +446,23 @@ window.estimator = {
 
         if (mode === 'edit') {
             const currentId = document.getElementById('currentEditingEstId').value;
-            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-            if(idx > -1) {
-                estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
-                window.app.db.estimations[idx] = estimationData;
-            } else {
+            if (finalId !== currentId) {
                 window.app.db.estimations.push(estimationData);
+            } else {
+                if (confirm(`Save as a NEW REVISION (R${idData.revision + 1})?\n\n[OK] = Create New Revision (Safe)\n[Cancel] = Overwrite Current Version (${currentId})`)) {
+                    estimationData.revision += 1;
+                    estimationData.id = `${idData.baseId}R${estimationData.revision}`;
+                    finalId = estimationData.id;
+                    window.app.db.estimations.push(estimationData);
+                } else {
+                    const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
+                    if(idx > -1) {
+                        estimationData.time = window.app.db.estimations[idx].time || estimationData.time; 
+                        window.app.db.estimations[idx] = estimationData;
+                    } else {
+                        window.app.db.estimations.push(estimationData);
+                    }
+                }
             }
         } else if (mode === 'revise') {
             window.app.db.estimations.push(estimationData);
@@ -450,7 +472,12 @@ window.estimator = {
         
         window.app.saveData(); 
         
-        // Redirect to History Tab and Highlight the Saved Entry
+        document.getElementById('currentEditingEstId').value = finalId;
+        document.getElementById('currentEditingEstRev').value = estimationData.revision;
+        document.getElementById('currentEditingMode').value = 'edit';
+
+        window.estimator.updateEstIdPreview(); 
+        
         window.ui.switchTab('history');
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
