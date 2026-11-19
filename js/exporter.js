@@ -115,7 +115,6 @@ window.exporter = {
                 doc.text(`Location: ${est.location || ''}`, 40, 100, { maxWidth: pageWidth - 200 });
                 doc.text(`Date: ${est.date || ''}`, 40, 115);
                 
-                // Aligns the visual top of the logo with the visual top of the 18pt Document Title
                 const logoY = 36; 
                 
                 let logoRendered = false;
@@ -205,7 +204,6 @@ window.exporter = {
                 doc.text("Grand Total:", summaryX, finalY + 35);
                 doc.text(formatPdfMoney(subtotal * 1.15), pageWidth - 40, finalY + 35, { align: 'right' });
 
-                // Draw Line Separator
                 doc.setDrawColor(200, 200, 200);
                 doc.line(40, finalY + 55, pageWidth - 40, finalY + 55); 
 
@@ -226,7 +224,6 @@ window.exporter = {
                         body: termsBody,
                         theme: 'plain',
                         styles: { fontSize: 9, cellPadding: 2, font: 'helvetica' },
-                        // Wider column prevents "Delivery or Execution Period" from breaking lines
                         columnStyles: { 0: { cellWidth: 160, fontStyle: 'bold' }, 1: { cellWidth: 'auto' } }
                     });
                 }
@@ -246,80 +243,58 @@ window.exporter = {
         window.exporter.setLoadingState(btn, true);
         
         setTimeout(() => {
-            try {
-                const wb = XLSX.utils.book_new();
-                const curr = window.app.db.company.currency;
-                
-                const invNoEl = document.getElementById('invNumber');
-                const invDateEl = document.getElementById('invDate');
-                const toEl = document.getElementById('previewTo');
-                const attnEl = document.getElementById('previewAttn');
-                const vatEl = document.getElementById('previewClientVat');
-                
-                let wsData = [
-                    [`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],
-                    ["INVOICE #:", invNoEl ? invNoEl.value : "", "", "DATE:", invDateEl ? invDateEl.value : ""],
-                    ["TO:", toEl ? toEl.innerText : ""],
-                    ["ATTN:", attnEl ? attnEl.innerText : ""],
-                    ["CLIENT VAT:", vatEl ? vatEl.innerText : ""],
-                    [],
-                    ["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]
-                ];
-                
-                const modeEl = document.querySelector('input[name="billMode"]:checked');
-                const mode = modeEl ? modeEl.value : "itemized";
-                let globalSubtotal = 0;
-        
-                document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
-                    const est = window.app.db.estimations[chk.value]; let estTotal = 0;
-                    est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
-        
-                    if (mode === 'milestone') {
-                        globalSubtotal += estTotal;
-                    } else if (mode === 'summary') {
-                        let catTotal = 0; let currentCat = ""; let cNum = 0;
-                        est.items.forEach((item, index) => {
-                            if (item.type === 'category') {
-                                if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                                currentCat = item.title; catTotal = 0; cNum++;
-                            } else { catTotal += (item.qty * item.price); }
-                            if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
-                        });
-                    } else {
-                        let cNum = 0, iNum = 0;
-                        est.items.forEach(item => {
-                            if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", ""]); } 
-                            else {
-                                iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
-                                const total = item.qty * item.price; globalSubtotal += total;
-                                const descText = item.comment ? `${item.desc} (${item.comment})` : item.desc;
-                                wsData.push([dNum, item.code, descText, item.unit, item.qty, parseFloat(item.price), total]);
-                            }
-                        });
-                    }
-                });
-        
+            const wb = XLSX.utils.book_new();
+            const curr = window.app.db.company.currency;
+            let wsData = [[`${window.app.db.company.name.toUpperCase()} - PROFORMA INVOICE`],["INVOICE #:", document.getElementById('invNumber').value, "", "DATE:", document.getElementById('invDate').value],["TO:", document.getElementById('previewTo').innerText],["ATTN:", document.getElementById('previewAttn').innerText],["CLIENT VAT:", document.getElementById('previewClientVat').innerText],[],["SL", "CODE", "DESCRIPTION", "UNIT", "QTY", `PRICE (${curr})`, `TOTAL (${curr})`]];
+            
+            const mode = document.querySelector('input[name="billMode"]:checked').value;
+            let globalSubtotal = 0;
+    
+            document.querySelectorAll('.est-checkbox:checked').forEach(chk => {
+                const est = window.app.db.estimations[chk.value]; let estTotal = 0;
+                est.items.forEach(i => { if(i.type === 'item') estTotal += (i.qty * i.price); });
+    
                 if (mode === 'milestone') {
-                    const msTypeEl = document.getElementById('milestoneType');
-                    const msPctEl = document.getElementById('milestonePct');
-                    
-                    const msVal = msTypeEl ? msTypeEl.value.split('|') : ["10030", "Advance Payment"];
-                    const pct = parseFloat(msPctEl ? (msPctEl.value || 0) : 0) / 100;
-                    const msTotal = globalSubtotal * pct;
-                    wsData = wsData.slice(0, 7); 
-                    wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal]);
-                    globalSubtotal = msTotal;
+                    globalSubtotal += estTotal;
+                } else if (mode === 'summary') {
+                    let catTotal = 0; let currentCat = ""; let cNum = 0;
+                    est.items.forEach((item, index) => {
+                        if (item.type === 'category') {
+                            if(currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
+                            currentCat = item.title; catTotal = 0; cNum++;
+                        } else { catTotal += (item.qty * item.price); }
+                        if (index === est.items.length - 1 && currentCat !== "") { wsData.push([cNum, "", currentCat, "", "", catTotal]); globalSubtotal += catTotal; }
+                    });
+                } else {
+                    let cNum = 0, iNum = 0;
+                    est.items.forEach(item => {
+                        if (item.type === 'category') { cNum++; iNum = 0; wsData.push([cNum, "", item.title, "", "", ""]); } 
+                        else {
+                            iNum++; let nStr = iNum < 10 ? `0${iNum}` : iNum; let dNum = cNum > 0 ? `${cNum}.${nStr}` : iNum;
+                            const total = item.qty * item.price; globalSubtotal += total;
+                            const descText = item.comment ? `${item.desc} (${item.comment})` : item.desc;
+                            wsData.push([dNum, item.code, descText, item.unit, item.qty, parseFloat(item.price), total]);
+                        }
+                    });
                 }
-        
-                wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); 
-                XLSX.writeFile(wb, `${window.app.db.company.abbr}_Invoice.xlsx`);
-            } catch (err) {
-                console.error("Proforma Excel Error:", err);
-                alert("Excel generation failed.");
-            } finally {
-                window.exporter.setLoadingState(btn, false);
+            });
+    
+            if (mode === 'milestone') {
+                const msTypeEl = document.getElementById('milestoneType');
+                const msPctEl = document.getElementById('milestonePct');
+                
+                const msVal = msTypeEl ? msTypeEl.value.split('|') : ["10030", "Advance Payment"];
+                const pct = parseFloat(msPctEl ? (msPctEl.value || 0) : 0) / 100;
+                const msTotal = globalSubtotal * pct;
+                wsData = wsData.slice(0, 7); 
+                wsData.push([1, msVal[0], `${msVal[1]} - ${pct*100}%`, "LS", 1, msTotal]);
+                globalSubtotal = msTotal;
             }
+    
+            wsData.push([]); wsData.push(["", "", "", "", "Subtotal", globalSubtotal]); wsData.push(["", "", "", "", "VAT 15%", globalSubtotal * 0.15]); wsData.push(["", "", "", "", "Grand Total", globalSubtotal * 1.15]);
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(wsData), "Invoice"); 
+            XLSX.writeFile(wb, `${window.app.db.company.abbr}_Invoice.xlsx`);
+            window.exporter.setLoadingState(btn, false);
         }, 100);
     },
 
@@ -337,8 +312,6 @@ window.exporter = {
                 const curr = (window.app.db.company.currency || 'SAR').replace('﷼', 'SAR');
                 const formatPdfMoney = (num) => parseFloat(num || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ' + curr;
 
-                const logoY = 36;
-
                 if (window.app.db.company.logo && window.app.db.company.logo.startsWith('data:image')) {
                     try {
                         const props = doc.getImageProperties(window.app.db.company.logo);
@@ -347,7 +320,7 @@ window.exporter = {
                             const targetWidth = 120;
                             let imgFormat = 'PNG';
                             if (window.app.db.company.logo.includes('image/jpeg')) imgFormat = 'JPEG';
-                            doc.addImage(window.app.db.company.logo, imgFormat, pageWidth - targetWidth - 40, logoY, targetWidth, targetWidth * ratio);
+                            doc.addImage(window.app.db.company.logo, imgFormat, pageWidth - targetWidth - 40, 40, targetWidth, targetWidth * ratio);
                         }
                     } catch (imgErr) {
                         console.warn("Logo dimension extraction failed. Falling back to text render.", imgErr);
