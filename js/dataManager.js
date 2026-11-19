@@ -67,18 +67,24 @@ window.dataManager = {
     },
 
     renderCodesTable: () => {
-        const tbody = document.getElementById('codesTableBody'); tbody.innerHTML = '';
+        const tbody = document.getElementById('codesTableBody'); 
+        if(!tbody) return;
+        tbody.innerHTML = '';
         window.app.db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-sky-800 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.codes.splice(${idx},1);window.app.saveData();window.dataManager.renderCodesTable()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
 
     saveCodeItem: () => { 
-        const code = document.getElementById('modalCode').value.trim().toUpperCase();
+        const codeEl = document.getElementById('modalCode');
+        const code = codeEl ? codeEl.value.trim().toUpperCase() : '';
         if (!code) return alert("Code cannot be empty.");
         if (window.app.db.codes.find(c => c.code === code)) return alert("This Item Code already exists!");
         
-        window.app.db.codes.push({code, desc: document.getElementById('modalDesc').value}); 
+        const descEl = document.getElementById('modalDesc');
+        window.app.db.codes.push({code, desc: descEl ? descEl.value : ''}); 
         window.app.saveData(); window.dataManager.renderCodesTable(); 
-        document.getElementById('codeModal').classList.add('hidden'); 
+        
+        const modal = document.getElementById('codeModal');
+        if(modal) modal.classList.add('hidden'); 
     },
 
     importProjectCodesJSON: (event) => {
@@ -134,18 +140,24 @@ window.dataManager = {
     },
 
     renderProjectCodesTable: () => {
-        const tbody = document.getElementById('projectCodesTableBody'); tbody.innerHTML = '';
+        const tbody = document.getElementById('projectCodesTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
         window.app.db.projectCodes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-emerald-700 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.projectCodes.splice(${idx},1);window.app.saveData();window.dataManager.renderProjectCodesTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
 
     saveProjectCodeItem: () => { 
-        const code = document.getElementById('modalProjCode').value.trim().toUpperCase();
+        const codeEl = document.getElementById('modalProjCode');
+        const code = codeEl ? codeEl.value.trim().toUpperCase() : '';
         if (!code) return alert("Code cannot be empty.");
         if (window.app.db.projectCodes.find(c => c.code === code)) return alert("This Project Code already exists!");
 
-        window.app.db.projectCodes.push({code, desc: document.getElementById('modalProjDesc').value}); 
+        const descEl = document.getElementById('modalProjDesc');
+        window.app.db.projectCodes.push({code, desc: descEl ? descEl.value : ''}); 
         window.app.saveData(); window.dataManager.renderProjectCodesTable(); window.dataManager.populateClientDropdowns();
-        document.getElementById('projectCodeModal').classList.add('hidden'); 
+        
+        const modal = document.getElementById('projectCodeModal');
+        if(modal) modal.classList.add('hidden'); 
     },
 
     importClientsJSON: (event) => {
@@ -204,8 +216,10 @@ window.dataManager = {
     },
 
     saveClientItem: () => { 
-        const abbr = document.getElementById('mClientAbbr').value.trim().toUpperCase();
-        const idx = document.getElementById('mClientIndex').value;
+        const abbrEl = document.getElementById('mClientAbbr');
+        const idxEl = document.getElementById('mClientIndex');
+        const abbr = abbrEl ? abbrEl.value.trim().toUpperCase() : '';
+        const idx = idxEl ? idxEl.value : '';
 
         if (!abbr) return alert("Client abbreviation cannot be empty.");
         
@@ -489,5 +503,22 @@ window.dataManager = {
         
         html += `</table></div>`;
         document.getElementById('operationsContent').innerHTML = html;
+    },
+
+    importEstimationForBudget: (event) => {
+        const file = event.target.files[0]; if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const workbook = XLSX.read(new Uint8Array(e.target.result), {type: 'array'});
+            const rows = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]], {header: 1});
+            let html = `<div class="overflow-x-auto border rounded-lg"><table class="w-full text-left text-xs"><tr class="bg-slate-800 text-white"><th class="p-2">Item</th><th class="p-2">Description</th><th class="p-2 text-right">Internal Budget Spend</th><th class="p-2 text-right">Actual Spent</th><th class="p-2 text-right">Remaining</th></tr>`;
+            rows.forEach(r => {
+                if(r[1] && r[10]) { 
+                    const costTotal = r[10] || 0; 
+                    html += `<tr class="border-b"><td class="p-2">${r[1]}</td><td class="p-2">${r[2]}</td><td class="p-2 text-right font-bold text-emerald-700">${window.app.formatMoney(costTotal)}</td><td class="p-2 text-right"><input type="number" class="border rounded p-1 w-24 text-right" value="0" oninput="const rem=(${costTotal}-this.value);const c=this.parentElement.nextElementSibling;c.innerText=window.app.formatMoney(rem);c.className=rem>=0?'p-2 text-right font-bold text-emerald-700 font-mono':'p-2 text-right font-bold text-red-700 font-mono';"></td><td class="p-2 text-right font-bold text-emerald-700 font-mono">${window.app.formatMoney(costTotal)}</td></tr>`;
+                }
+            });
+            document.getElementById('operationsContent').innerHTML = html + `</table></div>`;
+        }; reader.readAsArrayBuffer(file);
     }
 };
