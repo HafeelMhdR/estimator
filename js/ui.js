@@ -7,7 +7,7 @@ window.ui = {
             el.classList.add('text-slate-300');
         });
         
-        if (event && event.currentTarget) {
+        if (event && event.currentTarget && event.currentTarget.classList.contains('tab-btn')) {
             event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
             event.currentTarget.classList.remove('text-slate-300');
         } else {
@@ -37,6 +37,10 @@ window.ui = {
                 document.getElementById('statCodesCount').innerText = window.app.db.codes.length;
             }
         }
+    },
+
+    openDatabaseModal: () => {
+        document.getElementById('databaseModal').classList.remove('hidden');
     },
 
     openCompanyModal: () => {
