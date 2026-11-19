@@ -228,10 +228,10 @@ window.dataManager = {
                         <td class="p-3 font-mono font-bold text-blue-900 whitespace-nowrap">${est.id || '-'}</td>
                         <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.date || '-'}</td>
                         <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.time || '-'}</td>
+                        <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
-                        <td class="p-3 text-center whitespace-nowrap">${itemCount}</td>
-                        <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
+                        <td class="p-3 text-center font-bold whitespace-nowrap">${itemCount}</td>
                         <td class="p-3 text-right space-x-2 whitespace-nowrap">
                             <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
                             <button onclick="window.exporter.exportEstimationExcel(${originalIndex}, event)" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">Excel</button>
