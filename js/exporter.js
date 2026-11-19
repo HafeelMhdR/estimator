@@ -13,6 +13,18 @@ window.exporter = {
         }
     },
 
+    downloadEstimationTemplate: () => {
+        const wb = XLSX.utils.book_new();
+        const wsData = [
+            ["Type or Code", "Description", "Comment (Optional)", "Unit", "Quantity", "Internal Cost", "Overhead %", "Profit %"],
+            ["CATEGORY", "General Works", "", "", "", "", "", ""],
+            ["", "Item description here", "Note for client", "ITEM", 1, 1500, 15, 35]
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(wsData);
+        XLSX.utils.book_append_sheet(wb, ws, "Template"); 
+        XLSX.writeFile(wb, `Estimation_Template.xlsx`);
+    },
+
     exportEstimationExcel: (idx, event) => {
         const btn = event ? event.currentTarget : null;
         window.exporter.setLoadingState(btn, true);
