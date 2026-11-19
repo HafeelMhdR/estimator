@@ -80,7 +80,6 @@ window.app = {
             if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
             window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
             
-            // CRITICAL REPAIR: Ensures missing fields in old estimations don't crash the system
             window.app.db.estimations.forEach((e, idx) => {
                 if (!e.time) e.time = "12:00 AM";
                 if (!e.id) e.id = `EST-LEGACY-${idx}`;
