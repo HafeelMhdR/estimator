@@ -8,33 +8,18 @@ window.estimator = {
     },
 
     generateIdData: () => {
-        const mode = document.getElementById('currentEditingMode')?.value || 'new';
-        const currentId = document.getElementById('currentEditingEstId')?.value;
-
-        // 1. Direct Edit (Preserve Exact Identity)
-        if (mode === 'edit' && currentId) {
-            const existing = window.app.db.estimations.find(e => e.id === currentId);
-            if(existing) return { baseId: existing.baseId, fullId: currentId, quoteOfDay: existing.quoteOfDay, revision: existing.revision };
-        }
-
-        // 2. Revise (Find the absolute maximum revision for this tree and bump it by 1)
-        if (mode === 'revise' && currentId) {
-            const existing = window.app.db.estimations.find(e => e.id === currentId);
-            if(existing) {
-                const baseId = existing.baseId || currentId.split('R')[0];
-                const related = window.app.db.estimations.filter(e => e.baseId === baseId);
-                const maxRev = Math.max(0, ...related.map(e => e.revision || 0));
-                return { baseId: baseId, fullId: `${baseId}R${maxRev + 1}`, quoteOfDay: existing.quoteOfDay, revision: maxRev + 1 };
-            }
-        }
-
-        // 3. New Mode (Calculate a brand new Base ID for the selected date)
         const comp = window.app.db.company.abbr || 'COMP';
-        const clientSelect = document.getElementById('estClientSelect');
-        const cliAbbr = window.app.db.clients.find(c => c.name === clientSelect?.value)?.abbr || 'CLI';
-        const projAbbr = document.getElementById('estProjectCodeSelect')?.value || 'PRJ';
         
-        const rawDate = document.getElementById('estDate')?.value || '';
+        const clientSelect = document.getElementById('estClientSelect');
+        const clientName = clientSelect ? clientSelect.value : '';
+        const client = window.app.db.clients.find(c => c.name === clientName);
+        const cliAbbr = client && client.abbr ? client.abbr : 'CLI';
+        
+        const projSelect = document.getElementById('estProjectCodeSelect');
+        const projAbbr = projSelect && projSelect.value ? projSelect.value : 'PRJ';
+        
+        const dateInput = document.getElementById('estDate');
+        const rawDate = dateInput ? dateInput.value : '';
         let dateStr = "00000000";
         if (rawDate) {
             const parts = rawDate.split('-'); 
@@ -42,15 +27,51 @@ window.estimator = {
         }
         
         const basePrefix = `${comp}-${cliAbbr}-${projAbbr}-${dateStr}`;
+        
+        const modeEl = document.getElementById('currentEditingMode');
+        const mode = modeEl ? modeEl.value : 'new';
+        
+        const currentId = document.getElementById('currentEditingEstId').value;
+        let currentRev = parseInt(document.getElementById('currentEditingEstRev').value || 0);
+
+        if (mode === 'edit') {
+            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
+            if (existingEst) {
+                const q = existingEst.quoteOfDay || 1;
+                const baseId = `${basePrefix}${q}`;
+                
+                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+                
+                if (currentRev < maxRev) {
+                    return { baseId, fullId: baseId + `R${maxRev + 1}`, quoteOfDay: q, revision: maxRev + 1 };
+                }
+                
+                return { baseId, fullId: baseId + (currentRev > 0 ? `R${currentRev}` : ''), quoteOfDay: q, revision: currentRev };
+            }
+        }
+        
+        if (mode === 'revise') {
+            const existingEst = window.app.db.estimations.find(e => e.id === currentId);
+            if (existingEst) {
+                const q = existingEst.quoteOfDay || 1;
+                const baseId = existingEst.baseId || `${basePrefix}${q}`;
+                
+                const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
+                const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
+                
+                const newRev = maxRev + 1;
+                return { baseId, fullId: baseId + `R${newRev}`, quoteOfDay: q, revision: newRev };
+            }
+        }
+
         const samePrefixEsts = window.app.db.estimations.filter(e => e.baseId && String(e.baseId).startsWith(basePrefix));
         let maxX = 0;
         samePrefixEsts.forEach(e => {
             if (e.quoteOfDay > maxX) maxX = e.quoteOfDay;
         });
-        
         const x = maxX + 1;
         const baseId = `${basePrefix}${x}`;
-        
         return { baseId, fullId: baseId, quoteOfDay: x, revision: 0 };
     },
 
@@ -166,7 +187,7 @@ window.estimator = {
         document.getElementById('currentEditingEstRev').value = '0';
         document.getElementById('estProjectName').value = '';
         document.getElementById('estLocation').value = '';
-        document.getElementById('estTitle').value = 'ESTIMATION BOQ';
+        document.getElementById('estTitle').value = '';
         
         const dt = window.app.getCurrentDateTime();
         if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
@@ -284,7 +305,7 @@ window.estimator = {
                 </select>
             </td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-qty" value="1" oninput="window.estimator.recalculateEstimation()"></td>
-            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" value="" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
+            <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-right item-cost" placeholder="0.00" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-oh bg-indigo-50" value="${defOh}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border"><input type="number" class="w-full border rounded p-1 text-center item-pr bg-indigo-50" value="${defPr}" oninput="window.estimator.recalculateEstimation()"></td>
             <td class="p-1 border bg-amber-50"><input type="number" class="w-full border rounded p-1 text-right font-bold item-price bg-amber-50" readonly></td>
@@ -425,24 +446,32 @@ window.estimator = {
 
         if (mode === 'edit') {
             const currentId = document.getElementById('currentEditingEstId').value;
-            const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
-            if(idx > -1) {
-                estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
-                estimationData.status = window.app.db.estimations[idx].status || 'Pending';
-                window.app.db.estimations[idx] = estimationData;
-            } else {
-                estimationData.status = 'Pending';
+            if (finalId !== currentId) {
                 window.app.db.estimations.push(estimationData);
+            } else {
+                const idx = window.app.db.estimations.findIndex(e => e.id === currentId);
+                if(idx > -1) {
+                    estimationData.time = window.app.db.estimations[idx].time || estimationData.time;
+                    estimationData.status = window.app.db.estimations[idx].status || 'Pending';
+                    window.app.db.estimations[idx] = estimationData;
+                } else {
+                    estimationData.status = 'Pending';
+                    window.app.db.estimations.push(estimationData);
+                }
             }
         } else {
-            // New & Revise both push to the end of the array
             estimationData.status = 'Pending';
             window.app.db.estimations.push(estimationData);
         }
         
         window.app.saveData(); 
         
-        // Return to History UI
+        document.getElementById('currentEditingEstId').value = finalId;
+        document.getElementById('currentEditingEstRev').value = estimationData.revision;
+        document.getElementById('currentEditingMode').value = 'edit';
+
+        window.estimator.updateEstIdPreview(); 
+        
         window.ui.switchTab('history');
         if(window.dataManager && window.dataManager.renderHistoryTable) window.dataManager.renderHistoryTable(finalId); 
         if(typeof window.invoicer !== 'undefined') window.invoicer.renderEstimationChecklist(); 
