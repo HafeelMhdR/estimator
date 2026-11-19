@@ -30,11 +30,18 @@ window.invoicer = {
 
     renderInvoiceTable: () => {
         window.invoicer.populateInvoiceClient();
-        const mode = document.querySelector('input[name="billMode"]:checked').value;
+        const modeEl = document.querySelector('input[name="billMode"]:checked');
+        const mode = modeEl ? modeEl.value : "itemized";
+
         const msInputs = document.getElementById('milestoneInputs');
-        
-        if(mode === 'milestone') msInputs.classList.remove('hidden');
-        else msInputs.classList.add('hidden');
+        if (msInputs) {
+            if(mode === 'milestone') msInputs.classList.remove('hidden');
+            else msInputs.classList.add('hidden');
+        }
+
+        const tbody = document.getElementById('invoiceItemsBody'); 
+        if (!tbody) return;
+        tbody.innerHTML = '';
 
         const tbody = document.getElementById('invoiceItemsBody'); tbody.innerHTML = '';
         let globalSubtotal = 0, scopes = [];
