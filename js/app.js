@@ -1,6 +1,6 @@
 window.app = {
     db: {
-        company: { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "", timezone: "local" },
+        company: {},
         codes: [], projectCodes: [], clients: [], estimations: []
     },
     currentDirectoryHandle: null,
@@ -13,18 +13,15 @@ window.app = {
     getCurrentDateTime: () => {
         const tz = window.app.db.company.timezone;
         const now = new Date();
-        
         if (!tz || tz === 'local') {
             return {
                 date: now.toLocaleDateString('en-CA'),
                 time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             };
         }
-        
         const offsetHours = parseFloat(tz);
         const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
         const fixedDate = new Date(utc + (3600000 * offsetHours));
-        
         return {
             date: fixedDate.toLocaleDateString('en-CA'),
             time: fixedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -64,7 +61,35 @@ window.app = {
         }
     },
 
+    ensureDataIntegrity: () => {
+        if (!window.app.db) window.app.db = {};
+        if (!window.app.db.company) window.app.db.company = {};
+        if (!Array.isArray(window.app.db.codes)) window.app.db.codes = [];
+        if (!Array.isArray(window.app.db.projectCodes)) window.app.db.projectCodes = [];
+        if (!Array.isArray(window.app.db.clients)) window.app.db.clients = [];
+        if (!Array.isArray(window.app.db.estimations)) window.app.db.estimations = [];
+
+        const comp = window.app.db.company;
+        if(!comp.name) comp.name = "Your Company";
+        if(!comp.abbr) comp.abbr = "COMP";
+        if(!comp.currency) comp.currency = "SAR";
+        if(!comp.timezone) comp.timezone = "local";
+
+        window.app.db.estimations.forEach((e, idx) => {
+            if (!e.id) e.id = `EST-LEGACY-${idx}`;
+            if (!e.baseId) e.baseId = e.id;
+            if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
+            if (!e.status) e.status = "Pending";
+            if (!e.time) e.time = "12:00 AM";
+        });
+        
+        window.app.db.clients.forEach((c, idx) => {
+            if(!c.abbr) c.abbr = `C0${idx+1}`;
+        });
+    },
+
     saveData: () => { 
+        window.app.ensureDataIntegrity();
         localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
         if(window.ui) window.ui.updateDashboardStats(); 
         window.app.syncToNetworkFolder(); 
@@ -73,21 +98,14 @@ window.app = {
     loadData: () => { 
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
-            window.app.db = JSON.parse(saved); 
-            if(!window.app.db.company) window.app.db.company = { name: "Your Company", abbr: "COMP", currency: "SAR", cr: "", vat: "", email: "", address: "", logo: "", timezone: "local" };
-            if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
-            if(!window.app.db.company.timezone) window.app.db.company.timezone = "local";
-            if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
-            window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
-            
-            window.app.db.estimations.forEach((e, idx) => {
-                if (!e.time) e.time = "12:00 AM";
-                if (!e.id) e.id = `EST-LEGACY-${idx}`;
-                if (!e.baseId) e.baseId = e.id;
-                if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
-                if (!e.status) e.status = "Pending";
-            });
+            try {
+                window.app.db = JSON.parse(saved);
+            } catch(e) {
+                console.warn("LocalStorage corruption. Resetting.");
+                window.app.db = {};
+            }
         } 
+        window.app.ensureDataIntegrity();
     },
 
     connectNetworkFolder: async () => {
@@ -103,48 +121,50 @@ window.app = {
 
             document.getElementById('networkBtnText').innerText = "Connected to LAN";
             document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-            document.getElementById('folderStatus').innerText = "Live Sync Active";
+            document.getElementById('folderStatus').innerText = "Live Sync Active (Multi-File)";
             document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
             document.getElementById('btnDisconnect').classList.remove('hidden');
 
-            try {
-                const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
-                const file = await fileHandle.getFile();
-                const text = await file.text();
-                try {
-                    window.app.db = JSON.parse(text); 
-                    if(!window.app.db.company.currency) window.app.db.company.currency = "SAR";
-                    if(!window.app.db.company.timezone) window.app.db.company.timezone = "local";
-                    if(!window.app.db.projectCodes) window.app.db.projectCodes = [];
-                    window.app.db.clients.forEach((c, idx) => { if(!c.abbr) c.abbr = `C0${idx+1}`; });
-                    
-                    window.app.db.estimations.forEach((e, idx) => {
-                        if (!e.time) e.time = "12:00 AM";
-                        if (!e.id) e.id = `EST-LEGACY-${idx}`;
-                        if (!e.baseId) e.baseId = e.id;
-                        if (e.quoteOfDay === undefined) e.quoteOfDay = 1;
-                        if (!e.status) e.status = "Pending";
-                    });
+            const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
+            let loadedAny = false;
 
-                    localStorage.setItem('sys_db', JSON.stringify(window.app.db));
-                    window.ui.applyCompanyDataToUI(); 
-                    window.dataManager.renderCodesTable(); 
-                    window.dataManager.renderProjectCodesTable();
-                    window.dataManager.renderClientTable(); 
-                    window.dataManager.populateClientDropdowns();
-                    window.dataManager.populateOperationsDropdown(); 
-                    window.ui.updateDashboardStats();
-                    alert("Successfully synced database from network folder.");
-                } catch(parseErr) {
-                    alert("WARNING: Database on network is corrupted. It will not be loaded or overwritten.");
-                }
-            } catch(e) { 
-                if (e.name === 'NotFoundError') {
-                    if(confirm("No database found in this folder. Create a new master database here?")) await window.app.syncToNetworkFolder();
-                    else window.app.disconnectFolder();
+            for (const key of DB_FILES) {
+                try {
+                    const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
+                    const file = await fileHandle.getFile();
+                    const text = await file.text();
+                    if (text) {
+                        try {
+                            window.app.db[key] = JSON.parse(text);
+                            loadedAny = true;
+                        } catch(parseErr) {
+                            console.warn(`[Self-Refining] File ${key}.json is corrupted. It will be recreated with current data.`);
+                        }
+                    }
+                } catch (e) {
+                    console.warn(`[Self-Refining] File ${key}.json missing. It will be generated on next save.`);
                 }
             }
-        } catch(err) { console.log(err); }
+
+            window.app.ensureDataIntegrity();
+            localStorage.setItem('sys_db', JSON.stringify(window.app.db));
+            
+            if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); 
+            if(window.dataManager) {
+                window.dataManager.renderCodesTable(); 
+                window.dataManager.renderProjectCodesTable();
+                window.dataManager.renderClientTable(); 
+                window.dataManager.populateClientDropdowns();
+                window.dataManager.populateOperationsDropdown(); 
+            }
+            if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats();
+            
+            await window.app.syncToNetworkFolder();
+            alert(loadedAny ? "Successfully synced modular database from network folder." : "Connected to folder. Creating new database files.");
+            
+        } catch(err) { 
+            console.log("Connection aborted or failed:", err); 
+        }
     },
 
     disconnectFolder: async () => {
@@ -159,12 +179,19 @@ window.app = {
 
     syncToNetworkFolder: async () => {
         if(!window.app.currentDirectoryHandle) return;
-        try {
-            const fileHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: true });
-            const writable = await fileHandle.createWritable();
-            await writable.write(JSON.stringify(window.app.db));
-            await writable.close();
-        } catch(err) {}
+        const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
+        
+        for (const key of DB_FILES) {
+            try {
+                const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: true });
+                const writable = await fileHandle.createWritable();
+                const dataToSave = window.app.db[key] || (key === 'company' ? {} : []);
+                await writable.write(JSON.stringify(dataToSave));
+                await writable.close();
+            } catch(err) {
+                console.error(`Failed writing to ${key}.json`, err);
+            }
+        }
     }
 };
 
@@ -191,11 +218,14 @@ window.onload = async function() {
     try {
         const savedHandle = await window.app.idb.get();
         if (savedHandle) {
-            window.app.currentDirectoryHandle = savedHandle;
-            document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
-            document.getElementById('networkBtn').className = "bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-            document.getElementById('btnDisconnect').classList.remove('hidden');
-            document.getElementById('folderStatus').innerText = "Folder remembered. Click to reconnect.";
+            const opts = { mode: 'readwrite' };
+            if ((await savedHandle.queryPermission(opts)) === 'granted') {
+                window.app.currentDirectoryHandle = savedHandle;
+                document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
+                document.getElementById('networkBtn').className = "bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+                document.getElementById('btnDisconnect').classList.remove('hidden');
+                document.getElementById('folderStatus').innerText = "Folder remembered. Click to reconnect.";
+            }
         }
     } catch(e) {}
 };
