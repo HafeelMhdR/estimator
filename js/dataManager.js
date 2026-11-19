@@ -171,6 +171,7 @@ window.dataManager = {
 
     currentSortColumn: '',
     currentSortDir: 'asc',
+    
     sortHistory: (column) => {
         if (window.dataManager.currentSortColumn === column) {
             window.dataManager.currentSortDir = window.dataManager.currentSortDir === 'asc' ? 'desc' : 'asc';
@@ -180,6 +181,15 @@ window.dataManager = {
         }
         window.dataManager.renderHistoryTable();
     },
+    
+    toggleApproval: (idx) => {
+        const est = window.app.db.estimations[idx];
+        est.status = est.status === 'Approved' ? 'Pending' : 'Approved';
+        window.app.saveData();
+        window.dataManager.renderHistoryTable();
+        window.ui.updateDashboardStats();
+    },
+
     renderHistoryTable: (highlightId = null) => {
         const searchEl = document.getElementById('historySearch');
         const filterText = (searchEl ? searchEl.value : '').toLowerCase();
@@ -208,20 +218,25 @@ window.dataManager = {
                 let rowClass = 'hover:bg-slate-50 transition border-b';
                 if (highlightId && est.id === highlightId) rowClass = 'bg-emerald-100 transition border-b';
 
+                const status = est.status || 'Pending';
+                const statusBadge = status === 'Approved' 
+                    ? `<span onclick="window.dataManager.toggleApproval(${originalIndex})" class="cursor-pointer bg-emerald-100 text-emerald-800 font-bold px-2 py-1 rounded shadow-sm text-[10px] uppercase tracking-wide">Approved</span>`
+                    : `<span onclick="window.dataManager.toggleApproval(${originalIndex})" class="cursor-pointer bg-amber-100 text-amber-800 font-bold px-2 py-1 rounded shadow-sm text-[10px] uppercase tracking-wide">Pending</span>`;
+
                 tbody.innerHTML += `
                     <tr class="${rowClass}">
-                        <td class="p-3 font-mono font-bold text-blue-900">${est.id || '-'}</td>
-                        <td class="p-3 font-mono text-slate-600">${est.date || '-'}</td>
-                        <td class="p-3 font-mono text-slate-600">${est.time || '-'}</td>
+                        <td class="p-3 font-mono font-bold text-blue-900 whitespace-nowrap">${est.id || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.date || '-'}</td>
+                        <td class="p-3 font-mono text-slate-600 whitespace-nowrap">${est.time || '-'}</td>
                         <td class="p-3 font-bold text-sky-800">${est.clientName || '-'}</td>
                         <td class="p-3 text-slate-700">${est.projectName || 'Unnamed Project'}</td>
-                        <td class="p-3 text-center font-bold">${itemCount}</td>
-                        <td class="p-3 text-right space-x-2">
+                        <td class="p-3 text-center whitespace-nowrap">${statusBadge}</td>
+                        <td class="p-3 text-right space-x-2 whitespace-nowrap">
                             <button onclick="window.exporter.exportEstimationPDF(${originalIndex}, event)" class="bg-red-500 hover:bg-red-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">PDF</button>
                             <button onclick="window.exporter.exportEstimationExcel(${originalIndex}, event)" class="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow-sm">Excel</button>
                             <div class="inline-block border-l border-slate-300 mx-1 h-4 align-middle"></div>
                             <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex}, 'edit')" class="text-blue-600 hover:text-blue-800 font-bold text-xs ml-1">Edit</button>
-                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex}, 'revise')" class="text-amber-600 hover:text-amber-800 font-bold text-xs ml-2">Revise</button>
+                            <button onclick="window.dataManager.loadEstimationIntoBuilder(${originalIndex}, 'revise')" class="text-amber-600 hover:text-amber-800 font-bold text-xs ml-1">Revise</button>
                             <button onclick="window.dataManager.deleteEstimation(${originalIndex})" class="text-slate-500 hover:text-red-700 font-bold text-xs ml-2">Delete</button>
                         </td>
                     </tr>
@@ -246,24 +261,18 @@ window.dataManager = {
         const est = window.app.db.estimations[idx];
         const baseId = est.baseId;
         
-        // Edit/Revise Protection Engine
+        // Strict Revision & Edit Protection Engine
         const relatedEsts = window.app.db.estimations.filter(e => e.baseId === baseId);
         const maxRev = Math.max(0, ...relatedEsts.map(e => e.revision || 0));
         
-        if (est.revision < maxRev) {
-            const latestEst = relatedEsts.find(e => e.revision === maxRev);
-            if (mode === 'edit') {
-                if(!confirm(`WARNING: A newer revision (${latestEst.id}) exists.\n\nIf you edit this older version (${est.id}), it will be saved as the newest revision (R${maxRev + 1}).\n\nProceed?`)) {
-                    return;
-                }
-                mode = 'revise';
-            } else if (mode === 'revise') {
-                if(!confirm(`Note: You are branching from an older version (${est.id}).\nThis will be saved as the latest revision: R${maxRev + 1}\n\nProceed?`)) {
-                    return;
-                }
-            }
+        if (mode === 'edit' && est.revision < maxRev) {
+            alert(`SECURITY LOCK:\nYou cannot directly edit an older version (${est.id}) because a newer revision (R${maxRev}) already exists.\n\nOpening this file as a New Revision (R${maxRev + 1}) to protect document history.`);
+            mode = 'revise';
+        } else if (mode === 'revise') {
+            if(!confirm(`You are creating a new revision based on ${est.id}.\nThe new saved document will be assigned R${maxRev + 1}.\n\nProceed?`)) return;
         } else {
-            if(!confirm(`Loading ${est.id} will overwrite the current contents of the Estimation Builder. Continue?`)) return;
+            // Editing the absolute latest version directly
+            if(!confirm(`Loading ${est.id} for direct editing. (This will overwrite any unsaved work in the Builder).\n\nProceed?`)) return;
         }
         
         document.getElementById('currentEditingMode').value = mode;
@@ -272,7 +281,7 @@ window.dataManager = {
         if(document.getElementById('currentEditingEstRev')) document.getElementById('currentEditingEstRev').value = est.revision || 0;
         if(document.getElementById('estProjectName')) document.getElementById('estProjectName').value = est.projectName || '';
         if(document.getElementById('estLocation')) document.getElementById('estLocation').value = est.location || '';
-        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || 'ESTIMATION BOQ';
+        if(document.getElementById('estTitle')) document.getElementById('estTitle').value = est.title || '';
         if(document.getElementById('estDate')) document.getElementById('estDate').value = est.date || '';
         if(document.getElementById('estClientSelect')) document.getElementById('estClientSelect').value = est.clientName || '';
         if(document.getElementById('estProjectCodeSelect')) document.getElementById('estProjectCodeSelect').value = est.projectAbbr || '';
