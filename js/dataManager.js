@@ -45,7 +45,7 @@ window.dataManager = {
         window.app.db.codes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-sky-800 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.codes.splice(${idx},1);window.app.saveData();window.dataManager.renderCodesTable()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
     saveCodeItem: () => { 
-        const code = document.getElementById('modalCode').value.toUpperCase();
+        const code = document.getElementById('modalCode').value.trim().toUpperCase();
         if (!code) return alert("Code cannot be empty.");
         if (window.app.db.codes.find(c => c.code === code)) return alert("This Item Code already exists!");
         
@@ -85,7 +85,7 @@ window.dataManager = {
         window.app.db.projectCodes.forEach((c, idx) => tbody.innerHTML += `<tr class="border-b"><td class="p-3 font-mono text-emerald-700 font-bold">${c.code}</td><td class="p-3">${c.desc}</td><td class="p-3 text-right"><button onclick="window.app.db.projectCodes.splice(${idx},1);window.app.saveData();window.dataManager.renderProjectCodesTable();window.dataManager.populateClientDropdowns()" class="text-red-600 text-xs font-bold">Delete</button></td></tr>`);
     },
     saveProjectCodeItem: () => { 
-        const code = document.getElementById('modalProjCode').value.toUpperCase();
+        const code = document.getElementById('modalProjCode').value.trim().toUpperCase();
         if (!code) return alert("Code cannot be empty.");
         if (window.app.db.projectCodes.find(c => c.code === code)) return alert("This Project Code already exists!");
 
@@ -95,7 +95,9 @@ window.dataManager = {
     },
 
     renderClientTable: () => {
-        const tbody = document.getElementById('clientTableBody'); tbody.innerHTML = '';
+        const tbody = document.getElementById('clientTableBody');
+        if(!tbody) return;
+        tbody.innerHTML = '';
         window.app.db.clients.forEach((c, idx) => {
             tbody.innerHTML += `
             <tr class="border-b">
@@ -122,12 +124,12 @@ window.dataManager = {
         document.getElementById('clientModal').classList.remove('hidden');
     },
     saveClientItem: () => { 
-        const abbr = document.getElementById('mClientAbbr').value.toUpperCase();
+        const abbr = document.getElementById('mClientAbbr').value.trim().toUpperCase();
         const idx = document.getElementById('mClientIndex').value;
 
         if (!abbr) return alert("Client abbreviation cannot be empty.");
         
-        const isDupe = window.app.db.clients.find((c, i) => c.abbr === abbr && i.toString() !== idx);
+        const isDupe = window.app.db.clients.find((c, i) => (c.abbr || '').trim().toUpperCase() === abbr && i.toString() !== idx);
         if(isDupe) return alert("This Client Abbreviation already exists!");
 
         const clientData = {
@@ -315,9 +317,9 @@ window.dataManager = {
                 tr.innerHTML = `
                     <td class="p-1 border text-center"><input type="checkbox" class="row-chk"></td>
                     <td class="p-1 border text-center font-bold item-num"></td>
-                    <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="const f=window.app.db.codes.find(c=>c.code===this.value);if(f)this.closest('tr').querySelector('.item-desc').value=f.desc;">${opt}</select></td>
+                    <td class="p-1 border"><select class="w-full border rounded p-1 item-code-select" onchange="window.estimator.onItemCodeChange(this)">${opt}</select></td>
                     <td class="p-1 border">
-                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description">
+                        <input type="text" class="w-full border rounded p-1 item-desc font-semibold text-slate-800" placeholder="Description" oninput="window.estimator.onItemDescInput(this)">
                         <input type="text" class="w-full border-none bg-transparent p-1 mt-1 text-xs italic text-slate-500 item-comment focus:ring-0" placeholder="Optional comment...">
                     </td>
                     <td class="p-1 border text-center">
@@ -350,7 +352,16 @@ window.dataManager = {
                 tbody.appendChild(tr);
                 
                 const codeEl = tr.querySelector('.item-code-select'); if(codeEl) codeEl.value = item.code || '';
-                const descEl = tr.querySelector('.item-desc'); if(descEl) descEl.value = item.desc || '';
+                const descEl = tr.querySelector('.item-desc');
+                if(descEl) {
+                    descEl.value = item.desc || '';
+                    const codeObj = window.app.db.codes.find(c => c.code === item.code);
+                    if(item.desc && (!codeObj || item.desc.trim() !== codeObj.desc.trim())) {
+                        descEl.dataset.userEdited = "true";
+                    } else {
+                        descEl.dataset.userEdited = "false";
+                    }
+                }
                 const commentEl = tr.querySelector('.item-comment'); if(commentEl) commentEl.value = item.comment || '';
                 const unitEl = tr.querySelector('.item-unit'); if(unitEl) unitEl.value = item.unit || '';
                 const qtyEl = tr.querySelector('.item-qty'); if(qtyEl) qtyEl.value = item.qty || '';
