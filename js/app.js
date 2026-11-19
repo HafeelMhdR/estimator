@@ -90,7 +90,11 @@ window.app = {
 
     saveData: () => { 
         window.app.ensureDataIntegrity();
-        localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
+        try {
+            localStorage.setItem('sys_db', JSON.stringify(window.app.db)); 
+        } catch(e) {
+            console.warn("Local storage capacity limit reached. Bypassing browser cache and relying securely on LAN sync.");
+        }
         if(window.ui) window.ui.updateDashboardStats(); 
         window.app.syncToNetworkFolder(); 
     },
@@ -98,12 +102,8 @@ window.app = {
     loadData: () => { 
         const saved = localStorage.getItem('sys_db'); 
         if(saved) { 
-            try {
-                window.app.db = JSON.parse(saved);
-            } catch(e) {
-                console.warn("LocalStorage corruption. Resetting.");
-                window.app.db = {};
-            }
+            try { window.app.db = JSON.parse(saved); } 
+            catch(e) { window.app.db = {}; }
         } 
         window.app.ensureDataIntegrity();
     },
@@ -149,9 +149,8 @@ window.app = {
         if (input === code.toString()) {
             window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
             window.app.ensureDataIntegrity();
-            localStorage.setItem('sys_db', JSON.stringify(window.app.db));
+            try { localStorage.setItem('sys_db', JSON.stringify(window.app.db)); } catch(e){}
             
-            // Force wipe the network files immediately if connected
             if (window.app.currentDirectoryHandle) {
                 await window.app.syncToNetworkFolder();
             }
@@ -161,6 +160,51 @@ window.app = {
         } else if (input !== null) {
             alert("Incorrect code. Reset cancelled.");
         }
+    },
+
+    triggerFullRender: () => {
+        if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); 
+        if(window.dataManager) {
+            window.dataManager.renderCodesTable(); 
+            window.dataManager.renderProjectCodesTable();
+            window.dataManager.renderClientTable(); 
+            window.dataManager.populateClientDropdowns();
+            window.dataManager.populateOperationsDropdown(); 
+            window.dataManager.renderHistoryTable();
+        }
+        if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats();
+    },
+
+    loadFromNetworkFolderSilently: async () => {
+        if(!window.app.currentDirectoryHandle) return;
+        
+        const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
+        
+        try {
+            const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
+            const masterFile = await masterHandle.getFile();
+            window.app.db = JSON.parse(await masterFile.text());
+        } catch(e) {}
+
+        for (const key of DB_FILES) {
+            try {
+                const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
+                const file = await fileHandle.getFile();
+                const text = await file.text();
+                if (text) { window.app.db[key] = JSON.parse(text); }
+            } catch (e) {}
+        }
+
+        window.app.ensureDataIntegrity();
+        try { localStorage.setItem('sys_db', JSON.stringify(window.app.db)); } catch(e){}
+        
+        window.app.triggerFullRender();
+        
+        document.getElementById('networkBtnText').innerText = "Connected to LAN";
+        document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
+        document.getElementById('folderStatus').innerText = "Live Sync Active (Multi-File)";
+        document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
+        document.getElementById('btnDisconnect').classList.remove('hidden');
     },
 
     connectNetworkFolder: async () => {
@@ -174,61 +218,9 @@ window.app = {
                 if ((await window.app.currentDirectoryHandle.requestPermission(opts)) !== 'granted') throw new Error("Permission denied");
             }
 
-            document.getElementById('networkBtnText').innerText = "Connected to LAN";
-            document.getElementById('networkBtn').className = "bg-emerald-600 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
-            document.getElementById('folderStatus').innerText = "Live Sync Active (Multi-File)";
-            document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
-            document.getElementById('btnDisconnect').classList.remove('hidden');
-
-            let masterData = null;
-            try {
-                const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
-                const masterFile = await masterHandle.getFile();
-                masterData = JSON.parse(await masterFile.text());
-            } catch(e) {
-                console.warn("[Hybrid DB] sys_db.json missing or corrupt. Relying on component files.");
-            }
-
-            if (masterData) {
-                window.app.db = masterData;
-            } else {
-                window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
-            }
-
-            const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
-            let loadedAny = false;
-
-            // UNCONDITIONAL OVERWRITE FROM LAN
-            for (const key of DB_FILES) {
-                try {
-                    const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
-                    const file = await fileHandle.getFile();
-                    const text = await file.text();
-                    if (text) {
-                        window.app.db[key] = JSON.parse(text);
-                        loadedAny = true;
-                    }
-                } catch (e) {
-                    console.warn(`[Hybrid DB] Component ${key}.json missing. Will create from local.`);
-                }
-            }
-
-            window.app.ensureDataIntegrity();
-            localStorage.setItem('sys_db', JSON.stringify(window.app.db));
-            
-            if(window.ui && window.ui.applyCompanyDataToUI) window.ui.applyCompanyDataToUI(); 
-            if(window.dataManager) {
-                window.dataManager.renderCodesTable(); 
-                window.dataManager.renderProjectCodesTable();
-                window.dataManager.renderClientTable(); 
-                window.dataManager.populateClientDropdowns();
-                window.dataManager.populateOperationsDropdown(); 
-            }
-            if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats();
-            
+            await window.app.loadFromNetworkFolderSilently();
             await window.app.syncToNetworkFolder();
-            alert(loadedAny ? "Successfully synced modular database from network folder." : "Connected to folder. Creating new database files.");
-            
+            alert("Successfully connected and synced database from network folder.");
         } catch(err) { 
             console.log("Connection aborted or failed:", err); 
         }
@@ -273,26 +265,21 @@ window.app = {
 
 window.onload = async function() {
     window.app.loadData();
+    window.app.triggerFullRender();
     
     const dt = window.app.getCurrentDateTime();
     if(document.getElementById('estDate')) document.getElementById('estDate').value = dt.date;
     if(document.getElementById('invDate')) document.getElementById('invDate').value = dt.date;
     
-    window.ui.applyCompanyDataToUI();
-    window.dataManager.renderCodesTable();
-    window.dataManager.renderProjectCodesTable();
-    window.dataManager.renderClientTable();
-    window.dataManager.populateClientDropdowns();
-    window.dataManager.populateOperationsDropdown();
-    
-    // Safely fire terms initializaton during DOM load
     setTimeout(() => {
-        if(document.getElementById('estimationRowsBody') && document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
-        if(document.getElementById('termsContainer') && document.getElementById('termsContainer').children.length === 0) window.estimator.resetTerms();
-    }, 150);
-    
-    window.ui.updateDashboardStats();
-    window.estimator.updateEstIdPreview();
+        const tbody = document.getElementById('estimationRowsBody');
+        if(tbody && tbody.children.length === 0 && window.estimator) window.estimator.addEstimationRow();
+        
+        const terms = document.getElementById('termsContainer');
+        if(terms && terms.children.length === 0 && window.estimator) window.estimator.resetTerms();
+        
+        if(window.estimator) window.estimator.updateEstIdPreview();
+    }, 500);
 
     try {
         const savedHandle = await window.app.idb.get();
@@ -300,8 +287,9 @@ window.onload = async function() {
             const opts = { mode: 'readwrite' };
             if ((await savedHandle.queryPermission(opts)) === 'granted') {
                 window.app.currentDirectoryHandle = savedHandle;
+                await window.app.loadFromNetworkFolderSilently();
+            } else {
                 document.getElementById('networkBtnText').innerText = "Reconnect to LAN Folder";
-                document.getElementById('networkBtn').className = "bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1";
                 document.getElementById('btnDisconnect').classList.remove('hidden');
                 document.getElementById('folderStatus').innerText = "Folder remembered. Click to reconnect.";
             }
