@@ -153,7 +153,8 @@ window.app = {
         if(!window.app.activePassword || !window.app.currentDirectoryHandle) return alert("System not connected to a secured workspace.");
         window.app.ensureDataIntegrity();
         
-        await window.app.loadFromNetworkFolderSilently(window.app.activePassword, true);
+        // FIX: Removed the silent merge line that was overwriting new edits with old disk data!
+        // await window.app.loadFromNetworkFolderSilently(window.app.activePassword, true);
         
         await window.app.syncToNetworkFolder(); 
         if(window.ui && window.ui.updateDashboardStats) window.ui.updateDashboardStats(); 
