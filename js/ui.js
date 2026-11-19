@@ -6,8 +6,17 @@ window.ui = {
             el.classList.remove('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
             el.classList.add('text-slate-300');
         });
-        event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
-        event.currentTarget.classList.remove('text-slate-300');
+        
+        if (event && event.currentTarget) {
+            event.currentTarget.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
+            event.currentTarget.classList.remove('text-slate-300');
+        } else {
+            const btn = document.querySelector(`.tab-btn[onclick*="${tabId}"]`);
+            if(btn) {
+                btn.classList.add('text-emerald-400', 'border-b-2', 'border-emerald-400', 'active-tab');
+                btn.classList.remove('text-slate-300');
+            }
+        }
         
         if(tabId === 'invoicing' && window.invoicer) { window.invoicer.renderEstimationChecklist(); window.invoicer.renderInvoiceTable(); }
         if(tabId === 'history' && window.dataManager) { window.dataManager.renderHistoryTable(); } 
