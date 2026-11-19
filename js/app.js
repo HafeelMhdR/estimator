@@ -150,9 +150,12 @@ window.app = {
             window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
             window.app.ensureDataIntegrity();
             localStorage.setItem('sys_db', JSON.stringify(window.app.db));
+            
+            // Force wipe the network files immediately if connected
             if (window.app.currentDirectoryHandle) {
                 await window.app.syncToNetworkFolder();
             }
+            
             alert("Database has been reset. Reloading application...");
             location.reload();
         } else if (input !== null) {
@@ -195,21 +198,18 @@ window.app = {
             const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
             let loadedAny = false;
 
+            // UNCONDITIONAL OVERWRITE FROM LAN
             for (const key of DB_FILES) {
-                if (!window.app.db[key] || (Array.isArray(window.app.db[key]) && window.app.db[key].length === 0) || (key === 'company' && !window.app.db.company.name)) {
-                    try {
-                        const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
-                        const file = await fileHandle.getFile();
-                        const text = await file.text();
-                        if (text) {
-                            window.app.db[key] = JSON.parse(text);
-                            loadedAny = true;
-                        }
-                    } catch (e) {
-                        console.warn(`[Hybrid DB] Component ${key}.json missing.`);
+                try {
+                    const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
+                    const file = await fileHandle.getFile();
+                    const text = await file.text();
+                    if (text) {
+                        window.app.db[key] = JSON.parse(text);
+                        loadedAny = true;
                     }
-                } else {
-                    loadedAny = true;
+                } catch (e) {
+                    console.warn(`[Hybrid DB] Component ${key}.json missing. Will create from local.`);
                 }
             }
 
@@ -285,8 +285,11 @@ window.onload = async function() {
     window.dataManager.populateClientDropdowns();
     window.dataManager.populateOperationsDropdown();
     
-    if(document.getElementById('estimationRowsBody') && document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
-    if(document.getElementById('termsContainer') && document.getElementById('termsContainer').children.length === 0) window.estimator.resetTerms();
+    // Safely fire terms initializaton during DOM load
+    setTimeout(() => {
+        if(document.getElementById('estimationRowsBody') && document.getElementById('estimationRowsBody').children.length === 0) window.estimator.addEstimationRow();
+        if(document.getElementById('termsContainer') && document.getElementById('termsContainer').children.length === 0) window.estimator.resetTerms();
+    }, 150);
     
     window.ui.updateDashboardStats();
     window.estimator.updateEstIdPreview();
