@@ -8,37 +8,40 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=29">
+    
+    <!-- Supabase Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <link rel="stylesheet" href="css/styles.css?v=31">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col relative">
 
-    <!-- LAN CONNECTION GATE (Locks app until connected) -->
+    <!-- SUPABASE CLOUD LOGIN & LAN ENCRYPTION GATE -->
     <div id="lanGate" class="fixed inset-0 bg-slate-900 z-[100] flex flex-col items-center justify-center text-white transition-opacity duration-300">
-        <div class="bg-slate-800 p-10 rounded-2xl shadow-2xl border border-slate-700 flex flex-col items-center max-w-lg text-center">
-            <h1 class="text-3xl font-black mb-3">Workspace Locked</h1>
-            <p class="text-slate-400 mb-8">This application requires a connected LAN or local folder to operate. All data is securely read from and saved directly to your selected directory.</p>
-            <div class="flex flex-col space-y-4 w-full">
-                <button id="lanGateReconnectBtn" onclick="window.app.reconnectPreviousFolder()" class="hidden bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition justify-center items-center">
-                    Reconnect Previous Folder
+        <div class="bg-slate-800 p-10 rounded-2xl shadow-2xl border border-slate-700 flex flex-col items-center max-w-md text-center w-full">
+            <h1 class="text-3xl font-black mb-2 text-emerald-400">Secure Workspace</h1>
+            <p class="text-slate-400 mb-6 text-xs">Sign in to retrieve your encryption key and unlock your local LAN data.</p>
+            
+            <div id="loginForm" class="w-full space-y-4">
+                <input type="email" id="authEmail" class="w-full px-4 py-3 rounded bg-slate-900 border border-slate-600 text-white focus:border-emerald-500 focus:outline-none text-sm" placeholder="Email Address">
+                <input type="password" id="authPassword" class="w-full px-4 py-3 rounded bg-slate-900 border border-slate-600 text-white focus:border-emerald-500 focus:outline-none text-sm" placeholder="Password">
+                
+                <button onclick="window.app.loginAndUnlock()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded shadow-lg transition flex justify-center items-center">
+                    Login & Select LAN Folder
                 </button>
-                <div id="lanGateDivider" class="hidden text-slate-500 text-xs font-bold uppercase my-2">OR</div>
-                <button id="lanGateConnectBtn" onclick="window.app.connectNetworkFolder()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-lg transition flex justify-center items-center">
-                    Select LAN Folder to Connect
-                </button>
+                <div class="text-right">
+                    <button onclick="window.app.resetPassword()" class="text-emerald-400 hover:text-emerald-300 text-xs font-semibold transition">Forgot Password?</button>
+                </div>
             </div>
+            
+            <div id="loginStatus" class="hidden w-full mt-4 p-3 rounded bg-red-900/50 border border-red-700 text-red-200 text-xs font-semibold"></div>
         </div>
     </div>
 
     <datalist id="unitList">
-        <option value="ITEM"></option>
-        <option value="HRS"></option>
-        <option value="NO"></option>
-        <option value="SQM"></option>
-        <option value="Cu.M"></option>
-        <option value="LM"></option>
-        <option value="LS"></option>
-        <option value="SET"></option>
-        <option value="DAYS"></option>
+        <option value="ITEM"></option><option value="HRS"></option><option value="NO"></option>
+        <option value="SQM"></option><option value="Cu.M"></option><option value="LM"></option>
+        <option value="LS"></option><option value="SET"></option><option value="DAYS"></option>
     </datalist>
 
     <header class="bg-slate-900 text-white shadow-md no-print">
@@ -52,11 +55,11 @@
                 </div>
             </div>
             <div class="flex items-center space-x-2 mt-2 sm:mt-0">
-                <button id="networkBtn" onclick="window.app.connectNetworkFolder()" class="bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1">
-                    <span>📁</span> <span id="networkBtnText">Connect Shared LAN Folder</span>
+                <button id="networkBtn" onclick="location.reload()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded transition flex items-center space-x-1">
+                    <span>🔒</span> <span id="networkBtnText">Encrypted Sync Active</span>
                 </button>
-                <button id="btnDisconnect" onclick="window.app.disconnectFolder()" class="hidden bg-slate-700 hover:bg-red-600 text-white font-bold text-xs px-2 py-2 rounded transition" title="Disconnect and lock workspace">✕ Disconnect</button>
-                <span id="folderStatus" class="text-xs text-amber-400 font-medium">Local Storage</span>
+                <button id="btnDisconnect" onclick="window.app.disconnectFolder()" class="bg-slate-700 hover:bg-red-600 text-white font-bold text-xs px-2 py-2 rounded transition" title="Lock Workspace">✕ Lock Workspace</button>
+                <span id="folderStatus" class="text-xs text-emerald-400 font-medium">AES-256 Secured</span>
             </div>
         </div>
         <nav class="bg-slate-800 border-t border-slate-700">
@@ -66,7 +69,6 @@
                 <button onclick="window.ui.switchTab('clients')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Client Directory</button>
                 <button onclick="window.ui.switchTab('estimation')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Estimation Builder</button>
                 <button onclick="window.ui.switchTab('history')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Saved Estimations</button>
-                <button onclick="window.ui.switchTab('operations')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Operations Tracker</button>
                 <button onclick="window.ui.switchTab('invoicing')" class="tab-btn px-4 py-2.5 text-xs font-semibold text-slate-300 hover:text-white whitespace-nowrap">Proforma Invoice</button>
             </div>
         </nav>
@@ -82,7 +84,7 @@
                         <p class="text-sm text-slate-600">Track quotes, approvals, and system libraries.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="window.ui.openDatabaseModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition">💾 Database Manager</button>
+                        <button onclick="window.ui.openDatabaseModal()" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition">💾 Snapshot Manager</button>
                         <button onclick="window.ui.openCompanyModal()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded shadow-sm transition">⚙️ Company Settings</button>
                     </div>
                 </div>
@@ -113,32 +115,14 @@
         <section id="tab-libraries" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Project Codes Library (3-Letter)</h2>
-                        <p class="text-xs text-slate-500">Defines the project abbreviation in the Estimation ID (e.g. SIF).</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Project Codes Library (3-Letter)</h2><p class="text-xs text-slate-500">Defines the project abbreviation in the Estimation ID (e.g. SIF).</p></div>
                     <div class="flex space-x-2">
-                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
-                            <span>📤 JSON</span>
-                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importProjectCodesJSON(event)">
-                        </label>
-                        <button onclick="window.dataManager.exportProjectCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ CSV</button>
-                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                            <span>📤 CSV</span>
-                            <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importProjectCodesCSV(event)">
-                        </label>
                         <button onclick="window.ui.openAddProjectCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Project Code</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto max-h-64 border rounded">
                     <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
-                                <th class="p-3 w-32">Project Code</th>
-                                <th class="p-3">Project Description</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
+                        <thead><tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0"><th class="p-3 w-32">Project Code</th><th class="p-3">Project Description</th><th class="p-3 text-right">Actions</th></tr></thead>
                         <tbody id="projectCodesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
@@ -146,32 +130,14 @@
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Item Code Library</h2>
-                        <p class="text-xs text-slate-500">Add material/service codes manually or import via CSV/JSON.</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Item Code Library</h2><p class="text-xs text-slate-500">Add material/service codes manually or import via CSV/JSON.</p></div>
                     <div class="flex space-x-2">
-                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
-                            <span>📤 JSON</span>
-                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importCodesJSON(event)">
-                        </label>
-                        <button onclick="window.dataManager.exportCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ CSV</button>
-                        <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                            <span>📤 CSV</span>
-                            <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importCodesCSV(event)">
-                        </label>
                         <button onclick="window.ui.openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item Code</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto max-h-96 border rounded">
                     <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0">
-                                <th class="p-3 w-32">Item Code</th>
-                                <th class="p-3">Predefined Description</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
+                        <thead><tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b sticky top-0"><th class="p-3 w-32">Item Code</th><th class="p-3">Predefined Description</th><th class="p-3 text-right">Actions</th></tr></thead>
                         <tbody id="codesTableBody" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
@@ -184,25 +150,12 @@
                 <div class="flex justify-between items-center mb-4">
                     <div><h2 class="text-lg font-bold text-slate-900">Client Directory</h2></div>
                     <div class="flex space-x-2">
-                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
-                            <span>📤 JSON</span>
-                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importClientsJSON(event)">
-                        </label>
                         <button onclick="window.ui.openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
                     </div>
                 </div>
                 <div class="overflow-x-auto border rounded">
                     <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
-                                <th class="p-3">Abbr</th>
-                                <th class="p-3">Company Name</th>
-                                <th class="p-3">Attn</th>
-                                <th class="p-3">Address</th>
-                                <th class="p-3">Client VAT</th>
-                                <th class="p-3 text-right">Actions</th>
-                            </tr>
-                        </thead>
+                        <thead><tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b"><th class="p-3">Abbr</th><th class="p-3">Company Name</th><th class="p-3">Attn</th><th class="p-3">Address</th><th class="p-3">Client VAT</th><th class="p-3 text-right">Actions</th></tr></thead>
                         <tbody id="clientTableBody" class="text-sm divide-y divide-slate-100"></tbody>
                     </table>
                 </div>
@@ -212,12 +165,10 @@
         <!-- ESTIMATION BUILDER -->
         <section id="tab-estimation" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                
                 <div class="flex justify-between items-center mb-4 border-b pb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Estimation Builder</h2>
                         <div id="estIdPreview" class="text-2xl font-black text-blue-900 mt-1 tracking-tight">Estimation ID</div>
-                        
                         <input type="hidden" id="currentEditingEstId" value="">
                         <input type="hidden" id="currentEditingEstRev" value="0">
                         <input type="hidden" id="currentEditingMode" value="new">
@@ -237,60 +188,22 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4 text-sm">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client <span class="text-red-500">*</span></label>
-                        <select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Code <span class="text-red-500">*</span></label>
-                        <select id="estProjectCodeSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Date <span class="text-red-500">*</span></label>
-                        <input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Document Title <span class="text-red-500">*</span></label>
-                        <input type="text" id="estTitle" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="e.g. ESTIMATION BOQ">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Name <span class="text-red-500">*</span></label>
-                        <input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Full Project Title">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Project Location <span class="text-red-500">*</span></label>
-                        <input type="text" id="estLocation" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Project City/Site">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label>
-                        <input type="number" id="globalOverhead" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Profit %</label>
-                        <input type="number" id="globalProfit" class="w-full border rounded px-3 py-1.5 bg-white" value="35">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label>
-                        <input type="number" id="globalVat" onchange="window.estimator.recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15">
-                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Select Client <span class="text-red-500">*</span></label><select id="estClientSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Project Code <span class="text-red-500">*</span></label><select id="estProjectCodeSelect" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></select></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Date <span class="text-red-500">*</span></label><input type="date" id="estDate" class="w-full border rounded px-3 py-1.5 bg-white" onchange="window.estimator.updateEstIdPreview()"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Document Title <span class="text-red-500">*</span></label><input type="text" id="estTitle" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="e.g. ESTIMATION BOQ"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Project Name <span class="text-red-500">*</span></label><input type="text" id="estProjectName" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Full Project Title"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Project Location <span class="text-red-500">*</span></label><input type="text" id="estLocation" class="w-full border rounded px-3 py-1.5 bg-white" placeholder="Project City/Site"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Overhead %</label><input type="number" id="globalOverhead" class="w-full border rounded px-3 py-1.5 bg-white" value="15"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Default Global Profit %</label><input type="number" id="globalProfit" class="w-full border rounded px-3 py-1.5 bg-white" value="35"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">VAT %</label><input type="number" id="globalVat" onchange="window.estimator.recalculateEstimation()" class="w-full border rounded px-3 py-1.5 bg-white" value="15"></div>
                 </div>
 
                 <div class="mb-4 bg-blue-50 border border-blue-200 p-3 rounded flex flex-wrap items-center gap-4">
                     <span class="text-sm font-bold text-blue-900">Bulk Actions (Checked Items):</span>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600">New OH %:</label>
-                        <input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="OH %">
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600">New PR %:</label>
-                        <input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="PR %">
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="text-xs font-semibold text-slate-600">Move to Category:</label>
-                        <select id="bulkCategory" class="w-48 border rounded px-2 py-1 text-xs bg-white">
-                            <option value="">-- Do Not Move --</option>
-                        </select>
-                    </div>
+                    <div class="flex items-center space-x-2"><label class="text-xs font-semibold text-slate-600">New OH %:</label><input type="number" id="bulkOh" class="w-16 border rounded px-2 py-1 text-xs" placeholder="OH %"></div>
+                    <div class="flex items-center space-x-2"><label class="text-xs font-semibold text-slate-600">New PR %:</label><input type="number" id="bulkPr" class="w-16 border rounded px-2 py-1 text-xs" placeholder="PR %"></div>
+                    <div class="flex items-center space-x-2"><label class="text-xs font-semibold text-slate-600">Move to Category:</label><select id="bulkCategory" class="w-48 border rounded px-2 py-1 text-xs bg-white"><option value="">-- Do Not Move --</option></select></div>
                     <button onclick="window.estimator.applyBulkMargins()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-1.5 rounded shadow-sm">Apply Changes</button>
                 </div>
 
@@ -317,12 +230,6 @@
                     </table>
                 </div>
 
-                <div class="mt-3 flex space-x-2">
-                    <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-300 hover:bg-slate-400 text-slate-800 text-xs font-bold px-3 py-1.5 rounded border border-slate-400 shadow-sm">+ Add Category</button>
-                    <button onclick="window.estimator.addEstimationRow()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-3 py-1.5 rounded border border-slate-300 shadow-sm">+ Add Row</button>
-                </div>
-
-                <!-- TERMS AND CONDITIONS SECTION -->
                 <div class="mt-6 bg-white p-4 rounded-lg border border-slate-200">
                     <div class="flex justify-between items-center mb-3">
                         <h3 class="text-sm font-bold text-slate-800">Terms & Conditions</h3>
@@ -336,8 +243,6 @@
                         <div class="flex justify-between text-xs text-slate-500"><span>Total Internal Cost:</span> <span id="summaryCost" class="font-mono">0.00</span></div>
                         <div class="flex justify-between text-xs text-slate-500 border-b pb-1"><span>Total Overhead Expense:</span> <span id="summaryOverhead" class="font-mono">0.00</span></div>
                         <div class="flex justify-between text-emerald-700 font-bold"><span>Total Net Profit:</span> <span id="summaryProfit" class="font-mono">0.00</span></div>
-                        <div class="flex justify-between text-xs text-slate-600 font-bold border-b pb-2"><span>Total Combined Margin/Markup:</span> <span id="summaryMargin" class="font-mono">0.00</span></div>
-                        
                         <div class="flex justify-between pt-2"><span>Client Subtotal:</span> <span id="summarySubtotal" class="font-bold font-mono">0.00</span></div>
                         <div class="flex justify-between"><span>VAT:</span> <span id="summaryVat" class="font-bold font-mono">0.00</span></div>
                         <div class="flex justify-between border-t pt-2 text-blue-900 font-bold text-base"><span>Grand Total:</span> <span id="summaryGrandTotal" class="font-mono">0.00</span></div>
@@ -350,10 +255,7 @@
         <section id="tab-history" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Saved Estimations History</h2>
-                        <p class="text-xs text-slate-500">Export your documents or Load them to create a revision.</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Saved Estimations History</h2><p class="text-xs text-slate-500">Export your documents or Load them to create a revision.</p></div>
                     <div class="flex items-center space-x-4">
                         <input type="text" id="historySearch" placeholder="Search by Client, ID, or Project..." class="border rounded px-3 py-1.5 text-xs w-64" onkeyup="window.dataManager.renderHistoryTable()">
                         <button onclick="window.ui.switchTab('estimation'); window.estimator.createNewEstimation();" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-4 py-2 rounded shadow-md">+ New Estimation</button>
@@ -365,7 +267,6 @@
                             <tr class="bg-slate-100 text-slate-700 text-xs uppercase border-b">
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('id')">Estimation ID ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('date')">Date ↕</th>
-                                <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('time')">Time ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200 whitespace-nowrap" onclick="window.dataManager.sortHistory('status')">Status ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('clientName')">Client Name ↕</th>
                                 <th class="p-3 cursor-pointer hover:bg-slate-200" onclick="window.dataManager.sortHistory('projectName')">Project Name ↕</th>
@@ -379,85 +280,30 @@
             </div>
         </section>
 
-        <!-- OPERATIONS TRACKER -->
-        <section id="tab-operations" class="tab-content space-y-6 hidden">
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Operations & Budget Tracker</h2>
-                        <p class="text-xs text-slate-500">Track actual spending against an approved estimation budget.</p>
-                    </div>
-                    <div class="flex items-center space-x-3">
-                        <select id="opsEstimationSelect" class="border rounded px-3 py-1.5 text-xs bg-slate-50 w-64" onchange="window.dataManager.loadBudgetFromSaved()">
-                            <option value="">-- Load from Saved Estimation --</option>
-                        </select>
-                        <span class="text-xs font-bold text-slate-400">OR</span>
-                        <label class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer shadow-sm">
-                            <span>Upload Excel File</span>
-                            <input type="file" accept=".xlsx" class="hidden" onchange="window.dataManager.importEstimationForBudget(event)">
-                        </label>
-                    </div>
-                </div>
-                <div id="operationsContent" class="text-center py-12 text-slate-400 text-sm">No estimation loaded. Select one from the dropdown or upload an Excel file.</div>
-            </div>
-        </section>
-
         <!-- PROFORMA INVOICE -->
         <section id="tab-invoicing" class="tab-content space-y-6 hidden">
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
-                    <div>
-                        <h2 class="text-lg font-bold text-slate-900">Proforma Invoice</h2>
-                        <p class="text-xs text-slate-500">Select estimations and choose a billing mode.</p>
-                    </div>
+                    <div><h2 class="text-lg font-bold text-slate-900">Proforma Invoice</h2><p class="text-xs text-slate-500">Select estimations and choose a billing mode.</p></div>
                     <div class="flex items-center space-x-2">
-                        <select id="invPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded">
-                            <option value="portrait">PDF: Portrait</option>
-                            <option value="landscape">PDF: Landscape</option>
-                        </select>
+                        <select id="invPdfOrientation" class="bg-white border border-slate-300 text-slate-700 text-xs font-semibold px-2 py-2 rounded"><option value="portrait">PDF: Portrait</option><option value="landscape">PDF: Landscape</option></select>
                         <button onclick="window.exporter.generateProformaExcel(event)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">Export Excel</button>
                         <button onclick="window.exporter.exportInvoicePDF(event)" class="bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-2 rounded">Export PDF</button>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200 mb-6 text-sm">
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label>
-                        <select id="invClientSelect" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white"></select>
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Number</label>
-                        <input type="text" id="invNumber" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="INV-001">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Date</label>
-                        <input type="date" id="invDate" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">P.O. Reference</label>
-                        <input type="text" id="invPoRef" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="Email Confirmation">
-                    </div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Select Client</label><select id="invClientSelect" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white"></select></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Number</label><input type="text" id="invNumber" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="PINV-001"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Invoice Date</label><input type="date" id="invDate" onchange="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">P.O. Reference</label><input type="text" id="invPoRef" onkeyup="window.invoicer.populateInvoiceClient()" class="w-full border rounded px-3 py-1.5 bg-white" value="Email Confirmation"></div>
                     
                     <div class="md:col-span-4 bg-white p-3 border rounded">
                         <label class="block text-xs font-semibold text-slate-600 mb-2">Invoice Billing Mode</label>
                         <div class="flex flex-wrap items-center space-x-6">
-                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="itemized" checked onchange="window.invoicer.renderInvoiceTable()"> 1. Full Itemized Detail</label>
-                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="summary" onchange="window.invoicer.renderInvoiceTable()"> 2. Category Summary Only</label>
-                            <label class="text-xs font-bold text-emerald-700"><input type="radio" name="billMode" value="milestone" onchange="window.invoicer.renderInvoiceTable()"> 3. Milestone / Bulk Billing</label>
-                        </div>
-                        <div id="milestoneInputs" class="hidden mt-3 p-3 bg-emerald-50 border border-emerald-200 rounded flex space-x-4">
-                             <div>
-                                 <label class="block text-[10px] font-bold text-slate-500 uppercase">Payment Stage</label>
-                                 <select id="milestoneType" class="border rounded px-2 py-1 text-xs" onchange="window.invoicer.renderInvoiceTable()">
-                                     <option value="10030|Advance Payment">Advance Payment</option>
-                                     <option value="10038|Progress Payment">Progress Payment</option>
-                                     <option value="10032|Final Payment">Final Payment</option>
-                                 </select>
-                             </div>
-                             <div>
-                                 <label class="block text-[10px] font-bold text-slate-500 uppercase">% of Approved Estimation</label>
-                                 <input type="number" id="milestonePct" class="border rounded px-2 py-1 text-xs w-24" placeholder="e.g. 20" value="100" oninput="window.invoicer.renderInvoiceTable()">
-                             </div>
+                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="itemized" checked onchange="window.invoicer.renderInvoiceTable()"> Full Itemized Detail</label>
+                            <label class="text-xs font-bold text-sky-800"><input type="radio" name="billMode" value="summary" onchange="window.invoicer.renderInvoiceTable()"> Category Summary Only</label>
+                            <label class="text-xs font-bold text-emerald-700"><input type="radio" name="billMode" value="milestone" onchange="window.invoicer.renderInvoiceTable()"> Milestone / Bulk Billing</label>
                         </div>
                     </div>
                 </div>
@@ -465,7 +311,6 @@
                 <div class="mb-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
                     <div class="flex justify-between items-center mb-3">
                         <p class="text-xs font-bold text-slate-700 uppercase tracking-wide">Select Estimations to Include:</p>
-                        <input type="text" id="estFilter" placeholder="Filter by ID, client, project..." class="border rounded px-3 py-1 text-xs w-64" onkeyup="window.invoicer.renderEstimationChecklist()">
                     </div>
                     <div id="estimationChecklistContainer" class="flex flex-wrap gap-4 text-xs max-h-40 overflow-y-auto p-2 border bg-white rounded"></div>
                 </div>
@@ -477,7 +322,6 @@
                             <p><b>CR:</b> <span class="dyn-cr"></span></p>
                             <p><b>VAT:</b> <span class="dyn-vat"></span></p>
                             <p><b>Address:</b> <span class="dyn-address"></span></p>
-                            <p><b>Email:</b> <span class="dyn-email"></span></p>
                         </div>
                         <div class="text-right flex flex-col items-end">
                             <img id="printLogo" src="" class="logo-preview hidden mb-1" style="max-height: 80px; max-width: 200px;">
@@ -486,56 +330,21 @@
                     </div>
 
                     <table class="w-full text-xs border border-slate-300 mb-4">
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold w-24">TO</td>
-                            <td id="previewTo" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold w-24">INVOICE #</td>
-                            <td id="previewInvNo" class="p-2 border font-bold text-blue-900">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">ATTN</td>
-                            <td id="previewAttn" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold">DATE</td>
-                            <td id="previewDate" class="p-2 border">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">Client VAT</td>
-                            <td id="previewClientVat" class="p-2 border">-</td>
-                            <td class="p-2 border bg-slate-50 font-bold">P.O. Ref</td>
-                            <td id="previewPoRef" class="p-2 border">-</td>
-                        </tr>
-                        <tr>
-                            <td class="p-2 border bg-slate-50 font-bold">SCOPE</td>
-                            <td id="previewScope" class="p-2 border" colspan="3">-</td>
-                        </tr>
+                        <tr><td class="p-2 border bg-slate-50 font-bold w-24">TO</td><td id="previewTo" class="p-2 border">-</td><td class="p-2 border bg-slate-50 font-bold w-24">INVOICE #</td><td id="previewInvNo" class="p-2 border font-bold text-blue-900">-</td></tr>
+                        <tr><td class="p-2 border bg-slate-50 font-bold">ATTN</td><td id="previewAttn" class="p-2 border">-</td><td class="p-2 border bg-slate-50 font-bold">DATE</td><td id="previewDate" class="p-2 border">-</td></tr>
+                        <tr><td class="p-2 border bg-slate-50 font-bold">Client VAT</td><td id="previewClientVat" class="p-2 border">-</td><td class="p-2 border bg-slate-50 font-bold">P.O. Ref</td><td id="previewPoRef" class="p-2 border">-</td></tr>
                     </table>
 
                     <table class="w-full text-left border-collapse text-xs border border-slate-300">
-                        <thead>
-                            <tr class="bg-blue-900 text-white">
-                                <th class="p-2 border border-slate-400 text-center w-10">SL</th>
-                                <th class="p-2 border border-slate-400 w-24">Code</th>
-                                <th class="p-2 border border-slate-400">Description</th>
-                                <th class="p-2 border border-slate-400 w-16 text-center">Unit</th>
-                                <th class="p-2 border border-slate-400 w-12 text-center">Qty</th>
-                                <th class="p-2 border border-slate-400 w-24 text-right">Price</th>
-                                <th class="p-2 border border-slate-400 w-28 text-right">Total</th>
-                            </tr>
-                        </thead>
+                        <thead><tr class="bg-blue-900 text-white"><th class="p-2 border border-slate-400 text-center w-10">SL</th><th class="p-2 border border-slate-400 w-24">Code</th><th class="p-2 border border-slate-400">Description</th><th class="p-2 border border-slate-400 w-16 text-center">Unit</th><th class="p-2 border border-slate-400 w-12 text-center">Qty</th><th class="p-2 border border-slate-400 w-24 text-right">Price</th><th class="p-2 border border-slate-400 w-28 text-right">Total</th></tr></thead>
                         <tbody id="invoiceItemsBody"></tbody>
                     </table>
 
                     <div class="flex justify-end mt-6 page-break-inside-avoid">
                         <div class="w-80 border border-slate-300 text-xs">
-                            <div class="flex justify-between p-2 border-b bg-slate-50">
-                                <span class="font-bold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span>
-                            </div>
-                            <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50">
-                                <span class="font-bold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span>
-                            </div>
-                            <div class="flex justify-between p-3 bg-blue-50 text-sm">
-                                <span class="font-bold text-blue-900">Grand Total</span><span id="invGrandTotal" class="font-black text-blue-900">0.00</span>
-                            </div>
+                            <div class="flex justify-between p-2 border-b bg-slate-50"><span class="font-bold">Subtotal</span><span id="invSubtotal" class="font-bold">0.00</span></div>
+                            <div class="flex justify-between p-2 border-b text-red-700 bg-slate-50"><span class="font-bold">VAT 15%</span><span id="invVat" class="font-bold">0.00</span></div>
+                            <div class="flex justify-between p-3 bg-blue-50 text-sm"><span class="font-bold text-blue-900">Grand Total</span><span id="invGrandTotal" class="font-black text-blue-900">0.00</span></div>
                         </div>
                     </div>
                 </div>
@@ -545,25 +354,12 @@
         <!-- DATABASE MANAGEMENT MODAL -->
         <div id="databaseModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
             <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
-                <h3 class="text-base font-bold text-slate-900 border-b pb-2">Database Management</h3>
-                <p class="text-xs text-slate-600">The Bulk Database contains all company settings, clients, codes, and estimations in one master file.</p>
-                
+                <h3 class="text-base font-bold text-slate-900 border-b pb-2">Snapshot Management</h3>
+                <p class="text-xs text-slate-600">The system automatically saves AES-256 encrypted snapshots locally on your LAN. Use this to restore corrupted data.</p>
                 <div class="space-y-3 pt-2">
-                    <button onclick="window.app.exportFullDatabase()" class="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded text-sm shadow-sm transition">⬇️ Export Full Database Backup</button>
-                    
-                    <label class="block w-full bg-sky-600 hover:bg-sky-700 text-white text-center font-bold py-2 rounded text-sm shadow-sm cursor-pointer transition">
-                        <span>⬆️ Import Full Database (Restore)</span>
-                        <input type="file" accept=".json" class="hidden" onchange="window.app.importFullDatabase(event)">
-                    </label>
-
-                    <div class="border-t pt-3 mt-3">
-                        <button onclick="window.app.factoryReset()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded text-sm shadow-sm transition">⚠️ Factory Reset & Wipe Network</button>
-                    </div>
+                    <button onclick="window.app.factoryReset()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-2 rounded text-sm shadow-sm transition">⚠️ Factory Reset Workspace</button>
                 </div>
-                
-                <div class="flex justify-end pt-2">
-                    <button onclick="document.getElementById('databaseModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Close</button>
-                </div>
+                <div class="flex justify-end pt-2"><button onclick="document.getElementById('databaseModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Close</button></div>
             </div>
         </div>
 
@@ -572,132 +368,27 @@
             <div class="bg-white p-6 rounded-xl w-full max-w-lg shadow-xl space-y-4">
                 <h3 class="text-base font-bold text-slate-900">Company Settings</h3>
                 <div class="grid grid-cols-2 gap-3">
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Company Name</label>
-                        <input type="text" id="setCompName" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Abbreviation (Header Badge)</label>
-                        <input type="text" id="setCompAbbr" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Currency Symbol</label>
-                        <input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR, $, AED">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label>
-                        <input type="text" id="setCompCR" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">VAT Number</label>
-                        <input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Timezone Override (For Shared LAN)</label>
-                        <select id="setCompTimezone" class="w-full border rounded px-3 py-1.5 text-sm">
-                            <option value="local">Auto (Use Local Device Time)</option>
-                            <option value="-12">UTC -12:00 (Baker Island)</option>
-                            <option value="-11">UTC -11:00 (Samoa)</option>
-                            <option value="-10">UTC -10:00 (Hawaii)</option>
-                            <option value="-9">UTC -09:00 (Alaska)</option>
-                            <option value="-8">UTC -08:00 (Pacific Time)</option>
-                            <option value="-7">UTC -07:00 (Mountain Time)</option>
-                            <option value="-6">UTC -06:00 (Central Time)</option>
-                            <option value="-5">UTC -05:00 (Eastern Time)</option>
-                            <option value="-4">UTC -04:00 (Atlantic Time)</option>
-                            <option value="-3">UTC -03:00 (Argentina)</option>
-                            <option value="-2">UTC -02:00 (Mid-Atlantic)</option>
-                            <option value="-1">UTC -01:00 (Azores)</option>
-                            <option value="0">UTC +00:00 (London, GMT)</option>
-                            <option value="1">UTC +01:00 (Central Europe)</option>
-                            <option value="2">UTC +02:00 (Eastern Europe)</option>
-                            <option value="3">UTC +03:00 (Saudi Arabia, Moscow)</option>
-                            <option value="3.5">UTC +03:30 (Iran)</option>
-                            <option value="4">UTC +04:00 (UAE, Baku)</option>
-                            <option value="4.5">UTC +04:30 (Afghanistan)</option>
-                            <option value="5">UTC +05:00 (Pakistan)</option>
-                            <option value="5.5">UTC +05:30 (India)</option>
-                            <option value="5.75">UTC +05:45 (Nepal)</option>
-                            <option value="6">UTC +06:00 (Bangladesh)</option>
-                            <option value="6.5">UTC +06:30 (Myanmar)</option>
-                            <option value="7">UTC +07:00 (Thailand, Vietnam)</option>
-                            <option value="8">UTC +08:00 (China, Singapore)</option>
-                            <option value="9">UTC +09:00 (Japan, Korea)</option>
-                            <option value="9.5">UTC +09:30 (Central Australia)</option>
-                            <option value="10">UTC +10:00 (Eastern Australia)</option>
-                            <option value="11">UTC +11:00 (Solomon Islands)</option>
-                            <option value="12">UTC +12:00 (New Zealand)</option>
-                        </select>
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Email</label>
-                        <input type="text" id="setCompEmail" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div class="col-span-2">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Address</label>
-                        <input type="text" id="setCompAdd" class="w-full border rounded px-3 py-1.5 text-sm">
-                    </div>
-                    <div class="col-span-2 border-b border-slate-200 pb-4">
-                        <label class="block text-xs font-semibold text-slate-600 mb-1">Company Logo (JPG/PNG)</label>
-                        <input type="file" accept="image/*" id="setCompLogo" class="w-full text-xs" onchange="window.ui.convertLogoToBase64(event)">
-                        <img id="logoPreviewModal" src="" class="logo-preview hidden mt-2 border rounded shadow-sm">
-                    </div>
+                    <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Company Name</label><input type="text" id="setCompName" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Abbreviation</label><input type="text" id="setCompAbbr" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">Currency Symbol</label><input type="text" id="setCompCurrency" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="e.g. SAR"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">CR Number</label><input type="text" id="setCompCR" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+                    <div><label class="block text-xs font-semibold text-slate-600 mb-1">VAT Number</label><input type="text" id="setCompVAT" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+                    <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Timezone Override (For Shared LAN)</label><select id="setCompTimezone" class="w-full border rounded px-3 py-1.5 text-sm"><option value="local">Auto (Use Local Device Time)</option><option value="3">UTC +03:00 (Saudi Arabia)</option></select></div>
+                    <div class="col-span-2"><label class="block text-xs font-semibold text-slate-600 mb-1">Address</label><input type="text" id="setCompAdd" class="w-full border rounded px-3 py-1.5 text-sm"></div>
+                    <div class="col-span-2 border-b border-slate-200 pb-4"><label class="block text-xs font-semibold text-slate-600 mb-1">Company Logo (JPG/PNG)</label><input type="file" accept="image/*" id="setCompLogo" class="w-full text-xs" onchange="window.ui.convertLogoToBase64(event)"><img id="logoPreviewModal" src="" class="logo-preview hidden mt-2 border rounded shadow-sm"></div>
                 </div>
-                
-                <div class="flex justify-between items-center pt-2">
-                    <div class="flex space-x-2">
-                        <label class="bg-sky-600 hover:bg-sky-700 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm cursor-pointer transition">
-                            <span>⬆️ Import Profile Overwrite</span>
-                            <input type="file" accept=".json" class="hidden" onchange="window.ui.importCompanyProfile(event)">
-                        </label>
-                        <button onclick="window.ui.exportCompanyProfile()" class="bg-slate-700 hover:bg-slate-800 text-white px-3 py-2 rounded text-xs font-semibold shadow-sm transition">⬇️ Export</button>
-                    </div>
-                    <div class="flex space-x-2">
-                        <button onclick="document.getElementById('companyModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Cancel</button>
-                        <button onclick="window.ui.saveCompanySettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-xs font-semibold shadow-sm transition">Save Profile</button>
-                    </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button onclick="document.getElementById('companyModal').classList.add('hidden')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 px-4 py-2 rounded text-xs font-semibold transition">Cancel</button>
+                    <button onclick="window.ui.saveCompanySettings()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded text-xs font-semibold shadow-sm transition">Save Profile</button>
                 </div>
             </div>
         </div>
 
-        <!-- MODALS -->
-        <div id="codeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
-                <h3 class="text-base font-bold text-slate-900">Add Item Code</h3>
-                <input type="text" id="modalCode" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="Code (Must be unique)">
-                <input type="text" id="modalDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description">
-                <div class="flex justify-end space-x-2"><button onclick="document.getElementById('codeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
-            </div>
-        </div>
-
-        <div id="projectCodeModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
-                <h3 class="text-base font-bold text-slate-900">Add Project Code</h3>
-                <input type="text" id="modalProjCode" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="Abbreviation (e.g. SIF - Must be unique)" maxlength="5">
-                <input type="text" id="modalProjDesc" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Description (e.g. Supply and installation of Furnitures)">
-                <div class="flex justify-end space-x-2"><button onclick="document.getElementById('projectCodeModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveProjectCodeItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
-            </div>
-        </div>
-
-        <div id="clientModal" class="fixed inset-0 bg-black/50 hidden flex items-center justify-center z-50">
-            <div class="bg-white p-6 rounded-xl w-full max-w-md shadow-xl space-y-4">
-                <h3 class="text-base font-bold text-slate-900">Add / Edit Client</h3>
-                <input type="hidden" id="mClientIndex" value="">
-                <input type="text" id="mClientAbbr" class="w-full border rounded px-3 py-1.5 text-sm uppercase" placeholder="3-Letter Abbreviation (Must be unique)" maxlength="4">
-                <input type="text" id="mClientName" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Full Company Name">
-                <input type="text" id="mClientAttn" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Attention">
-                <input type="text" id="mClientAdd" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="Address">
-                <input type="text" id="mClientVat" class="w-full border rounded px-3 py-1.5 text-sm" placeholder="VAT Number">
-                <div class="flex justify-end space-x-2"><button onclick="document.getElementById('clientModal').classList.add('hidden')" class="bg-slate-200 px-4 py-2 rounded text-xs">Cancel</button><button onclick="window.dataManager.saveClientItem()" class="bg-emerald-600 text-white px-4 py-2 rounded text-xs">Save</button></div>
-            </div>
-        </div>
-
-        <!-- Script Links -->
-        <script src="js/app.js?v=29"></script>
-        <script src="js/ui.js?v=29"></script>
-        <script src="js/dataManager.js?v=29"></script>
-        <script src="js/estimator.js?v=29"></script>
-        <script src="js/invoicer.js?v=29"></script>
-        <script src="js/exporter.js?v=29"></script>
+        <script src="js/app.js?v=31"></script>
+        <script src="js/ui.js?v=31"></script>
+        <script src="js/dataManager.js?v=31"></script>
+        <script src="js/estimator.js?v=31"></script>
+        <script src="js/invoicer.js?v=31"></script>
+        <script src="js/exporter.js?v=31"></script>
     </body>
-    </html>
+</html>
