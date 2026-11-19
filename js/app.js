@@ -108,6 +108,58 @@ window.app = {
         window.app.ensureDataIntegrity();
     },
 
+    exportFullDatabase: () => {
+        window.app.ensureDataIntegrity();
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(window.app.db));
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", `CBS_Full_Database_Backup.json`);
+        document.body.appendChild(dlAnchorElem);
+        dlAnchorElem.click();
+        document.body.removeChild(dlAnchorElem);
+    },
+
+    importFullDatabase: (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const importedData = JSON.parse(e.target.result);
+                if (importedData && importedData.company) {
+                    window.app.db = importedData;
+                    window.app.ensureDataIntegrity();
+                    window.app.saveData();
+                    alert("Full Database restored successfully! Reloading application...");
+                    location.reload();
+                } else {
+                    alert("Invalid database file format.");
+                }
+            } catch (err) {
+                alert("Error reading database file.");
+            }
+        };
+        reader.readAsText(file);
+        event.target.value = '';
+    },
+
+    factoryReset: async () => {
+        const code = Math.floor(1000 + Math.random() * 9000);
+        const input = prompt(`WARNING: This will permanently delete all data, estimations, and clients, creating a completely blank database.\n\nType ${code} to confirm reset:`);
+        if (input === code.toString()) {
+            window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
+            window.app.ensureDataIntegrity();
+            localStorage.setItem('sys_db', JSON.stringify(window.app.db));
+            if (window.app.currentDirectoryHandle) {
+                await window.app.syncToNetworkFolder();
+            }
+            alert("Database has been reset. Reloading application...");
+            location.reload();
+        } else if (input !== null) {
+            alert("Incorrect code. Reset cancelled.");
+        }
+    },
+
     connectNetworkFolder: async () => {
         try {
             if (!window.app.currentDirectoryHandle) {
@@ -125,24 +177,39 @@ window.app = {
             document.getElementById('folderStatus').className = "text-xs text-emerald-400 font-medium";
             document.getElementById('btnDisconnect').classList.remove('hidden');
 
+            let masterData = null;
+            try {
+                const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: false });
+                const masterFile = await masterHandle.getFile();
+                masterData = JSON.parse(await masterFile.text());
+            } catch(e) {
+                console.warn("[Hybrid DB] sys_db.json missing or corrupt. Relying on component files.");
+            }
+
+            if (masterData) {
+                window.app.db = masterData;
+            } else {
+                window.app.db = { company: {}, codes: [], projectCodes: [], clients: [], estimations: [] };
+            }
+
             const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
             let loadedAny = false;
 
             for (const key of DB_FILES) {
-                try {
-                    const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
-                    const file = await fileHandle.getFile();
-                    const text = await file.text();
-                    if (text) {
-                        try {
+                if (!window.app.db[key] || (Array.isArray(window.app.db[key]) && window.app.db[key].length === 0) || (key === 'company' && !window.app.db.company.name)) {
+                    try {
+                        const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: false });
+                        const file = await fileHandle.getFile();
+                        const text = await file.text();
+                        if (text) {
                             window.app.db[key] = JSON.parse(text);
                             loadedAny = true;
-                        } catch(parseErr) {
-                            console.warn(`[Self-Refining] File ${key}.json is corrupted. It will be recreated with current data.`);
                         }
+                    } catch (e) {
+                        console.warn(`[Hybrid DB] Component ${key}.json missing.`);
                     }
-                } catch (e) {
-                    console.warn(`[Self-Refining] File ${key}.json missing. It will be generated on next save.`);
+                } else {
+                    loadedAny = true;
                 }
             }
 
@@ -179,8 +246,17 @@ window.app = {
 
     syncToNetworkFolder: async () => {
         if(!window.app.currentDirectoryHandle) return;
+
+        try {
+            const masterHandle = await window.app.currentDirectoryHandle.getFileHandle('sys_db.json', { create: true });
+            const masterWritable = await masterHandle.createWritable();
+            await masterWritable.write(JSON.stringify(window.app.db));
+            await masterWritable.close();
+        } catch(err) {
+            console.error("Failed writing master sys_db.json", err);
+        }
+
         const DB_FILES = ['company', 'codes', 'projectCodes', 'clients', 'estimations'];
-        
         for (const key of DB_FILES) {
             try {
                 const fileHandle = await window.app.currentDirectoryHandle.getFileHandle(`${key}.json`, { create: true });
