@@ -8,7 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
-    <link rel="stylesheet" href="css/styles.css?v=26">
+    <link rel="stylesheet" href="css/styles.css?v=27">
 </head>
 <body class="bg-slate-100 text-slate-800 font-sans min-h-screen flex flex-col">
 
@@ -101,9 +101,13 @@
                         <p class="text-xs text-slate-500">Defines the project abbreviation in the Estimation ID (e.g. SIF).</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="window.dataManager.exportProjectCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
+                            <span>📤 JSON</span>
+                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importProjectCodesJSON(event)">
+                        </label>
+                        <button onclick="window.dataManager.exportProjectCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ CSV</button>
                         <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                            <span>📤 Import CSV</span>
+                            <span>📤 CSV</span>
                             <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importProjectCodesCSV(event)">
                         </label>
                         <button onclick="window.ui.openAddProjectCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Project Code</button>
@@ -127,12 +131,16 @@
                 <div class="flex justify-between items-center mb-4">
                     <div>
                         <h2 class="text-lg font-bold text-slate-900">Item Code Library</h2>
-                        <p class="text-xs text-slate-500">Add material/service codes manually or import via CSV.</p>
+                        <p class="text-xs text-slate-500">Add material/service codes manually or import via CSV/JSON.</p>
                     </div>
                     <div class="flex space-x-2">
-                        <button onclick="window.dataManager.exportCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ Export</button>
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
+                            <span>📤 JSON</span>
+                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importCodesJSON(event)">
+                        </label>
+                        <button onclick="window.dataManager.exportCodesCSV()" class="bg-slate-600 hover:bg-slate-700 text-white text-xs font-semibold px-3 py-2 rounded">⬇️ CSV</button>
                         <label class="bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold px-3 py-2 rounded cursor-pointer">
-                            <span>📤 Import CSV</span>
+                            <span>📤 CSV</span>
                             <input type="file" accept=".csv" class="hidden" onchange="window.dataManager.importCodesCSV(event)">
                         </label>
                         <button onclick="window.ui.openAddCodeModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Item Code</button>
@@ -158,7 +166,13 @@
             <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
                 <div class="flex justify-between items-center mb-4">
                     <div><h2 class="text-lg font-bold text-slate-900">Client Directory</h2></div>
-                    <button onclick="window.ui.openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
+                    <div class="flex space-x-2">
+                        <label class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold px-3 py-2 rounded cursor-pointer border border-indigo-200 transition">
+                            <span>📤 JSON</span>
+                            <input type="file" accept=".json" class="hidden" onchange="window.dataManager.importClientsJSON(event)">
+                        </label>
+                        <button onclick="window.ui.openClientModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded">+ Add Client</button>
+                    </div>
                 </div>
                 <div class="overflow-x-auto border rounded">
                     <table class="w-full text-left border-collapse">
@@ -192,16 +206,16 @@
                         <input type="hidden" id="currentEditingMode" value="new">
                     </div>
                     <div class="flex space-x-2 items-center">
-                        <button onclick="window.exporter.downloadEstimationTemplate()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded border border-indigo-200 shadow-sm transition">⬇️ Download Template</button>
+                        <button onclick="window.exporter.downloadEstimationTemplate()" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold px-3 py-2 rounded border border-indigo-200 shadow-sm transition">⬇️ Template</button>
                         <label class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-3 py-2 rounded shadow-sm transition cursor-pointer">
-                            <span>⬆️ Upload Template</span>
+                            <span>⬆️ Upload</span>
                             <input type="file" accept=".xlsx,.csv" class="hidden" onchange="window.estimator.importEstimationTemplate(event)">
                         </label>
                         <div class="border-l border-slate-300 h-6 mx-2"></div>
-                        <button onclick="window.ui.switchTab('history')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2 rounded shadow-sm border border-slate-300">✕ Close / Cancel</button>
-                        <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded ml-2">+ Add Category</button>
-                        <button onclick="window.estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">+ Add Item</button>
-                        <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2 rounded shadow-lg transform transition hover:scale-105">💾 Save & Close</button>
+                        <button onclick="window.ui.switchTab('history')" class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold px-4 py-2 rounded shadow-sm border border-slate-300">✕ Cancel</button>
+                        <button onclick="window.estimator.addEstimationCategory()" class="bg-slate-700 hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded ml-2">+ Category</button>
+                        <button onclick="window.estimator.addEstimationRow()" class="bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold px-4 py-2 rounded">+ Item</button>
+                        <button onclick="window.estimator.saveEstimation()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-6 py-2 rounded shadow-lg transform transition hover:scale-105">💾 Save</button>
                     </div>
                 </div>
 
